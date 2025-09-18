@@ -1,0 +1,7 @@
+.block {
+    position: absolute;
+    overflow: scroll;
+    background-color: #213547;
+    margin-left: -7px;
+    margin-top: -20px;
+}
