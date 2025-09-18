@@ -46,6 +46,7 @@ export abstract class BaseBlock extends Component<{
         </h1>;
     }
 
+
     addClass(class_name: string) {
         this.setState({_class: [...this.state._class, class_name]});
     }
@@ -153,7 +154,7 @@ export abstract class BaseBlock extends Component<{
                             width: this.size.current.w,
                             height: this.size.current.h,
                             top: this.position.current.y,
-                            left: this.position.current.x,
+                            left: this.position.current.x
                         }
                     }
                     onMouseDown={this.onMouseDown}>
