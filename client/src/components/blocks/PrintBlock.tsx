@@ -2,14 +2,13 @@ import {BaseBlock} from "./BaseBlock.tsx";
 import type {ComponentChildren} from "preact";
 import {Socket} from "../sockets/Socket.tsx";
 
-
-export class StartBlock extends BaseBlock {
+export class PrintBlock extends BaseBlock {
 
     renderBlock(): ComponentChildren {
         return (
             <div>
-                <h1 style={{ textAlign: "center" }}>Start Block</h1>
-
+                <h1 style={{textAlign: "center"}}>Send to user</h1>
+                <Socket type="input"/>
                 <Socket type="output"/>
             </div>
         );

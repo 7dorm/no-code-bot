@@ -4,10 +4,11 @@ export type SocketRecord = {
     id: string;
     type: "input" | "output";
     el: HTMLDivElement | null;
+    connectedTo: string;
 };
 
 export type SocketRegistry = {
-    sockets: Map<number, SocketRecord>;
+    sockets: Map<string, SocketRecord>;
     register: (socket: SocketRecord) => void;
     unregister: (id: string) => void;
 };

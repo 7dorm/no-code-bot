@@ -34,6 +34,7 @@ export abstract class BaseBlock extends Component<{
         selected: false,
         _class: ["block"],
         style: {},
+        z: 0
     };
 
     // @ts-ignore
@@ -46,18 +47,17 @@ export abstract class BaseBlock extends Component<{
         </h1>;
     }
 
-
-    addClass(class_name: string) {
-        this.setState({_class: [...this.state._class, class_name]});
-    }
-
-    addStyle(style: { key: any, value: any }) {
-        this.setState({style: this.state.style && style});
-    }
-
-    setSize(size: { w: number, h: number }) {
-        this.size.current = size;
-    }
+    // addClass(class_name: string) {
+    //     this.setState({_class: [...this.state._class, class_name]});
+    // }
+    //
+    // addStyle(style: { key: any, value: any }) {
+    //     this.setState({style: this.state.style && style});
+    // }
+    //
+    // setSize(size: { w: number, h: number }) {
+    //     this.size.current = size;
+    // }
 
     componentDidMount() {
         window.addEventListener("mousemove", this.onMouseMove);
@@ -79,19 +79,21 @@ export abstract class BaseBlock extends Component<{
     }
 
     onMouseDown = (e: MouseEvent) => {
-        if (this.state.over) {
-            this.select()
-
-            let posx = e.clientX - e.offsetX;
-            let posy = e.clientY - e.offsetY;
-
-            this.position.current.x = posx;
-            this.position.current.y = posy;
-
+        if (!this.state.over) return;
+        e.stopPropagation();
+        const rect = this.componentRef.current.getBoundingClientRect();
+        if (
+            e.clientX >= rect.left &&
+            e.clientX <= rect.right &&
+            e.clientY >= rect.top &&
+            e.clientY <= rect.bottom
+        ) {
+            this.select();
             this.setState({
                 dragging: true,
-                offset: [e.offsetX, e.offsetY],
-                cursor: CursorState.Grabbing
+                offset: [e.clientX - rect.left, e.clientY - rect.top],
+                cursor: CursorState.Grabbing,
+                z: 1
             });
         }
     };
@@ -110,12 +112,14 @@ export abstract class BaseBlock extends Component<{
                 dragging: true
             });
         }
+        window.dispatchEvent(new Event("socket-moved"));
     };
 
     onMouseUp = () => {
         this.setState({
             dragging: false,
-            cursor: CursorState.Grab
+            cursor: CursorState.Grab,
+            z: 0,
         });
 
         let {x, y} = this.position.current;
@@ -126,7 +130,8 @@ export abstract class BaseBlock extends Component<{
     };
 
     onMouseOver = (e: MouseEvent) => {
-        if (e.target === this.componentRef.current) {
+        const t = e.target as Node;
+        if (t.nodeName !== "H1" && e.target === this.componentRef.current) {
             this.setState({
                 over: true,
             })
@@ -154,7 +159,8 @@ export abstract class BaseBlock extends Component<{
                             width: this.size.current.w,
                             height: this.size.current.h,
                             top: this.position.current.y,
-                            left: this.position.current.x
+                            left: this.position.current.x,
+                            zIndex: this.state.z
                         }
                     }
                     onMouseDown={this.onMouseDown}>
