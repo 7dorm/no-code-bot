@@ -1,0 +1,52 @@
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  gap: 10px;
+}
+
+.toolbar-center {
+  flex: 1;
+  text-align: center;
+}
+
+.project-name {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.toolbar-btn {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  backdrop-filter: blur(10px);
+}
+
+.toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.preview-btn {
+  background: rgba(76, 175, 80, 0.8);
+  border-color: rgba(76, 175, 80, 1);
+}
+
+.preview-btn:hover {
+  background: rgba(76, 175, 80, 1);
+}

@@ -1,0 +1,67 @@
+.block-node {
+  background: white;
+  border-radius: 8px;
+  min-width: 150px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.block-node.selected {
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+}
+
+.block-header {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.block-icon {
+  font-size: 16px;
+}
+
+.block-type {
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.block-content {
+  padding: 12px;
+  font-size: 13px;
+}
+
+.block-label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.block-params {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.param-item {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.param-key {
+  color: #666;
+  font-weight: 600;
+}
+
+.param-value {
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
