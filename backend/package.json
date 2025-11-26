@@ -1,0 +1,21 @@
+{
+  "name": "project",
+  "version": "1.0.0",
+  "description": "commonjs",
+  "main": "../project/TestUI.ts",
+  
+  "scripts": {
+    "start": "ts-node TestUI.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "telegraf": "^4.16.3",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.9.1"
+  }
+}

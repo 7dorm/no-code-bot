@@ -17,7 +17,6 @@ interface FlowNode {
   //output
   Text?: string;
   Answers?: string[];
-  File?: string[];
 
   //input
   ValType?: "string" | "int";
@@ -100,17 +99,23 @@ export class Engine {
       this.current_node = node.Nexts?.[0] ?? 0;
       break;
 
-    case "output":
+    case "output": {
       const text = this.parse_vars(String(node.Text));
+      const answers = node.Answers ?? [];
 
-      if (node.Answers) {
-        const answer = this.ui.PrintMessage(text, node.Answers);
-        this.current_node = node.Nexts?.[node.Answers.findIndex(x => x === String(answer))] ?? 0;
+      await this.ui.PrintMessage(text, answers);
+
+      // If there are answer options and multiple branches, wait for choice.
+      if (answers.length > 0 && node.Nexts && node.Nexts.length > 1) {
+        const choice = await this.ui.GetInput();
+        const selectedIdx = answers.findIndex((a) => a === choice);
+        const idx = selectedIdx >= 0 ? selectedIdx : 0;
+        this.current_node = node.Nexts[idx] ?? 0;
       } else {
-        this.ui.PrintMessage(text, []);
+        this.go_next();
       }
-      this.go_next();
       break;
+    }
 
     case "input":
       let value = await this.ui.GetInput();
