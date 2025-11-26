@@ -1,0 +1,47 @@
+[
+    {
+        "id" : 1,
+        "Type" : "start",
+        "Nexts": [2]
+    },
+    {
+        "id": 2,
+        "Type": "output",
+        "Text": "Whats your name?",
+        "Nexts": [3]
+    },
+    {
+        "id": 3,
+        "Type": "input",
+        "ValType": "string",
+        "VarName": "name",
+        "Nexts": [4]
+    },
+    {
+        "id": 4,
+        "Type": "output",
+        "Text": "Bueatiful name, {name}!",
+        "Nexts": [5]
+    },
+    {
+        "id": 5,
+        "Type": "output",
+        "Text": "How old are you?",
+        "Nexts": [6]
+    },
+    {
+        "id": 6,
+        "Type": "input",
+        "ValType": "int",
+        "VarName": "age",
+        "WrongFError": "Tell me trully",
+        "Nexts": [7]
+    },
+    
+    {
+        "id": 7,
+        "Type": "output",
+        "Text": "Oldman!!",
+        "Nexts": []
+    }
+]
