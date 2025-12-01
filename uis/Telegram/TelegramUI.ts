@@ -51,7 +51,7 @@ export class TelegramUI implements UI {
   }
 }
 
-const bot = new Telegraf('8262480994:AAG5KLqcDBQsAeZASODuuHiYmXU_qdIsjOg');
+const bot = new Telegraf('Secret');
 
 bot.start(async (ctx) => {
   const chatId = ctx.chat.id;
