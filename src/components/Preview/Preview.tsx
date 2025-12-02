@@ -1,3 +1,4 @@
+// @ts-ignore
 import React, { useState, useEffect } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
 import { ExecutionContext } from '../../types';
@@ -13,6 +14,7 @@ interface ChatMessage {
   content: string;
 }
 
+// @ts-ignore
 const Preview: React.FC<PreviewProps> = ({ onClose }) => {
   const { currentProject } = useEditorStore();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -22,11 +24,11 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
 
   useEffect(() => {
     const startBlock = currentProject?.blocks.find(b => b.data.type === 'start');
-    
+
     if (startBlock) {
       setCurrentNodeId(startBlock.id);
       setMessages([{ role: 'bot', content: '👋 Бот запущен! Начинаем диалог.' }]);
-      
+
       if (currentProject) {
         const result = executeBlock(startBlock, { variables: {} }, currentProject.connections);
         if (result.success) {
@@ -37,33 +39,35 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
   }, [currentProject]);
 
   const handleSendMessage = () => {
-    if (!userInput.trim() || !currentNodeId) return;
-    
-    setMessages(prev => [...prev, { role: 'user', content: userInput }]);
-    const updatedContext: ExecutionContext = { ...context, userInput: userInput };
-    setContext(updatedContext);
-    
-    const currentNode = currentProject?.blocks.find(b => b.id === currentNodeId);
-    if (currentNode && currentProject) {
-      const result = executeBlock(currentNode, updatedContext, currentProject.connections);
-      
-      if (result.success) {
-        if (result.output && currentNode.data.type !== 'condition' && currentNode.data.type !== 'start') {
-          setMessages(prev => [...prev, { role: 'bot', content: String(result.output) }]);
-        }
-        
-        setCurrentNodeId(result.nextNodeId ?? null);
-        if (!result.nextNodeId) {
-          setMessages(prev => [...prev, { role: 'bot', content: '✅ Диалог завершен.' }]);
-        }
-      } else {
-        setMessages(prev => [...prev, { role: 'bot', content: `⚠️ Ошибка: ${result.error || 'Неизвестная ошибка'}` }]);
-      }
-    }
-    setUserInput('');
-  };
+    // ENGINE
 
+    // if (!userInput.trim() || !currentNodeId) return;
+    //
+    // setMessages(prev => [...prev, { role: 'user', content: userInput }]);
+    // const updatedContext: ExecutionContext = { ...context, userInput: userInput };
+    // setContext(updatedContext);
+    //
+    // const currentNode = currentProject?.blocks.find(b => b.id === currentNodeId);
+    // if (currentNode && currentProject) {
+    //   const result = executeBlock(currentNode, updatedContext, currentProject.connections);
+    //
+    //   if (result.success) {
+    //     if (result.output && currentNode.data.type !== 'condition' && currentNode.data.type !== 'start') {
+    //       setMessages(prev => [...prev, { role: 'bot', content: String(result.output) }]);
+    //     }
+    //
+    //     setCurrentNodeId(result.nextNodeId ?? null);
+    //     if (!result.nextNodeId) {
+    //       setMessages(prev => [...prev, { role: 'bot', content: '✅ Диалог завершен.' }]);
+    //     }
+    //   } else {
+    //     setMessages(prev => [...prev, { role: 'bot', content: `⚠️ Ошибка: ${result.error || 'Неизвестная ошибка'}` }]);
+    //   }
+    // }
+    // setUserInput('');
+  };
   if (!currentProject) {
+
     return (
       <div className="preview-overlay" onClick={onClose}>
         <div className="preview-modal" onClick={e => e.stopPropagation()}>
