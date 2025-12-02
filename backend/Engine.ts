@@ -1,154 +1,170 @@
-import * as fs from 'fs';
-
-const input = "input"
-const output = "output"
-
-export interface UI {
-  PrintMessage(message: string, answers: string[]): Promise<void|string>;
-  GetInput(): Promise<string>;
-  Finish(): void;
-}
-
-interface FlowNode {
-  id: number;
-  Type: "start" | "output" | "input" | "condition" | "Request";
-  Nexts?: number[];
-
-  //output
-  Text?: string;
-  Answers?: string[];
-
-  //input
-  ValType?: "string" | "int";
-  VarName?: string;
-  WrongFError?: string;
-
-  //condition
-  Cond?: string[];
-
-  //Request
-  Var?: string;
-  BadStatErr?: string;
-}
+import {UI} from "./UI";
 
 function evalCondition(condStr: string): boolean {
-  if (condStr === "default") return true;
-  const match = condStr.match(/^\s*(\d+)\s*([<>]=?|==|!=)\s*(\d+)\s*$/);
-  if (!match) throw new Error(`Invalid condition: ${condStr}`);
+    if (condStr === "default") return true;
+    const match = condStr.match(/^\s*(\d+)\s*([<>]=?|==|!=)\s*(\d+)\s*$/);
+    if (!match) throw new Error(`Invalid condition: ${condStr}`);
 
-  const left = Number(match[1]);
-  const op = match[2];
-  const right = Number(match[3]);
+    const left = Number(match[1]);
+    const op = match[2];
+    const right = Number(match[3]);
 
-  switch(op) {
-    case ">": return left > right;
-    case "<": return left < right;
-    case ">=": return left >= right;
-    case "<=": return left <= right;
-    case "==": return left == right;
-    case "!=": return left != right;
-    default: throw new Error(`Unknown operator: ${op}`);
-  }
+    switch (op) {
+        case ">":
+            return left > right;
+        case "<":
+            return left < right;
+        case ">=":
+            return left >= right;
+        case "<=":
+            return left <= right;
+        case "==":
+            return left == right;
+        case "!=":
+            return left != right;
+        default:
+            throw new Error(`Unknown operator: ${op}`);
+    }
 }
 
 export class Engine {
-  private ui: UI;
-  private config: FlowNode[];
-  private current_node: number = 1;
-  private variables: { [key: string]: string | number };
+    private nodeStructure: {} = {};
+    private maxIndex = 0;
+    private variables: {} = {
+        "": ""
+    };
+    private ui: UI;
+    private index = 9999;
+    private saveNext = false;
+    private saveName = "";
+    private skipInput = false;
+    private saveType = "";
 
-  constructor(path: string, ui: UI) {
-    this.ui = ui;
-
-    if (fs.existsSync(path)) {
-      const data = fs.readFileSync(path, "utf8");
-      this.config = JSON.parse(data);
-    } else {
-      throw new Error(`Config file not found: ${path}`);
-    }
-    this.variables = {}
-  }
-
-  private parse_vars(text: string): string {
-    return (text ?? "").replace(/\{(\w+)\}/g, (_, key) => {
-        return String(this.variables[key] ?? `{${key}}`);
-      })
-  }
-
-  private go_next(): void {
-    const node = this.config[this.current_node-1]!;
-    if (!node.Nexts || node.Nexts.length === 0) {
-      this.ui.Finish();
-      return
-    }
-    this.current_node = node.Nexts?.[0] ?? 0;
-  }
-
-  async next_node(): Promise<void> {
-    //this.ui.PrintMessage("Current: " + String(this.current_node) + " Next: " + String(this.config[this.current_node-1]?.Nexts));
-  const node = this.config[this.current_node-1];
-
-  if (!node) {
-    this.ui.PrintMessage("Ошибка: текущий узел не найден", []);
-    this.ui.Finish();
-    return;
-  }
-
-  switch (node.Type) {
-    case "start":
-      this.current_node = node.Nexts?.[0] ?? 0;
-      break;
-
-    case "output": {
-      const text = this.parse_vars(String(node.Text));
-      const answers = node.Answers ?? [];
-
-      await this.ui.PrintMessage(text, answers);
-
-      // If there are answer options and multiple branches, wait for choice.
-      if (answers.length > 0 && node.Nexts && node.Nexts.length > 1) {
-        const choice = await this.ui.GetInput();
-        const selectedIdx = answers.findIndex((a) => a === choice);
-        const idx = selectedIdx >= 0 ? selectedIdx : 0;
-        this.current_node = node.Nexts[idx] ?? 0;
-      } else {
-        this.go_next();
-      }
-      break;
+    constructor(ui: UI, botStructure: []) {
+        botStructure.forEach((ele: {}) => {
+            // @ts-ignore
+            this.index = Math.min(this.index, ele["id"]);
+            // @ts-ignore
+            this.nodeStructure[ele["id"]] = ele;
+            // @ts-ignore
+            this.maxIndex = Math.max(this.maxIndex, ele["id"]);
+        });
+        this.ui = ui;
     }
 
-    case "input":
-      let value = await this.ui.GetInput();
+    // Основной обработчик структуры бота
+    async execute(skip: boolean = false): Promise<void> {
+        if (skip) return;
+        let userInput = "";
 
-      if (node.ValType === "int") {
-        let num = Number(value);
+        // @ts-ignore
+        const block = this.nodeStructure[this.index];
 
-        while (isNaN(num)) {
-          this.ui.PrintMessage(node.WrongFError ?? "Invalid number", []);
-          value = await this.ui.GetInput();
-          num = Number(value);
+        // Проверка на необходимость пользовательского ввода
+        if (!this.skipInput) {
+            userInput = await this.ui.getInput();
+            // @ts-ignore
+            this.variables['lastMessage'] = userInput;
+        } else {
+            // @ts-ignore
+            userInput = this.variables['lastMessage'];
+            this.skipInput = false;
         }
 
-        this.variables[node.VarName!] = num;
-      } else {
-        this.variables[node.VarName!] = value;
-      }
+        // Сохранение пользовательского ввода в переменную
+        if (this.saveNext) {
+            switch (this.saveType) {
+                case ("int"):
+                    // @ts-ignore
+                    this.variables[this.saveName] = parseInt(userInput, 10);
+                    break;
+                default:
+                    // @ts-ignore
+                    this.variables[this.saveName] = userInput;
+                    break;
+            }
+            this.saveNext = false;
+            this.saveName = "";
+            this.saveType = "";
+        }
 
-      
-      this.go_next();
-      break;
+        // Обработка типа блока
+        switch (block["Type"]) {
+            case ("output"):
+                await this.executeMessage(userInput);
+                break;
+            case ("condition"):
+                await this.executeCondition(userInput);
+                break;
+            case ("request"):
+                break;
+            default:
+                break;
+        }
 
-    case "condition":
-      const idx = node.Cond!.findIndex(x => evalCondition(this.parse_vars(x)));
-      
-      this.current_node = node.Nexts?.[idx] ?? 0;
-      break;
-
-    default:
-      this.ui.PrintMessage(`Unknown node type: ${node.Type}`, []);
-      this.ui.Finish();
-      return;
     }
-  }
 
+    async executeMessage(msg: string): Promise<void> {
+        // @ts-ignore
+        let block = this.nodeStructure[this.index];
+        this.ui.sendMessage(
+            block["Text"],
+            block["Answers"] ? block["Answers"] : []);
+
+        // Последнее сообщение
+        if (block["Nexts"].length == 0) {
+            this.ui.finish();
+            return;
+        }
+
+        // Сохранить в переменную если необходимо
+        if (block["VarName"] != null) {
+            this.saveNext = true;
+            this.saveName = block["VarName"];
+            this.saveType = block["VarType"];
+        }
+
+        // Переход к следующему блоку
+        this.index = block["Nexts"][0];
+
+        // Перейти к исполнению следующего блока без пользовательского ввода
+        if (block["skip"] != null && block["skip"]) {
+            this.skipInput = true;
+            this.execute();
+        }
+    }
+
+    // Проверка условных блоков
+    async executeCondition(msg: string): Promise<void> {
+        let successfulCond = -1;
+
+        // @ts-ignore
+        const block = this.nodeStructure[this.index];
+
+        // Проход по всем условиям
+        for (let i = 0; i < block["Cond"].length; i++) {
+            let cond = block["Cond"][i];
+            successfulCond++;
+
+            // подмена переменных заключеных в "{}"
+            const matches = [...cond.matchAll(/\{([^}]+)\}/g)].map(m => m[1]);
+            matches.forEach((match: string) => {
+                // @ts-ignore
+                if (this.variables[match] != null) {
+                    // @ts-ignore
+                    cond = cond.replace("{" + match + "}", this.variables[match]);
+                }
+            })
+
+            if (evalCondition(cond)) break;
+        }
+
+        // Переход к следующему блоку
+        // @ts-ignore
+        this.index = this.nodeStructure[this.index]["Nexts"][successfulCond];
+
+        // Перейти к исполнению следующего блока без пользовательского ввода
+        this.skipInput = true;
+        this.execute();
+    }
 }
