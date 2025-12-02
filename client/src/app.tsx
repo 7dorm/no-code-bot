@@ -1,13 +1,11 @@
 import './app.css'
-import {StartBlock} from "./components/blocks/StartBlock.tsx";
-import {EndBlock} from "./components/blocks/EndBlock.tsx";
+import {Workspace} from "./components/Workspace.tsx";
 
 export function App() {
 
     return (
         <>
-            <StartBlock saveLayout={() => {}}/>
-            <EndBlock saveLayout={() => {}}/>
+            <Workspace/>
         </>
     )
 }

@@ -1,0 +1,14 @@
+{
+  "name": "backend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "jest",
+    "start": "ts-node"
+  },
+  "dependencies": {
+    "jest": "^30.2.0",
+    "ts-node": "^10.9.2"
+  }
+}

@@ -1,165 +1,94 @@
-import {Component, createRef} from "preact";
-import type {ComponentProps, Context, ComponentChildren} from "preact";
-import "../../styles/components/blocks/BaseBlock.css";
+// BaseBlock.tsx
+import { Component } from "preact";
 
-// @ts-ignore
-enum CursorState {
-    Grab = "grab",
-    Grabbing = "grabbing",
-}
+export type BaseBlockProps = {
+    id: string;
+    x?: number;
+    y?: number;
+    title?: string;
+    disableInput?: boolean;
+    disableOutput?: boolean;
+};
 
-export abstract class BaseBlock extends Component<{
-    saveLayout: (state: any) => void,
-}> {
-    static displayName = "BaseBlock";
+export type BaseBlockState = {
+    x: number;
+    y: number;
+    dragging: boolean;
+    offsetX: number;
+    offsetY: number;
+    showEditPopup: boolean;
+};
 
-    position = createRef();
-    size = createRef();
-    private componentRef: any;
-
-    constructor(props?: ComponentProps<any>, context?: Context<any>) {
-        super(props, context);
-        this.position.current = {x: 0, y: 0};
-        this.size.current = {w: 500, h: 300};
-        this.componentRef = createRef();
-    }
-
-    state = {
-        dragging: false,
-        offset: [0, 0],
-        cursor: CursorState.Grab,
-        over: false,
-        resize: false,
-        pos_from: [0, 0],
-        selected: false,
-        _class: ["block"],
-        style: {},
-    };
-
-    // @ts-ignore
-    renderBlock(parent_size?: { w: number, h: number }): ComponentChildren {
-        return <h1 style={{
-            textAlign: "center",
-            fontSize: 40,
-        }}>
-            Base render on the block
-        </h1>;
-    }
-
-    addClass(class_name: string) {
-        this.setState({_class: [...this.state._class, class_name]});
-    }
-
-    addStyle(style: { key: any, value: any }) {
-        this.setState({style: this.state.style && style});
-    }
-
-    setSize(size: { w: number, h: number }) {
-        this.size.current = size;
-    }
-
-    componentDidMount() {
-        window.addEventListener("mousemove", this.onMouseMove);
-        window.addEventListener("mouseup", this.onMouseUp);
-        window.addEventListener("mouseover", this.onMouseOver);
-    }
-
-    componentWillUnmount() {
-        window.removeEventListener("mousemove", this.onMouseMove);
-        window.removeEventListener("mouseup", this.onMouseUp);
-        window.removeEventListener("mouseover", this.onMouseOver);
-    }
-
-    componentDidUpdate() {
-        this.props.saveLayout({
-            position: this.position.current,
-            size: this.size.current,
-        });
-    }
-
-    onMouseDown = (e: MouseEvent) => {
-        if (this.state.over) {
-            this.select()
-
-            let posx = e.clientX - e.offsetX;
-            let posy = e.clientY - e.offsetY;
-
-            this.position.current.x = posx;
-            this.position.current.y = posy;
-
-            this.setState({
-                dragging: true,
-                offset: [e.offsetX, e.offsetY],
-                cursor: CursorState.Grabbing
-            });
-        }
-    };
-
-    onMouseMove = (e: MouseEvent) => {
-        if (this.state.over) {
-            let posx = e.clientX - this.state.offset[0];
-            let posy = e.clientY - this.state.offset[1];
-
-            if (!this.state.dragging) return;
-
-            this.position.current.x = posx;
-            this.position.current.y = posy;
-
-            this.setState({
-                dragging: true
-            });
-        }
-    };
-
-    onMouseUp = () => {
-        this.setState({
+export abstract class BaseBlock<
+    P extends BaseBlockProps = BaseBlockProps,
+    S extends BaseBlockState = BaseBlockState
+> extends Component<P, S> {
+    constructor(props: P) {
+        super(props);
+        this.state = {
+            x: props.x ?? 200,
+            y: props.y ?? 200,
             dragging: false,
-            cursor: CursorState.Grab
+            offsetX: 0,
+            offsetY: 0,
+            showEditPopup: false,
+        } as S;
+    }
+
+    protected abstract renderTitle(): preact.ComponentChildren;
+    protected abstract renderBody(): preact.ComponentChildren;
+    protected abstract renderEditPopup(): preact.ComponentChildren;
+
+    handleMouseDown = (e: MouseEvent) => {
+        if (e.button !== 0) return;
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        this.setState({
+            dragging: true,
+            offsetX: e.clientX - rect.left,
+            offsetY: e.clientY - rect.top,
         });
-
-        let {x, y} = this.position.current;
-        let {w, h} = this.size.current;
-
-        this.position.current = {x: Math.round(x / 10) * 10, y: Math.round(y / 10) * 10}
-        this.size.current = {w: Math.round(w / 10) * 10, h: Math.round(h / 10) * 10}
+        window.addEventListener("mousemove", this.handleMouseMove);
+        window.addEventListener("mouseup", this.handleMouseUp);
     };
 
-    onMouseOver = (e: MouseEvent) => {
-        if (e.target === this.componentRef.current) {
-            this.setState({
-                over: true,
-            })
-        } else {
-            this.setState({
-                over: false,
-            })
-        }
-    }
+    handleMouseMove = (e: MouseEvent) => {
+        if (!this.state.dragging) return;
+        const x = e.clientX - this.state.offsetX;
+        const y = e.clientY - this.state.offsetY;
+        this.setState({ x, y });
+    };
 
-    select = () => {
-        this.setState({selected: true});
-    }
+    handleMouseUp = () => {
+        this.setState({ dragging: false });
+        window.removeEventListener("mousemove", this.handleMouseMove);
+        window.removeEventListener("mouseup", this.handleMouseUp);
+    };
 
     render() {
+        const { x, y, dragging } = this.state;
+
         return (
-            <>
-                <div
-                    ref={this.componentRef}
-                    className={this.state._class.join(" ")}
-                    style={
-                        this.state.style &&
-                        {
-                            cursor: this.state.cursor,
-                            width: this.size.current.w,
-                            height: this.size.current.h,
-                            top: this.position.current.y,
-                            left: this.position.current.x,
-                        }
-                    }
-                    onMouseDown={this.onMouseDown}>
-                    {this.renderBlock(this.size.current)}
+            <div
+                class={`absolute select-none border-2 rounded-xl shadow-lg overflow-hidden transition-transform duration-100 ${
+                    dragging
+                        ? "opacity-80 cursor-grabbing scale-[1.03]"
+                        : "cursor-grab hover:scale-[1.02]"
+                }`}
+                style={{
+                    left: `${x}px`,
+                    top: `${y}px`,
+                    width: "180px",
+                    minHeight: "100px",
+                    background: "linear-gradient(145deg, #f0f0f0, #dcdcdc)",
+                    borderColor: "#b0b0b0",
+                }}
+                onMouseDown={this.handleMouseDown}
+            >
+                <div class="bg-gray-200 border-b border-gray-300 p-2 text-center font-semibold text-gray-700">
+                    {this.renderTitle()}
                 </div>
-            </>
-        )
+                <div class="p-3 relative text-gray-800 text-sm">{this.renderBody()}</div>
+            </div>
+        );
     }
 }
