@@ -78,6 +78,10 @@ export class Engine {
 
   private go_next(): void {
     const node = this.config[this.current_node-1]!;
+    if (node == null) {
+      this.ui.Finish();
+      return;
+    }
     if (!node.Nexts || node.Nexts.length === 0) {
       this.ui.Finish();
       return
@@ -105,7 +109,7 @@ export class Engine {
 
       if (node.Answers) {
         const answer = this.ui.PrintMessage(text, node.Answers);
-        this.current_node = node.Nexts?.[node.Answers.findIndex(x => x === String(answer))] ?? 0;
+        this.current_node = node.Nexts[node.Answers.findIndex(x => x === String(answer))] ?? 0;
       } else {
         this.ui.PrintMessage(text, []);
       }
@@ -129,13 +133,13 @@ export class Engine {
         this.variables[node.VarName!] = value;
       }
 
-      
+
       this.go_next();
       break;
 
     case "condition":
       const idx = node.Cond!.findIndex(x => evalCondition(this.parse_vars(x)));
-      
+
       this.current_node = node.Nexts?.[idx] ?? 0;
       break;
 

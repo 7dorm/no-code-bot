@@ -1,7 +1,6 @@
 import { Engine, UI } from "../Engine"
 import * as fs from "fs";
 
-// Мокируем fs.readFileSync для подгрузки нашего тестового конфига
 jest.mock("fs");
 
 const config = [
@@ -17,11 +16,9 @@ describe("Engine test with mock UI", () => {
   let engine: Engine;
 
   beforeEach(() => {
-    // Мокаем fs.existsSync и readFileSync
     (fs.existsSync as jest.Mock).mockReturnValue(true);
     (fs.readFileSync as jest.Mock).mockReturnValue(JSON.stringify(config));
 
-    // Создаем мок UI
     uiMock = {
       PrintMessage: jest.fn(async (msg: string, answers: string[]) => {
         if (answers.length > 0) return answers[0]; // всегда выбираем первый вариант
@@ -35,14 +32,16 @@ describe("Engine test with mock UI", () => {
   });
 
   it("should traverse the flow correctly choosing first answers", async () => {
-    
+
     await engine.next_node(); // start -> 2
     await engine.next_node(); // output node 2, "Ugly" -> 3
     await engine.next_node(); // output node 3 -> 5
     await engine.next_node(); // output node 5 -> Finish
 
     expect(uiMock.PrintMessage).toHaveBeenCalledWith("Are you handsome?", ["Ugly", "Monster"]);
+    console.log(uiMock.PrintMessage("ugly", []));
     expect(uiMock.PrintMessage).toHaveBeenCalledWith("ugly", []);
+    console.log(uiMock.PrintMessage("bb", []));
     expect(uiMock.PrintMessage).toHaveBeenCalledWith("bb", []);
 
     expect(uiMock.Finish).toHaveBeenCalled();
@@ -50,7 +49,7 @@ describe("Engine test with mock UI", () => {
 
   it("should handle second answer correctly", async () => {
     (uiMock.PrintMessage as jest.Mock).mockImplementation(async (msg: string, answers: string[]) => {
-      if (answers.length > 0) return answers[1]; 
+      if (answers.length > 0) return answers[1];
     });
 
     await engine.next_node(); // start -> 2
@@ -59,7 +58,9 @@ describe("Engine test with mock UI", () => {
     await engine.next_node(); // output node 5 -> Finish
 
     expect(uiMock.PrintMessage).toHaveBeenCalledWith("Are you handsome?", ["Ugly", "Monster"]);
+    console.log(uiMock.PrintMessage("monster", []));
     expect(uiMock.PrintMessage).toHaveBeenCalledWith("monster", []);
+    console.log(uiMock.PrintMessage("bb", []));
     expect(uiMock.PrintMessage).toHaveBeenCalledWith("bb", []);
     expect(uiMock.Finish).toHaveBeenCalled();
   });

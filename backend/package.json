@@ -2,13 +2,15 @@
   "name": "backend",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
   "scripts": {
-    "test": "jest",
+    "test": "ts-jest",
     "start": "ts-node"
   },
-  "dependencies": {
+  "devDependencies": {
     "jest": "^30.2.0",
-    "ts-node": "^10.9.2"
+    "ts-jest": "^29.1.1",
+    "@types/jest": "^29.5.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   }
 }
