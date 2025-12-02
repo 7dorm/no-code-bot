@@ -1,19 +1,27 @@
 // WebUI.ts
-import { UI } from "./Engine";
+import { UI } from "./UI";
 
 export class WebUI implements UI {
-  async PrintMessage(message: string, answers: string[]): Promise<void> {
-    console.log("PrintMessage:");
-    console.log("  message:", message);
-    console.log("  answers:", answers);
+  private inputResolver: ((value: string) => void) | null = null;
+
+  async sendMessage(message: string, answers: string[]): Promise<void> {
+    
   }
 
-  async GetInput(): Promise<string> {
-    console.log("GetInput called — возвращаю заглушку 'test'");
-    return "test"; // можно сделать любое значение
+  async getInput(): Promise<string> {
+    return new Promise((resolve) => {
+      this.inputResolver = resolve;
+    });
   }
 
-  Finish(): void {
-    console.log("Finish called — диалог завершён.");
+  handleUserMessage(text: string): void {
+    if (this.inputResolver) {
+      this.inputResolver(text);
+      this.inputResolver = null;
+    }
+  }
+
+  finish(): void {
+    console.log("Finish called — диалог завершен.");
   }
 }
