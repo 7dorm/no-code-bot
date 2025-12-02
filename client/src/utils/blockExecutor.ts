@@ -1,8 +1,32 @@
-import { BlockNode, BlockType, BlockExecutionResult, ExecutionContext } from '../types';
+import { BlockNode, BlockExecutionResult, ExecutionContext, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, EndBlockData } from '../types';
 
 // Функция выполнения блока по типу
-export function executeBlock(message: string): BlockExecutionResult {
-
+export function executeBlock(
+  block: BlockNode,
+  context: ExecutionContext,
+  connections: Array<{ source: string; target: string; sourceHandle?: string }>
+): BlockExecutionResult {
+  switch (block.data.type) {
+    case 'start':
+      return executeStart(block, context, connections);
+    case 'message':
+      return executeMessage(block, context, connections);
+    case 'condition':
+      return executeCondition(block, context, connections);
+    case 'variable':
+      return executeVariable(block, context, connections);
+    case 'api':
+      return executeAPI(block, context, connections);
+    case 'file':
+      return executeFile(block, context, connections);
+    case 'end':
+      return executeEnd(block, context, connections);
+    default:
+      return {
+        success: false,
+        error: `Неизвестный тип блока: ${(block.data as any).type}`,
+      };
+  }
 }
 
 // START блок - точка входа, просто перенаправляет к следующему блоку
@@ -26,10 +50,14 @@ function executeMessage(
   context: ExecutionContext,
   connections: Array<{ source: string; target: string }>
 ): BlockExecutionResult {
-  const message = block.data.params?.text || block.data.label || 'Сообщение без текста';
+  const messageData = block.data as MessageBlockData;
+  const message = messageData.text || block.data.label || 'Сообщение без текста';
 
   // Заменяем переменные в сообщении
   const processedMessage = replaceVariables(message, context.variables);
+
+  // Если указана переменная для сохранения ответа, она будет сохранена в Preview компоненте
+  // после получения ответа пользователя
 
   const nextConnection = connections.find(c => c.source === block.id);
 
@@ -37,61 +65,104 @@ function executeMessage(
     success: true,
     nextNodeId: nextConnection?.target || null,
     output: processedMessage,
+    // Сохраняем информацию о том, нужно ли сохранять ответ пользователя
+    saveResponseToVariable: messageData.saveResponseToVariable,
   };
 }
 
-// CONDITION блок - проверка условия и ветвление
+// CONDITION блок - проверка нескольких условий и ветвление
 function executeCondition(
   block: BlockNode,
   context: ExecutionContext,
   connections: Array<{ source: string; target: string; sourceHandle?: string }>
 ): BlockExecutionResult {
-  const condition = block.data.params?.condition || '';
+  const conditionData = block.data as ConditionBlockData;
+  const conditions = conditionData.conditions || [];
+  
+  if (conditions.length === 0) {
+    return {
+      success: false,
+      error: 'Нет условий для проверки',
+    };
+  }
+
+  // Проверяем каждое условие по порядку
+  for (let i = 0; i < conditions.length; i++) {
+    const condition = conditions[i];
+    const result = evaluateCondition(condition.condition, context);
+    
+    if (result) {
+      // Находим соединение для этого условия
+      const targetConnection = connections.find(
+        c => c.source === block.id && c.sourceHandle === `output-${i}`
+      );
+      
+      return {
+        success: true,
+        nextNodeId: targetConnection?.target || null,
+        output: `Condition ${i + 1}: TRUE`,
+      };
+    }
+  }
+
+  // Если ни одно условие не выполнилось, проверяем дефолтную ветку
+  if (conditionData.hasDefault) {
+    const defaultConnection = connections.find(
+      c => c.source === block.id && c.sourceHandle === 'output-default'
+    );
+    
+    return {
+      success: true,
+      nextNodeId: defaultConnection?.target || null,
+      output: 'Default branch',
+    };
+  }
+
+  return {
+    success: true,
+    nextNodeId: null,
+    output: 'No condition matched',
+  };
+}
+
+// Функция для оценки условия
+function evaluateCondition(condition: string, context: ExecutionContext): boolean {
   const userInput = context.userInput || '';
 
-  let result = false;
-
   try {
-    // Простая логика проверки условий
     if (condition.includes('===')) {
       const [left, right] = condition.split('===').map(s => s.trim());
       const leftValue = getVariableValue(left, context);
       const rightValue = getVariableValue(right, context);
-      result = String(leftValue) === String(rightValue);
-    } else if (condition.includes('Sounds')) {
-      // Проверка наличия текста
-      result = userInput.toLowerCase().includes(condition.replace(/contains|Contains/g, '').trim().toLowerCase());
+      return String(leftValue) === String(rightValue);
+    } else if (condition.includes('!==')) {
+      const [left, right] = condition.split('!==').map(s => s.trim());
+      const leftValue = getVariableValue(left, context);
+      const rightValue = getVariableValue(right, context);
+      return String(leftValue) !== String(rightValue);
+    } else if (condition.toLowerCase().includes('contains')) {
+      const parts = condition.toLowerCase().split('contains');
+      if (parts.length === 2) {
+        const left = parts[0].trim();
+        const right = parts[1].trim().replace(/['"]/g, '');
+        const leftValue = getVariableValue(left, context);
+        return String(leftValue).toLowerCase().includes(right.toLowerCase());
+      }
     } else if (condition.includes('>')) {
       const [left, right] = condition.split('>').map(s => s.trim());
       const leftValue = getVariableValue(left, context);
       const rightValue = getVariableValue(right, context);
-      result = Number(leftValue) > Number(rightValue);
+      return Number(leftValue) > Number(rightValue);
     } else if (condition.includes('<')) {
       const [left, right] = condition.split('<').map(s => s.trim());
       const leftValue = getVariableValue(left, context);
       const rightValue = getVariableValue(right, context);
-      result = Number(leftValue) < Number(rightValue);
-    } else {
-      // Простая проверка на правдивость
-      result = Boolean(condition);
+      return Number(leftValue) < Number(rightValue);
     }
+    return Boolean(condition);
   } catch (e) {
-    return {
-      success: false,
-      error: 'Ошибка в условии',
-    };
+    return false;
   }
-
-  // Находим соединение в зависимости от результата
-  const targetConnection = result
-    ? connections.find(c => c.source === block.id && c.sourceHandle === 'output')
-    : connections.find(c => c.source === block.id && c.sourceHandle === 'output-else');
-
-  return {
-    success: true,
-    nextNodeId: targetConnection?.target || null,
-    output: result ? 'TRUE' : 'FALSE',
-  };
 }
 
 // VARIABLE блок - работа с переменными
@@ -100,8 +171,9 @@ function executeVariable(
   context: ExecutionContext,
   connections: Array<{ source: string; target: string }>
 ): BlockExecutionResult {
-  const variableName = block.data.params?.variableName || 'var';
-  const value = block.data.params?.value || '';
+  const variableData = block.data as VariableBlockData;
+  const variableName = variableData.variableName || 'var';
+  const value = variableData.value || '';
 
   // Заменяем переменные в значении
   const processedValue = replaceVariables(value, context.variables);
@@ -124,11 +196,13 @@ function executeAPI(
   context: ExecutionContext,
   connections: Array<{ source: string; target: string }>
 ): BlockExecutionResult {
-  const url = block.data.params?.url || '';
-  const method = block.data.params?.method || 'GET';
+  const apiData = block.data as ApiBlockData;
+  const url = apiData.url || '';
+  const method = apiData.method || 'GET';
+  const processedUrl = replaceVariables(url, context.variables);
 
   // Имитация API вызова
-  const result = `API ${method} ${url} - Результат получен`;
+  const result = `API ${method} ${processedUrl} - Результат получен`;
 
   const nextConnection = connections.find(c => c.source === block.id);
 
@@ -145,10 +219,12 @@ function executeFile(
   context: ExecutionContext,
   connections: Array<{ source: string; target: string }>
 ): BlockExecutionResult {
-  const action = block.data.params?.action || 'upload';
-  const fileName = block.data.params?.fileName || 'file';
+  const fileData = block.data as FileBlockData;
+  const action = fileData.action || 'upload';
+  const fileName = fileData.fileName || 'file';
+  const processedFileName = replaceVariables(fileName, context.variables);
 
-  const result = `Файл ${fileName} обработан (${action})`;
+  const result = `Файл ${processedFileName} обработан (${action})`;
 
   const nextConnection = connections.find(c => c.source === block.id);
 
@@ -156,6 +232,22 @@ function executeFile(
     success: true,
     nextNodeId: nextConnection?.target || null,
     output: result,
+  };
+}
+
+// END блок - завершение диалога
+function executeEnd(
+  block: BlockNode,
+  context: ExecutionContext,
+  connections: Array<{ source: string; target: string }>
+): BlockExecutionResult {
+  const endData = block.data as EndBlockData;
+  const message = endData.message ? replaceVariables(endData.message, context.variables) : null;
+
+  return {
+    success: true,
+    nextNodeId: null, // Конец диалога, нет следующего блока
+    output: message || 'Диалог завершен',
   };
 }
 

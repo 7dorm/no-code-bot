@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
+import { ExportPlatform } from '../../types';
 import './SettingsModal.css';
 
 interface SettingsModalProps {
@@ -9,7 +10,12 @@ interface SettingsModalProps {
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const { currentProject, updateSettings } = useEditorStore();
   
-  const [telegramToken, setTelegramToken] = useState(currentProject?.telegramToken || '');
+  const [exportPlatform, setExportPlatform] = useState<ExportPlatform>(
+    currentProject?.exportPlatform || 'telegram'
+  );
+  const [botToken, setBotToken] = useState(
+    currentProject?.botToken || currentProject?.telegramToken || ''
+  );
   const [constants, setConstants] = useState<Array<{ key: string; value: string }>>(
     currentProject?.globalConstants
       ? Object.entries(currentProject.globalConstants).map(([k, v]) => ({ key: k, value: String(v) }))
@@ -37,11 +43,51 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     }, {} as Record<string, string>);
 
     updateSettings({
-      telegramToken,
+      exportPlatform,
+      botToken,
       globalConstants,
     });
     
     onClose();
+  };
+
+  const getPlatformLabel = (platform: ExportPlatform): string => {
+    switch (platform) {
+      case 'telegram':
+        return 'Telegram';
+      case 'whatsapp':
+        return 'WhatsApp';
+      case 'web':
+        return 'Web (Node.js)';
+      default:
+        return 'Telegram';
+    }
+  };
+
+  const getTokenLabel = (platform: ExportPlatform): string => {
+    switch (platform) {
+      case 'telegram':
+        return 'Telegram Bot Token';
+      case 'whatsapp':
+        return 'WhatsApp API Key';
+      case 'web':
+        return 'Web API Key (опционально)';
+      default:
+        return 'Bot Token';
+    }
+  };
+
+  const getTokenHint = (platform: ExportPlatform): string => {
+    switch (platform) {
+      case 'telegram':
+        return 'Токен можно получить у @BotFather в Telegram';
+      case 'whatsapp':
+        return 'API ключ можно получить в настройках WhatsApp Business API';
+      case 'web':
+        return 'Ключ для аутентификации в веб-приложении (опционально)';
+      default:
+        return '';
+    }
   };
 
   return (
@@ -54,16 +100,32 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
         <div className="settings-content">
           <div className="setting-group">
-            <label className="setting-label">Telegram Bot Token</label>
+            <label className="setting-label">Платформа экспорта</label>
+            <select
+              className="setting-input"
+              value={exportPlatform}
+              onChange={(e) => setExportPlatform(e.target.value as ExportPlatform)}
+            >
+              <option value="telegram">Telegram</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="web">Web (Node.js)</option>
+            </select>
+            <small className="setting-hint">
+              Выберите платформу, на которую будет экспортирован бот
+            </small>
+          </div>
+
+          <div className="setting-group">
+            <label className="setting-label">{getTokenLabel(exportPlatform)}</label>
             <input
               type="text"
               className="setting-input"
-              placeholder="Введите токен вашего Telegram бота"
-              value={telegramToken}
-              onChange={(e) => setTelegramToken(e.target.value)}
+              placeholder={`Введите ${getTokenLabel(exportPlatform).toLowerCase()}`}
+              value={botToken}
+              onChange={(e) => setBotToken(e.target.value)}
             />
             <small className="setting-hint">
-              Токен можно получить у @BotFather в Telegram
+              {getTokenHint(exportPlatform)}
             </small>
           </div>
 

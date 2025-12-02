@@ -1,15 +1,24 @@
 import React, { useState } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
 import { BlockNode, BlockType } from '../../types';
+import {
+  MessageBlockMeta,
+  ConditionBlockMeta,
+  VariableBlockMeta,
+  ApiBlockMeta,
+  FileBlockMeta,
+  EndBlockMeta,
+} from '../../types';
 import BlockEditorModal from '../BlockEditor/BlockEditorModal';
 import './BlockLibrary.css';
 
-const BLOCK_TYPES: Array<{ type: BlockType; label: string; icon: string }> = [
-  { type: 'message', label: 'Сообщение', icon: '💬' },
-  { type: 'condition', label: 'Условие', icon: '🔀' },
-  { type: 'variable', label: 'Переменная', icon: '📝' },
-  { type: 'api', label: 'API', icon: '🔌' },
-  { type: 'file', label: 'Файл', icon: '📎' },
+const BLOCK_TYPES = [
+  MessageBlockMeta,
+  ConditionBlockMeta,
+  VariableBlockMeta,
+  ApiBlockMeta,
+  FileBlockMeta,
+  EndBlockMeta,
 ];
 
 const BlockLibrary: React.FC = () => {
@@ -19,15 +28,39 @@ const BlockLibrary: React.FC = () => {
   const { currentProject, addBlock, selectNode, selectedNodeId } = useEditorStore();
 
   const handleAddBlock = (type: BlockType) => {
+    // Создаем базовую структуру данных блока в зависимости от типа
+    let blockData: any = { type, label: `Блок ${type}` };
+    
+    // Инициализируем специфичные поля для каждого типа блока
+    switch (type) {
+      case 'message':
+        blockData = { ...blockData, text: '' };
+        break;
+      case 'condition':
+        blockData = { ...blockData, conditions: [{ condition: '' }], hasDefault: false };
+        break;
+      case 'variable':
+        blockData = { ...blockData, variableName: '', value: '' };
+        break;
+      case 'api':
+        blockData = { ...blockData, url: '', method: 'GET' as const };
+        break;
+      case 'file':
+        blockData = { ...blockData, action: 'upload' as const };
+        break;
+      case 'end':
+        blockData = { ...blockData, message: '' };
+        break;
+      case 'start':
+        // start не требует дополнительных полей
+        break;
+    }
+    
     const newBlock: BlockNode = {
       id: crypto.randomUUID(),
       type: 'blockNode',
       position: { x: Math.random() * 400, y: Math.random() * 400 },
-      data: {
-        type,
-        label: `Блок ${type}`,
-        params: {},
-      },
+      data: blockData,
     };
     
     addBlock(newBlock);
@@ -63,15 +96,15 @@ const BlockLibrary: React.FC = () => {
       </div>
       
       <div className="library-content">
-        {BLOCK_TYPES.map(({ type, label, icon }) => (
+        {BLOCK_TYPES.map((meta) => (
           <button
-            key={type}
+            key={meta.type}
             className="library-block-btn"
-            onClick={() => handleAddBlock(type)}
-            title={label}
+            onClick={() => handleAddBlock(meta.type)}
+            title={meta.description}
           >
-            <span className="block-icon">{icon}</span>
-            <span className="block-label">{label}</span>
+            <span className="block-icon">{meta.icon}</span>
+            <span className="block-label">{meta.label}</span>
           </button>
         ))}
       </div>

@@ -1,49 +1,123 @@
 import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { BlockData } from '../../types';
+import { BlockData, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, EndBlockData, getBlockIcon, getBlockColor } from '../../types';
 import './BlockNode.css';
 
-const getBlockIcon = (type: string) => {
-  switch (type) {
+// Функция для получения отображаемой информации о блоке
+const getBlockPreview = (data: BlockData): string => {
+  switch (data.type) {
+    case 'message': {
+      const msgData = data as MessageBlockData;
+      let preview = msgData.text ? msgData.text.substring(0, 30) : 'Текст сообщения...';
+      if (msgData.saveResponseToVariable) {
+        preview += ` [→${msgData.saveResponseToVariable}]`;
+      }
+      return preview;
+    }
+    case 'condition': {
+      const condData = data as ConditionBlockData;
+      const conditions = condData.conditions || [];
+      if (conditions.length > 0) {
+        const firstCondition = conditions[0].condition || '';
+        return `Условий: ${conditions.length}${condData.hasDefault ? ' + else' : ''}`;
+      }
+      return 'Условие...';
+    }
+    case 'variable': {
+      const varData = data as VariableBlockData;
+      if (varData.variableName) {
+        return `${varData.variableName} = ${varData.value ? varData.value.substring(0, 15) : '...'}`;
+      }
+      return 'Переменная...';
+    }
+    case 'api': {
+      const apiData = data as ApiBlockData;
+      return apiData.url ? `${apiData.method || 'GET'} ${apiData.url.substring(0, 25)}` : 'API запрос...';
+    }
+    case 'file': {
+      const fileData = data as FileBlockData;
+      const actionLabel = {
+        'upload': 'Загрузить',
+        'download': 'Скачать',
+        'delete': 'Удалить',
+        'read': 'Прочитать',
+      }[fileData.action || 'upload'];
+      return fileData.fileName ? `${actionLabel}: ${fileData.fileName.substring(0, 20)}` : `${actionLabel} файл...`;
+    }
+    case 'end': {
+      const endData = data as EndBlockData;
+      return endData.message ? `Завершить: ${endData.message.substring(0, 25)}` : 'Завершить диалог';
+    }
     case 'start':
-      return '▶️';
-    case 'message':
-      return '💬';
-    case 'condition':
-      return '🔀';
-    case 'variable':
-      return '📝';
-    case 'api':
-      return '🔌';
-    case 'file':
-      return '📎';
     default:
-      return '📦';
+      return '';
   }
 };
 
-const getBlockColor = (type: string) => {
-  switch (type) {
-    case 'start':
-      return '#4caf50';
-    case 'message':
-      return '#2196f3';
-    case 'condition':
-      return '#ff9800';
-    case 'variable':
-      return '#9c27b0';
-    case 'api':
-      return '#00bcd4';
-    case 'file':
-      return '#795548';
-    default:
-      return '#757575';
+// Функция для проверки условия (используется в blockExecutor)
+export function evaluateCondition(condition: string, context: { variables: Record<string, any>; userInput?: string }): boolean {
+  const userInput = context.userInput || '';
+
+  try {
+    if (condition.includes('===')) {
+      const [left, right] = condition.split('===').map(s => s.trim());
+      const leftValue = getVariableValue(left, context);
+      const rightValue = getVariableValue(right, context);
+      return String(leftValue) === String(rightValue);
+    } else if (condition.includes('!==')) {
+      const [left, right] = condition.split('!==').map(s => s.trim());
+      const leftValue = getVariableValue(left, context);
+      const rightValue = getVariableValue(right, context);
+      return String(leftValue) !== String(rightValue);
+    } else if (condition.toLowerCase().includes('contains')) {
+      const parts = condition.toLowerCase().split('contains');
+      if (parts.length === 2) {
+        const left = parts[0].trim();
+        const right = parts[1].trim().replace(/['"]/g, '');
+        const leftValue = getVariableValue(left, context);
+        return String(leftValue).toLowerCase().includes(right.toLowerCase());
+      }
+    } else if (condition.includes('>')) {
+      const [left, right] = condition.split('>').map(s => s.trim());
+      const leftValue = getVariableValue(left, context);
+      const rightValue = getVariableValue(right, context);
+      return Number(leftValue) > Number(rightValue);
+    } else if (condition.includes('<')) {
+      const [left, right] = condition.split('<').map(s => s.trim());
+      const leftValue = getVariableValue(left, context);
+      const rightValue = getVariableValue(right, context);
+      return Number(leftValue) < Number(rightValue);
+    }
+    return Boolean(condition);
+  } catch (e) {
+    return false;
   }
-};
+}
+
+function getVariableValue(varRef: string, context: { variables: Record<string, any>; userInput?: string }): any {
+  if (context.variables[varRef] !== undefined) {
+    return context.variables[varRef];
+  }
+  if ((varRef.startsWith('"') && varRef.endsWith('"')) ||
+      (varRef.startsWith("'") && varRef.endsWith("'"))) {
+    return varRef.slice(1, -1);
+  }
+  const num = Number(varRef);
+  if (!isNaN(num)) {
+    return num;
+  }
+  return varRef;
+}
 
 const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
-  const backgroundColor = getBlockColor(data.type);
-  const icon = getBlockIcon(data.type);
+  const backgroundColor = getBlockColor(data.type as any);
+  const icon = getBlockIcon(data.type as any);
+  const preview = getBlockPreview(data);
+
+  // Получаем количество выходов для condition блока
+  const conditionData = data.type === 'condition' ? data as ConditionBlockData : null;
+  const conditionCount = conditionData ? (conditionData.conditions?.length || 0) : 0;
+  const hasDefault = conditionData?.hasDefault || false;
 
   return (
     <div
@@ -59,30 +133,47 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
       
       <div className="block-content">
         {data.label && <div className="block-label">{data.label}</div>}
-        {data.params && Object.keys(data.params).length > 0 && (
-          <div className="block-params">
-            {Object.entries(data.params).slice(0, 2).map(([key, value]) => (
-              <div key={key} className="param-item">
-                <span className="param-key">{key}:</span>
-                <span className="param-value">{String(value).substring(0, 20)}</span>
-              </div>
-            ))}
+        {preview && (
+          <div className="block-preview">
+            {preview}
           </div>
         )}
       </div>
 
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="output"
-      />
-      {data.type === 'condition' && (
+      {data.type !== 'end' && data.type !== 'condition' && (
         <Handle
           type="source"
           position={Position.Bottom}
-          id="output-else"
-          style={{ left: '50%' }}
+          id="output"
         />
+      )}
+      
+      {data.type === 'condition' && (
+        <>
+          {/* Выходы для каждого условия */}
+          {Array.from({ length: conditionCount }).map((_, index) => (
+            <Handle
+              key={`output-${index}`}
+              type="source"
+              position={Position.Bottom}
+              id={`output-${index}`}
+              style={{ 
+                left: `${(index + 1) * (100 / (conditionCount + (hasDefault ? 1 : 0) + 1))}%`,
+              }}
+            />
+          ))}
+          {/* Выход для дефолтной ветки */}
+          {hasDefault && (
+            <Handle
+              type="source"
+              position={Position.Bottom}
+              id="output-default"
+              style={{ 
+                left: `${100 - (100 / (conditionCount + 2))}%`,
+              }}
+            />
+          )}
+        </>
       )}
     </div>
   );

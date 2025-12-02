@@ -14,6 +14,8 @@ function App() {
     loadFromLocalStorage,
     toggleSettings,
     createProject,
+    undo,
+    redo,
   } = useEditorStore();
 
   useEffect(() => {
@@ -24,6 +26,27 @@ function App() {
       createProject('Новый проект');
     }
   }, []);
+
+  // Обработка клавиатурных шорткатов для undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Z для undo (Cmd+Z на Mac)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      // Ctrl+Shift+Z или Ctrl+Y для redo (Cmd+Shift+Z на Mac)
+      if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && e.key === 'z') || e.key === 'y')) {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [undo, redo]);
 
   return (
     <div className="app">

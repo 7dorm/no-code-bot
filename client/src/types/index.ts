@@ -1,18 +1,42 @@
-// Типы для узлов (блоков) и соединений
+/**
+ * Главный файл экспорта типов
+ */
 
-export type BlockType = 
-  | 'start'
-  | 'message'
-  | 'condition'
- Ўvariable'
-  | 'api'
-  | 'file';
+import { BlockData } from './blocks';
 
-export interface BlockData {
-  type: BlockType;
-  label?: string;
-  params?: Record<string, any>;
-}
+// Экспорт базового интерфейса блоков
+export type { BlockInterface } from './BlockInterface';
+
+
+// Экспорт всех типов блоков из отдельных файлов
+export {
+  // Метаданные блоков
+  StartBlockMeta,
+  MessageBlockMeta,
+  ConditionBlockMeta,
+  VariableBlockMeta,
+  ApiBlockMeta,
+  FileBlockMeta,
+  EndBlockMeta,
+  // Вспомогательные функции
+  getBlockMeta,
+  getBlockIcon,
+  getBlockColor,
+  BLOCK_METADATA
+} from './blocks';
+
+export type {
+  StartBlockData,
+  MessageBlockData,
+  ConditionBlockData,
+  ConditionCase,
+  VariableBlockData,
+  ApiBlockData,
+  FileBlockData,
+  EndBlockData,
+  BlockData,
+  BlockType
+} from './blocks';
 
 // Результат выполнения блока
 export interface BlockExecutionResult {
@@ -20,6 +44,7 @@ export interface BlockExecutionResult {
   nextNodeId?: string | null;
   output?: any;
   error?: string;
+  saveResponseToVariable?: string; // Имя переменной для сохранения ответа пользователя (для message блоков)
 }
 
 // Контекст выполнения
@@ -29,6 +54,7 @@ export interface ExecutionContext {
   currentMessage?: string;
 }
 
+// Узел блока (для React Flow)
 export interface BlockNode {
   id: string;
   type: string;
@@ -36,6 +62,7 @@ export interface BlockNode {
   data: BlockData;
 }
 
+// Соединение между блоками
 export interface Connection {
   id: string;
   source: string;
@@ -45,10 +72,16 @@ export interface Connection {
   type?: string;
 }
 
+// Тип платформы для экспорта
+export type ExportPlatform = 'telegram' | 'whatsapp' | 'web';
+
+// Проект
 export interface Project {
   id: string;
   name: string;
-  telegramToken?: string;
+  exportPlatform?: ExportPlatform;
+  botToken?: string; // Универсальный токен/ключ для выбранной платформы
+  telegramToken?: string; // Оставлено для обратной совместимости
   globalConstants?: Record<string, any>;
   blocks: BlockNode[];
   connections: Connection[];
@@ -56,6 +89,7 @@ export interface Project {
   updatedAt: Date;
 }
 
+// Состояние рабочего пространства
 export interface WorkspaceState {
   projects: Project[];
   currentProject: Project | null;

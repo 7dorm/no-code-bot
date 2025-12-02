@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
-import { createTelegramExport } from '../../utils/telegramExporter';
+import ExportModal from '../Export/ExportModal';
 import './Toolbar.css';
 
 const Toolbar: React.FC = () => {
@@ -14,6 +14,8 @@ const Toolbar: React.FC = () => {
     toggleSettings,
     togglePreview,
   } = useEditorStore();
+  
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const handleSave = () => {
     const json = exportProject();
@@ -44,33 +46,6 @@ const Toolbar: React.FC = () => {
     input.click();
   };
 
-  const handleExportCode = () => {
-    if (!currentProject) return;
-    try {
-      const { code, instructions } = createTelegramExport(currentProject);
-
-      // Скачиваем bot.js
-      const codeBlob = new Blob([code], { type: 'text/javascript;charset=utf-8' });
-      const codeUrl = URL.createObjectURL(codeBlob);
-      const a1 = document.createElement('a');
-      a1.href = codeUrl;
-      a1.download = 'bot.js';
-      a1.click();
-      URL.revokeObjectURL(codeUrl);
-
-      // Скачиваем README_TELEGRAM.md
-      const readmeBlob = new Blob([instructions], { type: 'text/markdown;charset=utf-8' });
-      const readmeUrl = URL.createObjectURL(readmeBlob);
-      const a2 = document.createElement('a');
-      a2.href = readmeUrl;
-      a2.download = 'README_TELEGRAM.md';
-      a2.click();
-      URL.revokeObjectURL(readmeUrl);
-    } catch (e) {
-      alert('Ошибка экспорта кода. Проверьте настройки токена в проекте.');
-      console.error(e);
-    }
-  };
 
   return (
     <div className="toolbar">
@@ -103,10 +78,14 @@ const Toolbar: React.FC = () => {
         <button className="toolbar-btn preview-btn" onClick={togglePreview}>
           👁️ Предпросмотр
         </button>
-        <button className="toolbar-btn" onClick={handleExportCode}>
-          📦 Экспорт в код
+        <button className="toolbar-btn" onClick={() => setIsExportModalOpen(true)}>
+          📦 Экспорт
         </button>
       </div>
+      
+      {isExportModalOpen && (
+        <ExportModal onClose={() => setIsExportModalOpen(false)} />
+      )}
     </div>
   );
 };

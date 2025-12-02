@@ -49,7 +49,16 @@ const EditorInner: React.FC = () => {
 
   const onNodeDrag = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      updateBlock(node.id, { position: node.position });
+      // Обновляем позицию без сохранения в историю (только для визуального отображения)
+      updateBlock(node.id, { position: node.position }, false);
+    },
+    [updateBlock]
+  );
+
+  const onNodeDragStop = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      // Сохраняем финальную позицию в историю только при завершении перетаскивания
+      updateBlock(node.id, { position: node.position }, true);
     },
     [updateBlock]
   );
@@ -108,6 +117,7 @@ const EditorInner: React.FC = () => {
           edges={edges}
           onConnect={onConnect}
           onNodeDrag={onNodeDrag}
+          onNodeDragStop={onNodeDragStop}
           onNodeClick={onNodeClick}
           onNodeDoubleClick={onNodeDoubleClick}
           onPaneClick={onPaneClick}

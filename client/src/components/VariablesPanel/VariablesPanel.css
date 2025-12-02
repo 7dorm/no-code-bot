@@ -1,0 +1,136 @@
+.variables-panel {
+  width: 300px;
+  background: white;
+  border-left: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.variables-panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9f9f9;
+}
+
+.variables-panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+  font-weight: 600;
+}
+
+.variables-count {
+  background: #667eea;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.variables-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.variables-empty {
+  text-align: center;
+  color: #999;
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+.variables-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.variable-item {
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.2s;
+}
+
+.variable-item:hover {
+  background: #f0f0f0;
+  border-color: #667eea;
+}
+
+.variable-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.variable-icon {
+  font-size: 18px;
+}
+
+.variable-name {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+  flex: 1;
+}
+
+.variable-type-badge {
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.variable-description {
+  color: #666;
+  font-size: 12px;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.variable-source {
+  display: flex;
+  gap: 4px;
+  font-size: 11px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.variable-source-label {
+  font-weight: 500;
+}
+
+.variable-source-value {
+  color: #667eea;
+  font-weight: 600;
+}
+
+/* Стилизация скроллбара */
+.variables-panel-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.variables-panel-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.variables-panel-content::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.variables-panel-content::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BlockNode, Connection, Project } from '../types';
+import { BlockNode, Connection, Project, ConditionBlockData, ExportPlatform } from '../types';
 
 interface EditorState {
   // Состояние проекта
@@ -18,7 +18,7 @@ interface EditorState {
   createProject: (name: string) => void;
   updateProject: (updates: Partial<Project>) => void;
   addBlock: (block: BlockNode) => void;
-  updateBlock: (id: string, updates: Partial<BlockNode>) => void;
+  updateBlock: (id: string, updates: Partial<BlockNode>, saveToHistory?: boolean) => void;
   deleteBlock: (id: string) => void;
   addConnection: (connection: Connection) => void;
   deleteConnection: (id: string) => void;
@@ -34,10 +34,16 @@ interface EditorState {
   importProject: (json: string) => void;
   saveToLocalStorage: () => void;
   loadFromLocalStorage: () => void;
+  migrateBlockData: (block: BlockNode) => BlockNode;
   
   // Settings
   toggleSettings: () => void;
-  updateSettings: (settings: { telegramToken?: string; globalConstants?: Record<string, any> }) => void;
+  updateSettings: (settings: { 
+    exportPlatform?: string; 
+    botToken?: string;
+    telegramToken?: string; 
+    globalConstants?: Record<string, any> 
+  }) => void;
   
   // Preview
   togglePreview: () => void;
@@ -62,7 +68,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       data: {
         type: 'start',
         label: 'Старт',
-        params: {},
       },
     };
     
@@ -123,7 +128,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   // Update block
-  updateBlock: (id: string, updates: Partial<BlockNode>) => {
+  updateBlock: (id: string, updates: Partial<BlockNode>, saveToHistory: boolean = true) => {
     const current = get().currentProject;
     if (!current) return;
     
@@ -136,7 +141,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     };
     
     set({ currentProject: updated });
-    get().saveToHistory();
+    
+    // Сохраняем в историю только если явно указано (для значимых изменений)
+    if (saveToHistory) {
+      get().saveToHistory();
+    }
     get().saveToLocalStorage();
   },
 
@@ -169,7 +178,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const existing = current.connections.find(c => c.source === connection.source);
     
     // Если уже есть соединение от этого блока, удаляем старое (кроме condition блоков)
-    if (existing && !current.blocks.find(b => b.id === connection.source)?.data.type?.includes('condition')) {
+    const sourceBlock = current.blocks.find(b => b.id === connection.source);
+    if (existing && sourceBlock?.data.type !== 'condition') {
       const filtered = current.connections.filter(c => c.id !== existing.id);
       
       const updated = {
@@ -262,6 +272,107 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     return JSON.stringify(current, null, 2);
   },
 
+  // Миграция старых блоков с params в новые типизированные интерфейсы
+  migrateBlockData: (block: BlockNode): BlockNode => {
+    // Если блок уже использует новый формат (нет params или params пустой), возвращаем как есть
+    if (!(block.data as any).params || Object.keys((block.data as any).params || {}).length === 0) {
+      return block;
+    }
+
+    const oldParams = (block.data as any).params || {};
+    const blockType = block.data.type;
+
+    // Миграция каждого типа блока
+    let newData: any = { ...block.data };
+    
+    switch (blockType) {
+      case 'message':
+        newData = {
+          type: 'message',
+          label: block.data.label,
+          text: oldParams.text || '',
+        };
+        break;
+      case 'condition':
+        // Проверяем, есть ли старый формат с одним условием
+        if ((block.data as any).condition) {
+          // Миграция из старого формата с одним условием
+          newData = {
+            type: 'condition',
+            label: block.data.label,
+            conditions: [{ condition: (block.data as any).condition || '' }],
+            hasDefault: false,
+          };
+        } else if (oldParams.condition) {
+          // Миграция из params
+          newData = {
+            type: 'condition',
+            label: block.data.label,
+            conditions: [{ condition: oldParams.condition || '' }],
+            hasDefault: false,
+          };
+        } else {
+          // Уже новый формат
+          newData = {
+            type: 'condition',
+            label: block.data.label,
+            conditions: (block.data as ConditionBlockData).conditions || [{ condition: '' }],
+            hasDefault: (block.data as ConditionBlockData).hasDefault || false,
+          };
+        }
+        break;
+      case 'variable':
+        newData = {
+          type: 'variable',
+          label: block.data.label,
+          variableName: oldParams.variableName || '',
+          value: oldParams.value || '',
+        };
+        break;
+      case 'api':
+        newData = {
+          type: 'api',
+          label: block.data.label,
+          url: oldParams.url || '',
+          method: (oldParams.method || 'GET') as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+          headers: oldParams.headers,
+          body: oldParams.body,
+        };
+        break;
+      case 'file':
+        newData = {
+          type: 'file',
+          label: block.data.label,
+          action: (oldParams.action || 'upload') as 'upload' | 'download' | 'delete' | 'read',
+          fileName: oldParams.fileName,
+          filePath: oldParams.filePath,
+        };
+        break;
+      case 'end':
+        newData = {
+          type: 'end',
+          label: block.data.label,
+          message: oldParams.message || '',
+        };
+        break;
+      case 'start':
+        // start не требует миграции, просто удаляем params
+        newData = {
+          type: 'start',
+          label: block.data.label,
+        };
+        break;
+      default:
+        // Если тип неизвестен, оставляем как есть
+        break;
+    }
+
+    return {
+      ...block,
+      data: newData,
+    };
+  },
+
   // Import project
   importProject: (json: string) => {
     try {
@@ -273,9 +384,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         return;
       }
       
+      // Миграция блоков из старого формата в новый
+      const migratedBlocks = project.blocks.map(block => get().migrateBlockData(block));
+      const migratedProject = {
+        ...project,
+        blocks: migratedBlocks,
+      };
+      
       set({
-        currentProject: project,
-        history: [project],
+        currentProject: migratedProject,
+        history: [migratedProject],
         historyIndex: 0,
       });
       
@@ -301,9 +419,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (saved) {
       try {
         const project: Project = JSON.parse(saved);
+        // Миграция блоков из старого формата в новый
+        const migratedBlocks = project.blocks.map(block => get().migrateBlockData(block));
+        const migratedProject = {
+          ...project,
+          blocks: migratedBlocks,
+        };
         set({
-          currentProject: project,
-          history: [project],
+          currentProject: migratedProject,
+          history: [migratedProject],
           historyIndex: 0,
         });
       } catch (e) {
@@ -322,9 +446,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const current = get().currentProject;
     if (!current) return;
     
+    // Объединяем настройки, поддерживая обратную совместимость
     const updated = {
       ...current,
       ...settings,
+      // Если установлен botToken и нет exportPlatform, используем старый telegramToken для совместимости
+      ...(settings.botToken && !settings.exportPlatform && !current.exportPlatform 
+        ? { telegramToken: settings.botToken } 
+        : {}),
       updatedAt: new Date(),
     };
     

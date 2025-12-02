@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Editor from './Editor';
 import BlockEditorModal from '../BlockEditor/BlockEditorModal';
+import VariablesPanel from '../VariablesPanel/VariablesPanel';
 import { useEditorStore } from '../../store/useEditorStore';
+import './EditorWithEditor.css';
 
 const EditorWithEditor: React.FC = () => {
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
@@ -71,15 +73,18 @@ const EditorWithEditor: React.FC = () => {
   }, []);
 
   return (
-    <>
-      <Editor />
+    <div className="editor-with-panel">
+      <div className="editor-container">
+        <Editor />
+      </div>
+      <VariablesPanel />
       {editingNodeId && (
         <BlockEditorModal
           nodeId={editingNodeId}
           onClose={() => setEditingNodeId(null)}
         />
       )}
-    </>
+    </div>
   );
 };
 

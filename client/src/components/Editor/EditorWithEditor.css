@@ -1,0 +1,11 @@
+.editor-with-panel {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+.editor-container {
+  flex: 1;
+  overflow: hidden;
+}
+
