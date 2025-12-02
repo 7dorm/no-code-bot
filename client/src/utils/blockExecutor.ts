@@ -2,27 +2,7 @@ import { BlockNode, BlockType, BlockExecutionResult, ExecutionContext } from '..
 
 // Функция выполнения блока по типу
 export function executeBlock(message: string): BlockExecutionResult {
-  let res = await GetInput(message);
 
-  // switch (block.data.type) {
-  //   case 'start':
-  //     return executeStart(block, context, connections);
-  //   case 'message':
-  //     return executeMessage(block, context, connections);
-  //   case 'condition':
-  //     return executeCondition(block, context, connections);
-  //   case 'variable':
-  //     return executeVariable(block, context, connections);
-  //   case 'api':
-  //     return executeAPI(block, context, connections);
-  //   case 'file':
-  //     return executeFile(block, context, connections);
-  //   default:
-  //     return {
-  //       success: false,
-  //       error: `Неизвестный тип блока: ${block.data.type}`,
-  //     };
-  // }
 }
 
 // START блок - точка входа, просто перенаправляет к следующему блоку
