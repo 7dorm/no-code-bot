@@ -1,22 +1,9 @@
 import { Project, BlockNode, Connection } from '../../types';
 import { MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData } from '../../types';
+import { EngineNode } from '@backend/Engine';
 
-/**
- * Интерфейс узла для Engine
- */
-export interface EngineNode {
-  id: string;
-  Type: 'output' | 'condition' | 'start' | 'variable' | 'skip' | 'end';
-  Text?: string;
-  VarName?: string;
-  VarType?: string;
-  Nexts: string[];
-  Cond?: string[];
-  skip?: boolean;
-  Answers?: string[];
-  VariableName?: string; // Для variable блоков
-  VariableValue?: string; // Для variable блоков
-}
+// Re-export EngineNode for convenience
+export type { EngineNode };
 
 /**
  * Преобразует Project структуру в формат, понятный Engine
@@ -77,9 +64,11 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         const condData = block.data as ConditionBlockData;
         engineNode.Type = 'condition';
         
-        // Преобразуем условия
+        // Преобразуем условия - только реальные условия, не "default"
         if (condData.conditions && condData.conditions.length > 0) {
-          engineNode.Cond = condData.conditions.map(c => c.condition || 'default');
+          engineNode.Cond = condData.conditions
+            .map(c => c.condition)
+            .filter(c => c && c.trim() !== '' && c.toLowerCase() !== 'default');
           
           // Упорядочиваем Nexts по порядку условий
           // Каждое условие имеет свой выход output-0, output-1, etc.
@@ -90,7 +79,7 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
             }
           });
         } else {
-          engineNode.Cond = ['default'];
+          engineNode.Cond = [];
         }
         
         // Дефолтная ветка (если есть)

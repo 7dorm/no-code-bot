@@ -128,7 +128,23 @@ function executeCondition(
 // Функция для оценки условия
 function evaluateCondition(condition: string, context: ExecutionContext): boolean {
   const userInput = context.userInput || '';
+  const normalized = condition.replace(/\buserInput\b/g, userInput);
 
+  try {
+    const orParts = normalized.split('||').map(part => part.trim()).filter(Boolean);
+    if (orParts.length > 0) {
+      return orParts.some(orPart => {
+        const andParts = orPart.split('&&').map(part => part.trim()).filter(Boolean);
+        return andParts.every(part => evaluateBasicCondition(part, context));
+      });
+    }
+    return evaluateBasicCondition(normalized, context);
+  } catch (e) {
+    return false;
+  }
+}
+
+function evaluateBasicCondition(condition: string, context: ExecutionContext): boolean {
   try {
     if (condition.includes('===')) {
       const [left, right] = condition.split('===').map(s => s.trim());
@@ -148,6 +164,16 @@ function evaluateCondition(condition: string, context: ExecutionContext): boolea
         const leftValue = getVariableValue(left, context);
         return String(leftValue).toLowerCase().includes(right.toLowerCase());
       }
+    } else if (condition.includes('>=')) {
+      const [left, right] = condition.split('>=').map(s => s.trim());
+      const leftValue = getVariableValue(left, context);
+      const rightValue = getVariableValue(right, context);
+      return Number(leftValue) >= Number(rightValue);
+    } else if (condition.includes('<=')) {
+      const [left, right] = condition.split('<=').map(s => s.trim());
+      const leftValue = getVariableValue(left, context);
+      const rightValue = getVariableValue(right, context);
+      return Number(leftValue) <= Number(rightValue);
     } else if (condition.includes('>')) {
       const [left, right] = condition.split('>').map(s => s.trim());
       const leftValue = getVariableValue(left, context);
@@ -158,8 +184,10 @@ function evaluateCondition(condition: string, context: ExecutionContext): boolea
       const leftValue = getVariableValue(left, context);
       const rightValue = getVariableValue(right, context);
       return Number(leftValue) < Number(rightValue);
+    } else if (condition.trim().toLowerCase() === 'default') {
+      return true;
     }
-    return Boolean(condition);
+    return false;
   } catch (e) {
     return false;
   }

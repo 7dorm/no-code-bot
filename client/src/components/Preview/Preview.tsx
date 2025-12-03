@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
-import { Engine } from '../../utils/backend/Engine';
-import { WebUI } from '../../utils/backend/WebUI';
+import { Engine } from '@backend/Engine';
+import { WebUI } from '@backend/WebUI';
 import { adaptProjectToEngine } from '../../utils/backend/projectAdapter';
 import './Preview.css';
 

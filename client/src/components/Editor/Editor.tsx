@@ -72,8 +72,9 @@ const EditorInner: React.FC = () => {
 
   const onNodeDoubleClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
-      // Двойной клик открывает редактор блока - обрабатывается в EditorWithEditor
       selectNode(node.id);
+      const openEvent = new CustomEvent('open-block-editor', { detail: { nodeId: node.id } });
+      window.dispatchEvent(openEvent);
     },
     [selectNode]
   );
@@ -89,6 +90,15 @@ const EditorInner: React.FC = () => {
       });
     },
     [deleteBlock]
+  );
+
+  const onEdgesDelete = useCallback(
+    (edges: Edge[]) => {
+      edges.forEach(edge => {
+        deleteConnection(edge.id);
+      });
+    },
+    [deleteConnection]
   );
 
   const nodes: Node[] = currentProject?.blocks.map(block => ({
@@ -122,6 +132,7 @@ const EditorInner: React.FC = () => {
           onNodeDoubleClick={onNodeDoubleClick}
           onPaneClick={onPaneClick}
           onNodesDelete={onNodesDelete}
+          onEdgesDelete={onEdgesDelete}
           nodeTypes={nodeTypes}
           fitView
           attributionPosition="bottom-left"

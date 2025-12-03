@@ -54,6 +54,20 @@ const EditorWithEditor: React.FC = () => {
     }
   }, [selectedNodeId]);
 
+  useEffect(() => {
+    const handleOpen = (event: Event) => {
+      const customEvent = event as CustomEvent<{ nodeId: string }>;
+      if (customEvent.detail?.nodeId) {
+        setEditingNodeId(customEvent.detail.nodeId);
+      }
+    };
+
+    window.addEventListener('open-block-editor', handleOpen as EventListener);
+    return () => {
+      window.removeEventListener('open-block-editor', handleOpen as EventListener);
+    };
+  }, []);
+
   // Слушаем изменения selectedNodeId через подписку
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;

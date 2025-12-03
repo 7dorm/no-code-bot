@@ -39,6 +39,21 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
     setBlockData(prev => ({ ...prev, ...updates } as BlockData));
   };
 
+  const handleModalKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.metaKey || event.ctrlKey) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    const tagName = target?.tagName.toLowerCase();
+    if (tagName === 'textarea') {
+      return;
+    }
+
+    event.preventDefault();
+    handleSave();
+  };
+
   if (!node) return null;
 
   const renderBlockSpecificFields = () => {
@@ -158,7 +173,7 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
                       style={{ fontSize: '13px' }}
                     />
                     <small className="editor-hint" style={{ display: 'block', marginTop: '4px' }}>
-                      Поддерживаемые операторы: ===, !==, &gt;, &lt;, contains. Можно использовать переменные.
+                      Поддерживаемые операторы: ===, !==, &gt;, &lt;, &gt;=, &lt;=, contains, &&, ||. Можно использовать переменные.
                     </small>
                   </div>
                 </div>
@@ -316,7 +331,7 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
 
   return (
     <div className="block-editor-overlay" onClick={onClose}>
-      <div className="block-editor-modal" onClick={e => e.stopPropagation()}>
+      <div className="block-editor-modal" onClick={e => e.stopPropagation()} onKeyDown={handleModalKeyDown}>
         <div className="editor-header">
           <h3>✏️ Редактирование блока</h3>
           <button className="close-btn" onClick={onClose}>✕</button>

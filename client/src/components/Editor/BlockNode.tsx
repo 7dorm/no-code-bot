@@ -57,7 +57,23 @@ const getBlockPreview = (data: BlockData): string => {
 // Функция для проверки условия (используется в blockExecutor)
 export function evaluateCondition(condition: string, context: { variables: Record<string, any>; userInput?: string }): boolean {
   const userInput = context.userInput || '';
+  const normalized = condition.replace(/\buserInput\b/g, userInput);
 
+  try {
+    const orParts = normalized.split('||').map(part => part.trim()).filter(Boolean);
+    if (orParts.length > 0) {
+      return orParts.some(orPart => {
+        const andParts = orPart.split('&&').map(part => part.trim()).filter(Boolean);
+        return andParts.every(part => evaluateBasicCondition(part, context));
+      });
+    }
+    return evaluateBasicCondition(normalized, context);
+  } catch (e) {
+    return false;
+  }
+}
+
+function evaluateBasicCondition(condition: string, context: { variables: Record<string, any>; userInput?: string }): boolean {
   try {
     if (condition.includes('===')) {
       const [left, right] = condition.split('===').map(s => s.trim());
@@ -77,6 +93,16 @@ export function evaluateCondition(condition: string, context: { variables: Recor
         const leftValue = getVariableValue(left, context);
         return String(leftValue).toLowerCase().includes(right.toLowerCase());
       }
+    } else if (condition.includes('>=')) {
+      const [left, right] = condition.split('>=').map(s => s.trim());
+      const leftValue = getVariableValue(left, context);
+      const rightValue = getVariableValue(right, context);
+      return Number(leftValue) >= Number(rightValue);
+    } else if (condition.includes('<=')) {
+      const [left, right] = condition.split('<=').map(s => s.trim());
+      const leftValue = getVariableValue(left, context);
+      const rightValue = getVariableValue(right, context);
+      return Number(leftValue) <= Number(rightValue);
     } else if (condition.includes('>')) {
       const [left, right] = condition.split('>').map(s => s.trim());
       const leftValue = getVariableValue(left, context);
@@ -87,8 +113,10 @@ export function evaluateCondition(condition: string, context: { variables: Recor
       const leftValue = getVariableValue(left, context);
       const rightValue = getVariableValue(right, context);
       return Number(leftValue) < Number(rightValue);
+    } else if (condition.trim().toLowerCase() === 'default') {
+      return true;
     }
-    return Boolean(condition);
+    return false;
   } catch (e) {
     return false;
   }
@@ -124,7 +152,9 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
       className={`block-node ${selected ? 'selected' : ''}`}
       style={{ borderColor: selected ? backgroundColor : undefined }}
     >
-      <Handle type="target" position={Position.Top} />
+      {data.type !== 'start' && (
+        <Handle type="target" position={Position.Top} />
+      )}
       
       <div className="block-header" style={{ background: backgroundColor }}>
         <span className="block-icon">{icon}</span>

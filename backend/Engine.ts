@@ -1,170 +1,416 @@
-import {UI} from "./UI";
+import { UI } from "./UI";
 
-function evalCondition(condStr: string): boolean {
-    if (condStr === "default") return true;
-    const match = condStr.match(/^\s*(\d+)\s*([<>]=?|==|!=)\s*(\d+)\s*$/);
-    if (!match) throw new Error(`Invalid condition: ${condStr}`);
+/**
+ * Интерфейс узла для Engine
+ */
+export interface EngineNode {
+  id: string;
+  Type: 'output' | 'condition' | 'start' | 'variable' | 'skip' | 'end';
+  Text?: string;
+  VarName?: string;
+  VarType?: string;
+  Nexts: string[];
+  Cond?: string[];
+  skip?: boolean;
+  Answers?: string[];
+  VariableName?: string; // Для variable блоков
+  VariableValue?: string; // Для variable блоков
+}
 
-    const left = Number(match[1]);
-    const op = match[2];
-    const right = Number(match[3]);
-
-    switch (op) {
-        case ">":
-            return left > right;
-        case "<":
-            return left < right;
-        case ">=":
-            return left >= right;
-        case "<=":
-            return left <= right;
-        case "==":
-            return left == right;
-        case "!=":
-            return left != right;
-        default:
-            throw new Error(`Unknown operator: ${op}`);
+/**
+ * Улучшенная функция оценки условий
+ */
+function evalCondition(condStr: string, variables: Record<string, any>, userInput: string = ''): boolean {
+  if (condStr === "default") return true;
+  
+  // Подмена переменных в фигурных скобках
+  let processedCond = condStr;
+  const matches = [...condStr.matchAll(/\{([^}]+)\}/g)].map(m => m[1]);
+  matches.forEach((match: string) => {
+    if (variables[match] !== undefined) {
+      processedCond = processedCond.replace(`{${match}}`, String(variables[match]));
     }
+  });
+
+  // Заменяем userInput на фактический ввод пользователя
+  processedCond = processedCond.replace(/\buserInput\b/g, userInput);
+
+  const orParts = processedCond.split('||').map(part => part.trim()).filter(Boolean);
+  if (orParts.length > 0) {
+    return orParts.some(orPart => {
+      const andParts = orPart.split('&&').map(part => part.trim()).filter(Boolean);
+      return andParts.every(part => evaluateSimpleCondition(part, variables, userInput));
+    });
+  }
+
+  return evaluateSimpleCondition(processedCond, variables, userInput);
+}
+
+function evaluateSimpleCondition(cond: string, variables: Record<string, any>, userInput: string = ''): boolean {
+  // Проверка на сравнение чисел (с поддержкой переменных)
+  const numMatch = cond.match(/^\s*([\w{}]+)\s*([<>]=?|==|!=)\s*([\w{}]+)\s*$/);
+  if (numMatch) {
+    let leftStr = numMatch[1].replace(/[{}]/g, '');
+    let rightStr = numMatch[3].replace(/[{}]/g, '');
+    const op = numMatch[2];
+    
+    const left = variables[leftStr] !== undefined ? Number(variables[leftStr]) : Number(leftStr);
+    const right = variables[rightStr] !== undefined ? Number(variables[rightStr]) : Number(rightStr);
+
+    if (!isNaN(left) && !isNaN(right)) {
+      switch (op) {
+        case ">": return left > right;
+        case "<": return left < right;
+        case ">=": return left >= right;
+        case "<=": return left <= right;
+        case "==": return left == right;
+        case "!=": return left != right;
+      }
+    }
+  }
+
+  // Проверка на contains
+  if (cond.toLowerCase().includes('contains')) {
+    const parts = cond.toLowerCase().split('contains');
+    if (parts.length === 2) {
+      const left = parts[0].trim();
+      const right = parts[1].trim().replace(/['"]/g, '');
+      const leftValue = variables[left] || left || userInput;
+      return String(leftValue).toLowerCase().includes(right.toLowerCase());
+    }
+  }
+
+  // Проверка на равенство строк
+  if (cond.includes('===') || cond.includes('==')) {
+    const [left, right] = cond.split(/===|==/).map(s => s.trim().replace(/['"]/g, ''));
+    const leftValue = variables[left] !== undefined ? String(variables[left]) : left;
+    const rightValue = variables[right] !== undefined ? String(variables[right]) : right;
+    return leftValue === rightValue;
+  }
+
+  // Проверка на неравенство строк
+  if (cond.includes('!==') || cond.includes('!=')) {
+    const [left, right] = cond.split(/!==|!=/).map(s => s.trim().replace(/['"]/g, ''));
+    const leftValue = variables[left] !== undefined ? String(variables[left]) : left;
+    const rightValue = variables[right] !== undefined ? String(variables[right]) : right;
+    return leftValue !== rightValue;
+  }
+
+  // Проверка на >= и <=
+  if (cond.includes('>=')) {
+    const [left, right] = cond.split('>=').map(s => s.trim());
+    const leftValue = variables[left] !== undefined ? Number(variables[left]) : Number(left);
+    const rightValue = variables[right] !== undefined ? Number(variables[right]) : Number(right);
+    return !isNaN(leftValue) && !isNaN(rightValue) && leftValue >= rightValue;
+  }
+
+  if (cond.includes('<=')) {
+    const [left, right] = cond.split('<=').map(s => s.trim());
+    const leftValue = variables[left] !== undefined ? Number(variables[left]) : Number(left);
+    const rightValue = variables[right] !== undefined ? Number(variables[right]) : Number(right);
+    return !isNaN(leftValue) && !isNaN(rightValue) && leftValue <= rightValue;
+  }
+
+  // Проверка на > и <
+  if (cond.includes('>')) {
+    const [left, right] = cond.split('>').map(s => s.trim());
+    const leftValue = variables[left] !== undefined ? Number(variables[left]) : Number(left);
+    const rightValue = variables[right] !== undefined ? Number(variables[right]) : Number(right);
+    return !isNaN(leftValue) && !isNaN(rightValue) && leftValue > rightValue;
+  }
+
+  if (cond.includes('<')) {
+    const [left, right] = cond.split('<').map(s => s.trim());
+    const leftValue = variables[left] !== undefined ? Number(variables[left]) : Number(left);
+    const rightValue = variables[right] !== undefined ? Number(variables[right]) : Number(right);
+    return !isNaN(leftValue) && !isNaN(rightValue) && leftValue < rightValue;
+  }
+
+  if (cond.trim().toLowerCase() === 'default') {
+    return true;
+  }
+
+  return false;
 }
 
 export class Engine {
-    private nodeStructure: {} = {};
-    private maxIndex = 0;
-    private variables: {} = {
-        "": ""
-    };
-    private ui: UI;
-    private index = 9999;
-    private saveNext = false;
-    private saveName = "";
-    private skipInput = false;
-    private saveType = "";
+  private nodeStructure: Record<string, EngineNode> = {};
+  private variables: Record<string, any> = {};
+  private ui: UI;
+  private index: string | null = null;
+  private saveNext = false;
+  private saveName = "";
+  private skipInput = false;
+  private saveType = "";
+  private isFinished = false;
 
-    constructor(ui: UI, botStructure: []) {
-        botStructure.forEach((ele: {}) => {
-            // @ts-ignore
-            this.index = Math.min(this.index, ele["id"]);
-            // @ts-ignore
-            this.nodeStructure[ele["id"]] = ele;
-            // @ts-ignore
-            this.maxIndex = Math.max(this.maxIndex, ele["id"]);
-        });
-        this.ui = ui;
+  constructor(ui: UI, botStructure: EngineNode[]) {
+    botStructure.forEach((ele: EngineNode) => {
+      this.nodeStructure[ele.id] = ele;
+      // Находим стартовый блок
+      if (ele.Type === 'start' && !this.index) {
+        this.index = ele.id;
+      }
+    });
+    this.ui = ui;
+    
+    // Если нет явного стартового блока, берем первый
+    if (!this.index && botStructure.length > 0) {
+      this.index = botStructure[0].id;
+    }
+  }
+
+  // Основной обработчик структуры бота
+  async execute(skipFirstInput: boolean = false): Promise<void> {
+    if (skipFirstInput) {
+      this.skipInput = true;
+    }
+    // Проверяем, завершен ли бот
+    if (this.isFinished || !this.index) {
+      if (!this.index) {
+        this.ui.finish();
+      }
+      return;
+    }
+    
+    let userInput = "";
+
+    const block = this.nodeStructure[this.index];
+    if (!block) {
+      this.ui.finish();
+      this.isFinished = true;
+      return;
     }
 
-    // Основной обработчик структуры бота
-    async execute(skip: boolean = false): Promise<void> {
-        if (skip) return;
-        let userInput = "";
+    // Сохранение пользовательского ввода в переменную (происходит перед обработкой блока)
+    if (this.saveNext) {
+      userInput = await this.ui.getInput();
+      this.variables['lastMessage'] = userInput;
+      this.variables['userInput'] = userInput;
+      
+      switch (this.saveType) {
+        case "int":
+          this.variables[this.saveName] = parseInt(userInput, 10);
+          break;
+        default:
+          this.variables[this.saveName] = userInput;
+          break;
+      }
+      this.saveNext = false;
+      this.saveName = "";
+      this.saveType = "";
+    }
 
-        // @ts-ignore
-        const block = this.nodeStructure[this.index];
-
-        // Проверка на необходимость пользовательского ввода
+    // Обработка типа блока
+    switch (block.Type) {
+      case "output":
+        await this.executeMessage();
+        break;
+      case "condition":
+        // Для condition нужно получить ввод перед проверкой
         if (!this.skipInput) {
-            userInput = await this.ui.getInput();
-            // @ts-ignore
-            this.variables['lastMessage'] = userInput;
+          userInput = await this.ui.getInput();
+          this.variables['lastMessage'] = userInput;
+          this.variables['userInput'] = userInput;
         } else {
-            // @ts-ignore
-            userInput = this.variables['lastMessage'];
-            this.skipInput = false;
+          userInput = this.variables['lastMessage'] || '';
+          this.skipInput = false;
         }
+        await this.executeCondition(userInput);
+        break;
+      case "start":
+        await this.executeStart();
+        break;
+      case "variable":
+        await this.executeVariable();
+        break;
+      case "skip":
+        await this.executeSkip();
+        break;
+      case "end":
+        this.ui.finish();
+        this.isFinished = true;
+        break;
+      default:
+        break;
+    }
+  }
 
-        // Сохранение пользовательского ввода в переменную
-        if (this.saveNext) {
-            switch (this.saveType) {
-                case ("int"):
-                    // @ts-ignore
-                    this.variables[this.saveName] = parseInt(userInput, 10);
-                    break;
-                default:
-                    // @ts-ignore
-                    this.variables[this.saveName] = userInput;
-                    break;
-            }
-            this.saveNext = false;
-            this.saveName = "";
-            this.saveType = "";
+  async executeStart(): Promise<void> {
+    const block = this.nodeStructure[this.index!];
+    if (!block) return;
+
+    // Стартовый блок переходит к следующему без ожидания ввода
+    if (block.Nexts.length > 0) {
+      this.index = block.Nexts[0];
+      this.skipInput = true;
+      await this.execute();
+    } else {
+      this.ui.finish();
+    }
+  }
+
+  async executeMessage(): Promise<void> {
+    const block = this.nodeStructure[this.index!];
+    if (!block) return;
+
+    // Заменяем переменные в тексте сообщения
+    let processedText = block.Text || '';
+    const matches = [...processedText.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]);
+    matches.forEach((match: string) => {
+      if (this.variables[match] !== undefined) {
+        processedText = processedText.replace(`{{${match}}}`, String(this.variables[match]));
+      }
+    });
+
+    // Отправляем сообщение сразу
+    await this.ui.sendMessage(processedText, block.Answers || []);
+
+    // Сохранить в переменную если необходимо (тогда ждем ввода)
+    if (block.VarName != null) {
+      this.saveNext = true;
+      this.saveName = block.VarName;
+      this.saveType = block.VarType || 'string';
+      
+      // Переходим к следующему блоку, но перед его выполнением получим ввод
+      if (block.Nexts.length > 0) {
+        this.index = block.Nexts[0];
+        // Продолжаем выполнение - следующий блок запросит ввод через saveNext
+        await this.execute(false);
+        return;
+      } else {
+        // Если нет следующего блока, ждем ввод и завершаем
+        const userInput = await this.ui.getInput();
+        this.variables['lastMessage'] = userInput;
+        this.variables['userInput'] = userInput;
+        switch (this.saveType) {
+          case "int":
+            this.variables[this.saveName] = parseInt(userInput, 10);
+            break;
+          default:
+            this.variables[this.saveName] = userInput;
+            break;
         }
-
-        // Обработка типа блока
-        switch (block["Type"]) {
-            case ("output"):
-                await this.executeMessage(userInput);
-                break;
-            case ("condition"):
-                await this.executeCondition(userInput);
-                break;
-            case ("request"):
-                break;
-            default:
-                break;
-        }
-
+        this.saveNext = false;
+        this.saveName = "";
+        this.saveType = "";
+        this.ui.finish();
+        this.isFinished = true;
+        return;
+      }
     }
 
-    async executeMessage(msg: string): Promise<void> {
-        // @ts-ignore
-        let block = this.nodeStructure[this.index];
-        this.ui.sendMessage(
-            block["Text"],
-            block["Answers"] ? block["Answers"] : []);
-
-        // Последнее сообщение
-        if (block["Nexts"].length == 0) {
-            this.ui.finish();
-            return;
-        }
-
-        // Сохранить в переменную если необходимо
-        if (block["VarName"] != null) {
-            this.saveNext = true;
-            this.saveName = block["VarName"];
-            this.saveType = block["VarType"];
-        }
-
-        // Переход к следующему блоку
-        this.index = block["Nexts"][0];
-
-        // Перейти к исполнению следующего блока без пользовательского ввода
-        if (block["skip"] != null && block["skip"]) {
-            this.skipInput = true;
-            this.execute();
-        }
+    // Последнее сообщение
+    if (block.Nexts.length == 0) {
+      this.ui.finish();
+      this.isFinished = true;
+      return;
     }
 
-    // Проверка условных блоков
-    async executeCondition(msg: string): Promise<void> {
-        let successfulCond = -1;
+    // Переход к следующему блоку
+    this.index = block.Nexts[0];
 
-        // @ts-ignore
-        const block = this.nodeStructure[this.index];
-
-        // Проход по всем условиям
-        for (let i = 0; i < block["Cond"].length; i++) {
-            let cond = block["Cond"][i];
-            successfulCond++;
-
-            // подмена переменных заключеных в "{}"
-            const matches = [...cond.matchAll(/\{([^}]+)\}/g)].map(m => m[1]);
-            matches.forEach((match: string) => {
-                // @ts-ignore
-                if (this.variables[match] != null) {
-                    // @ts-ignore
-                    cond = cond.replace("{" + match + "}", this.variables[match]);
-                }
-            })
-
-            if (evalCondition(cond)) break;
-        }
-
-        // Переход к следующему блоку
-        // @ts-ignore
-        this.index = this.nodeStructure[this.index]["Nexts"][successfulCond];
-
-        // Перейти к исполнению следующего блока без пользовательского ввода
-        this.skipInput = true;
-        this.execute();
+    // Перейти к исполнению следующего блока
+    // Если следующий блок требует ввода, выполнение остановится на getInput()
+    if (block.skip) {
+      this.skipInput = true;
+      await this.execute(false);
+    } else {
+      // Продолжаем выполнение следующего блока
+      // Если он запросит ввод, выполнение автоматически остановится
+      await this.execute(false);
     }
+  }
+
+  // Проверка условных блоков
+  async executeCondition(msg: string): Promise<void> {
+    const block = this.nodeStructure[this.index!];
+    if (!block || !block.Cond) return;
+
+    let successfulCond = -1;
+
+    // Проход по всем условиям
+    for (let i = 0; i < block.Cond.length; i++) {
+      const cond = block.Cond[i];
+      
+      if (evalCondition(cond, this.variables, msg)) {
+        successfulCond = i;
+        break;
+      }
+    }
+
+    // Если ни одно условие не выполнилось и есть дефолтная ветка
+    if (successfulCond === -1 && block.Nexts.length > block.Cond.length) {
+      successfulCond = block.Cond.length; // Дефолтная ветка
+    }
+
+    // Переход к следующему блоку
+    if (successfulCond >= 0 && successfulCond < block.Nexts.length) {
+      this.index = block.Nexts[successfulCond];
+      this.skipInput = true;
+      await this.execute();
+    } else {
+      this.ui.finish();
+      this.isFinished = true;
+    }
+  }
+
+  async executeVariable(): Promise<void> {
+    const block = this.nodeStructure[this.index!];
+    if (!block) return;
+
+    // Обрабатываем установку переменной
+    if (block.VariableName && block.VariableValue !== undefined) {
+      let value = block.VariableValue;
+      
+      // Заменяем переменные в значении
+      const matches = [...value.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]);
+      matches.forEach((match: string) => {
+        if (this.variables[match] !== undefined) {
+          value = value.replace(`{{${match}}}`, String(this.variables[match]));
+        }
+      });
+      
+      // Пытаемся определить тип значения
+      const numValue = Number(value);
+      if (!isNaN(numValue) && value.trim() !== '') {
+        this.variables[block.VariableName] = numValue;
+      } else {
+        this.variables[block.VariableName] = value;
+      }
+    }
+
+    // Переходим к следующему блоку
+    if (block.Nexts.length > 0) {
+      this.index = block.Nexts[0];
+      this.skipInput = true;
+      await this.execute();
+    } else {
+      this.ui.finish();
+      this.isFinished = true;
+    }
+  }
+
+  async executeSkip(): Promise<void> {
+    // Skip блоки просто переходят дальше
+    const block = this.nodeStructure[this.index!];
+    if (block && block.Nexts.length > 0) {
+      this.index = block.Nexts[0];
+      this.skipInput = true;
+      await this.execute();
+    }
+  }
+
+  // Получить переменные (для отладки)
+  getVariables(): Record<string, any> {
+    return { ...this.variables };
+  }
+
+  // Сброс состояния
+  reset(): void {
+    this.variables = {};
+    this.isFinished = false;
+    this.skipInput = false;
+    this.saveNext = false;
+  }
 }
