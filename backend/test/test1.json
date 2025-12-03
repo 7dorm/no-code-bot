@@ -1,0 +1,62 @@
+[
+  {
+    "id": "start-block",
+    "Type": "start",
+    "Nexts": [
+      "6e0cc10a-5024-4313-b6c9-8db43f2f9bba"
+    ],
+    "skip": true
+  },
+  {
+    "id": "6e0cc10a-5024-4313-b6c9-8db43f2f9bba",
+    "Type": "output",
+    "Nexts": [
+      "f4536f44-f4a7-47df-8319-733eb061681a"
+    ],
+    "Text": "how old",
+    "VarName": "age"
+  },
+  {
+    "id": "f4536f44-f4a7-47df-8319-733eb061681a",
+    "Type": "condition",
+    "Nexts": [
+      "ceca4234-8f15-40e3-9922-bb00ecd34499",
+      "cf98ff99-072f-41d6-93e6-17c27cbb2cf9",
+      "f31e9f79-5e54-4614-8388-fcf55d39ace9"
+    ],
+    "Cond": [
+      "age >= 35",
+      "age >= 18 && age < 35",
+      "age < 18"
+    ]
+  },
+  {
+    "id": "ceca4234-8f15-40e3-9922-bb00ecd34499",
+    "Type": "output",
+    "Nexts": [
+      "fa368dea-5642-4f65-abea-1cc1a24273ad"
+    ],
+    "Text": "mnogo"
+  },
+  {
+    "id": "cf98ff99-072f-41d6-93e6-17c27cbb2cf9",
+    "Type": "output",
+    "Nexts": [
+      "fa368dea-5642-4f65-abea-1cc1a24273ad"
+    ],
+    "Text": "norm"
+  },
+  {
+    "id": "f31e9f79-5e54-4614-8388-fcf55d39ace9",
+    "Type": "output",
+    "Nexts": [
+      "fa368dea-5642-4f65-abea-1cc1a24273ad"
+    ],
+    "Text": "malo"
+  },
+  {
+    "id": "fa368dea-5642-4f65-abea-1cc1a24273ad",
+    "Type": "end",
+    "Nexts": []
+  }
+]

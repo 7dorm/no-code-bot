@@ -1,5 +1,5 @@
-import { Project, BlockNode, Connection } from '../../types';
-import { MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData } from '../../types';
+import { Project, BlockNode } from '../../types';
+import { MessageBlockData, ConditionBlockData, VariableBlockData } from '../../types';
 import { EngineNode } from '@backend/Engine';
 
 // Re-export EngineNode for convenience
@@ -11,7 +11,7 @@ export type { EngineNode };
 export function adaptProjectToEngine(project: Project): EngineNode[] {
   const nodes: EngineNode[] = [];
   const blockMap = new Map<string, BlockNode>();
-  
+
   // Создаем карту блоков для быстрого доступа
   project.blocks.forEach(block => {
     blockMap.set(block.id, block);
@@ -19,7 +19,7 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
 
   // Создаем карту связей: source -> Map<handle, target>
   const connectionsMap = new Map<string, Map<string | undefined, string>>();
-  
+
   project.connections.forEach(conn => {
     if (!connectionsMap.has(conn.source)) {
       connectionsMap.set(conn.source, new Map());
@@ -45,13 +45,13 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         const msgData = block.data as MessageBlockData;
         engineNode.Type = 'output';
         engineNode.Text = msgData.text || '';
-        
+
         // Если нужно сохранять ответ пользователя
         if (msgData.saveResponseToVariable) {
           engineNode.VarName = msgData.saveResponseToVariable;
           engineNode.VarType = 'string';
         }
-        
+
         // Получаем следующий блок (обычно один выход для message)
         const nextTarget = blockConnections?.get('output');
         if (nextTarget) {
@@ -59,17 +59,17 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         }
         break;
       }
-      
+
       case 'condition': {
         const condData = block.data as ConditionBlockData;
         engineNode.Type = 'condition';
-        
+
         // Преобразуем условия - только реальные условия, не "default"
         if (condData.conditions && condData.conditions.length > 0) {
           engineNode.Cond = condData.conditions
             .map(c => c.condition)
             .filter(c => c && c.trim() !== '' && c.toLowerCase() !== 'default');
-          
+
           // Упорядочиваем Nexts по порядку условий
           // Каждое условие имеет свой выход output-0, output-1, etc.
           condData.conditions.forEach((_, index) => {
@@ -81,7 +81,7 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         } else {
           engineNode.Cond = [];
         }
-        
+
         // Дефолтная ветка (если есть)
         if (condData.hasDefault) {
           const defaultTarget = blockConnections?.get('output-default');
@@ -91,13 +91,13 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         }
         break;
       }
-      
+
       case 'variable': {
         const varData = block.data as VariableBlockData;
         engineNode.Type = 'variable';
         engineNode.VariableName = varData.variableName;
         engineNode.VariableValue = varData.value;
-        
+
         // Получаем следующий блок
         const nextTarget = blockConnections?.get('output');
         if (nextTarget) {
@@ -105,12 +105,12 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         }
         break;
       }
-      
+
       case 'start': {
         engineNode.Type = 'start';
         // Стартовый блок переходит к следующему без ожидания ввода
         engineNode.skip = true;
-        
+
         // Получаем следующий блок
         const nextTarget = blockConnections?.get('output');
         if (nextTarget) {
@@ -118,13 +118,13 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         }
         break;
       }
-      
+
       case 'end': {
         engineNode.Type = 'end';
         engineNode.Nexts = [];
         break;
       }
-      
+
       case 'api':
       case 'file': {
         // Для api и file блоков создаем skip (пока не реализованы в Engine)
@@ -139,7 +139,6 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
 
     nodes.push(engineNode);
   });
-
   return nodes;
 }
 

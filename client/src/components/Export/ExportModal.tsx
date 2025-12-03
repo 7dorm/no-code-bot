@@ -3,6 +3,7 @@ import { useEditorStore } from '../../store/useEditorStore';
 import { ExportPlatform } from '../../types';
 import { createTelegramExport } from '../../utils/telegramExporter';
 import './ExportModal.css';
+import {adaptProjectToEngine} from "../../utils/backend/projectAdapter.ts";
 
 interface ExportModalProps {
   onClose: () => void;
@@ -22,7 +23,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
       // Экспорт для мессенджера
       try {
         const { code, instructions } = createTelegramExport(currentProject);
-        
+
         // Скачиваем bot.js
         const codeBlob = new Blob([code], { type: 'text/javascript;charset=utf-8' });
         const codeUrl = URL.createObjectURL(codeBlob);
@@ -40,7 +41,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
         a2.download = 'README.md';
         a2.click();
         URL.revokeObjectURL(readmeUrl);
-        
+
         onClose();
       } catch (e) {
         alert('Ошибка экспорта кода. Проверьте настройки токена в проекте.');
@@ -48,8 +49,15 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
       }
     } else {
       // Экспорт Node.js проекта
-      // TODO: Реализовать экспорт Node.js проекта
-      alert('Экспорт Node.js проекта будет реализован позже');
+      const json = JSON.stringify(adaptProjectToEngine(currentProject), null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentProject?.name || 'project'}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      alert('Экспортированно!');
     }
   };
 

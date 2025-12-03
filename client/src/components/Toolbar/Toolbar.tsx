@@ -14,7 +14,7 @@ const Toolbar: React.FC = () => {
     toggleSettings,
     togglePreview,
   } = useEditorStore();
-  
+
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const handleSave = () => {
@@ -82,7 +82,7 @@ const Toolbar: React.FC = () => {
           📦 Экспорт
         </button>
       </div>
-      
+
       {isExportModalOpen && (
         <ExportModal onClose={() => setIsExportModalOpen(false)} />
       )}

@@ -1,0 +1,92 @@
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"AutoImportSettings\">\n    <option name=\"autoReloadType\" value=\"SELECTIVE\" />\n  </component>\n  <component name=\"ChangeListManager\">\n    <list default=\"true\" id=\"0280a05d-6831-4375-b197-f173055bf21d\" name=\"Changes\" comment=\"\">\n      <change beforePath=\"$PROJECT_DIR$/.gitignore\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.gitignore\" afterDir=\"false\" />\n    </list>\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\n  </component>\n  <component name=\"ComposerSettings\">\n    <execution />\n  </component>\n  <component name=\"FileTemplateManagerImpl\">\n    <option name=\"RECENT_TEMPLATES\">\n      <list>\n        <option value=\"CSS File\" />\n        <option value=\"TypeScript JSX File\" />\n        <option value=\"TypeScript File\" />\n      </list>\n    </option>\n  </component>\n  <component name=\"Git.Settings\">\n    <option name=\"RECENT_BRANCH_BY_REPOSITORY\">\n      <map>\n        <entry key=\"$PROJECT_DIR$\" value=\"Telegram\" />\n      </map>\n    </option>\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\n    <option name=\"ROOT_SYNC\" value=\"DONT_SYNC\" />\n  </component>\n  <component name=\"GitHubPullRequestSearchHistory\">{\n  &quot;lastFilter&quot;: {\n    &quot;state&quot;: &quot;OPEN&quot;,\n    &quot;assignee&quot;: &quot;7dorm&quot;\n  }\n}</component>\n  <component name=\"GithubPullRequestsUISettings\">{\n  &quot;selectedUrlAndAccountId&quot;: {\n    &quot;url&quot;: &quot;https://github.com/7dorm/no-code-bot&quot;,\n    &quot;accountId&quot;: &quot;e9e6c691-b63e-437e-a4f6-dea26fb67186&quot;\n  }\n}</component>\n  <component name=\"HighlightingSettingsPerFile\">\n    <setting file=\"file://$PROJECT_DIR$/src/components/Preview/Preview.tsx\" root0=\"FORCE_HIGHLIGHTING\" />\n  </component>\n  <component name=\"PhpWorkspaceProjectConfiguration\" interpreter_name=\"php\" />\n  <component name=\"ProjectColorInfo\">{\n  &quot;associatedIndex&quot;: 7\n}</component>\n  <component name=\"ProjectId\" id=\"32sxSt7ePDI6TuUG2xJaaOtiDrl\" />\n  <component name=\"ProjectViewState\">\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\n    <option name=\"showLibraryContents\" value=\"true\" />\n  </component>\n  <component name=\"PropertiesComponent\"><![CDATA[{\n  \"keyToString\": {\n    \"ASKED_MARK_IGNORED_FILES_AS_EXCLUDED\": \"true\",\n    \"Jest.Engine test with mock UI (1).executor\": \"Run\",\n    \"Jest.Engine test with mock UI (2).executor\": \"Run\",\n    \"Jest.Engine test with mock UI.executor\": \"Run\",\n    \"Jest.Engine test with mock UI.should traverse the flow correctly choosing first answers.executor\": \"Debug\",\n    \"RunOnceActivity.ShowReadmeOnStart\": \"true\",\n    \"RunOnceActivity.git.unshallow\": \"true\",\n    \"git-widget-placeholder\": \"frontend\",\n    \"kotlin-language-version-configured\": \"true\",\n    \"last_opened_file_path\": \"/Users/deu/Projects/no-code-bot\",\n    \"list.type.of.created.stylesheet\": \"CSS\",\n    \"node.js.detected.package.eslint\": \"true\",\n    \"node.js.detected.package.tslint\": \"true\",\n    \"node.js.selected.package.eslint\": \"(autodetect)\",\n    \"node.js.selected.package.tslint\": \"(autodetect)\",\n    \"nodejs.jest.jest_package\": \"/Users/deu/Projects/no-code-bot/backend/node_modules/jest\",\n    \"nodejs_package_manager_path\": \"npm\",\n    \"npm.start.executor\": \"Run\",\n    \"npm.test.executor\": \"Run\",\n    \"project.structure.last.edited\": \"Modules\",\n    \"project.structure.proportion\": \"0.0\",\n    \"project.structure.side.proportion\": \"0.0\",\n    \"settings.editor.selected.configurable\": \"preferences.lookFeel\",\n    \"ts.external.directory.path\": \"/Applications/IntelliJ IDEA.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external\",\n    \"vue.rearranger.settings.migration\": \"true\"\n  }\n}]]></component>\n  <component name=\"RecentsManager\">\n    <key name=\"MoveFile.RECENT_KEYS\">\n      <recent name=\"$PROJECT_DIR$/backend\" />\n      <recent name=\"$PROJECT_DIR$/client/src/components\" />\n      <recent name=\"$PROJECT_DIR$/client/src/components/blocks\" />\n    </key>\n  </component>\n  <component name=\"RunManager\" selected=\"Jest.Engine test with mock UI (2)\">\n    <configuration name=\"Engine test with mock UI (1)\" type=\"JavaScriptTestRunnerJest\" temporary=\"true\" nameIsGenerated=\"true\">\n      <node-interpreter value=\"project\" />\n      <jest-package value=\"$PROJECT_DIR$/backend/node_modules/jest\" />\n      <working-dir value=\"$PROJECT_DIR$/backend\" />\n      <envs />\n      <scope-kind value=\"SUITE\" />\n      <test-file value=\"$PROJECT_DIR$/backend/test_eng/test3.test.ts\" />\n      <test-names>\n        <test-name value=\"Engine test with mock UI\" />\n      </test-names>\n      <method v=\"2\" />\n    </configuration>\n    <configuration name=\"Engine test with mock UI (2)\" type=\"JavaScriptTestRunnerJest\" temporary=\"true\" nameIsGenerated=\"true\">\n      <node-interpreter value=\"project\" />\n      <jest-package value=\"$PROJECT_DIR$/backend/node_modules/jest\" />\n      <working-dir value=\"$PROJECT_DIR$/backend\" />\n      <envs />\n      <scope-kind value=\"SUITE\" />\n      <test-file value=\"$PROJECT_DIR$/backend/test_eng/WebUI.test.ts\" />\n      <test-names>\n        <test-name value=\"Engine test with mock UI\" />\n      </test-names>\n      <method v=\"2\" />\n    </configuration>\n    <configuration name=\"Engine test with mock UI\" type=\"JavaScriptTestRunnerJest\" temporary=\"true\" nameIsGenerated=\"true\">\n      <node-interpreter value=\"project\" />\n      <jest-package value=\"$PROJECT_DIR$/backend/node_modules/jest\" />\n      <working-dir value=\"$PROJECT_DIR$/backend/test_eng\" />\n      <envs />\n      <scope-kind value=\"SUITE\" />\n      <test-file value=\"$PROJECT_DIR$/backend/test_eng/test3.test.ts\" />\n      <test-names>\n        <test-name value=\"Engine test with mock UI\" />\n      </test-names>\n      <method v=\"2\" />\n    </configuration>\n    <configuration name=\"Engine test with mock UI.should traverse the flow correctly choosing first answers\" type=\"JavaScriptTestRunnerJest\" temporary=\"true\" nameIsGenerated=\"true\">\n      <node-interpreter value=\"project\" />\n      <jest-package value=\"$PROJECT_DIR$/backend/node_modules/jest\" />\n      <working-dir value=\"$PROJECT_DIR$/backend\" />\n      <envs />\n      <scope-kind value=\"TEST\" />\n      <test-file value=\"$PROJECT_DIR$/backend/test_eng/test3.test.ts\" />\n      <test-names>\n        <test-name value=\"Engine test with mock UI\" />\n        <test-name value=\"should traverse the flow correctly choosing first answers\" />\n      </test-names>\n      <method v=\"2\" />\n    </configuration>\n    <configuration name=\"test\" type=\"js.build_tools.npm\" temporary=\"true\" nameIsGenerated=\"true\">\n      <package-json value=\"$PROJECT_DIR$/backend/package.json\" />\n      <command value=\"run\" />\n      <scripts>\n        <script value=\"test\" />\n      </scripts>\n      <node-interpreter value=\"project\" />\n      <envs />\n      <method v=\"2\" />\n    </configuration>\n    <recent_temporary>\n      <list>\n        <item itemvalue=\"npm.test\" />\n        <item itemvalue=\"Jest.Engine test with mock UI (2)\" />\n        <item itemvalue=\"Jest.Engine test with mock UI (1)\" />\n        <item itemvalue=\"Jest.Engine test with mock UI.should traverse the flow correctly choosing first answers\" />\n        <item itemvalue=\"Jest.Engine test with mock UI\" />\n      </list>\n    </recent_temporary>\n  </component>\n  <component name=\"SharedIndexes\">\n    <attachedChunks>\n      <set>\n        <option value=\"bundled-jdk-9823dce3aa75-125ca727e0f0-intellij.indexing.shared.core-IU-243.24978.46\" />\n        <option value=\"bundled-js-predefined-d6986cc7102b-76f8388c3a79-JavaScript-IU-243.24978.46\" />\n      </set>\n    </attachedChunks>\n  </component>\n  <component name=\"SpellCheckerSettings\" RuntimeDictionaries=\"0\" Folders=\"0\" CustomDictionaries=\"0\" DefaultDictionary=\"application-level\" UseSingleDictionary=\"true\" transferred=\"true\" />\n  <component name=\"TaskManager\">\n    <task active=\"true\" id=\"Default\" summary=\"Default task\">\n      <changelist id=\"0280a05d-6831-4375-b197-f173055bf21d\" name=\"Changes\" comment=\"\" />\n      <created>1758223083884</created>\n      <option name=\"number\" value=\"Default\" />\n      <option name=\"presentableId\" value=\"Default\" />\n      <updated>1758223083884</updated>\n      <workItem from=\"1758223084954\" duration=\"14380000\" />\n      <workItem from=\"1758399625206\" duration=\"9678000\" />\n      <workItem from=\"1759006169384\" duration=\"2285000\" />\n      <workItem from=\"1759034969598\" duration=\"132000\" />\n      <workItem from=\"1759221722903\" duration=\"659000\" />\n      <workItem from=\"1759236029611\" duration=\"757000\" />\n      <workItem from=\"1759295170537\" duration=\"377000\" />\n      <workItem from=\"1760385298611\" duration=\"2742000\" />\n      <workItem from=\"1764654003685\" duration=\"3033000\" />\n      <workItem from=\"1764657047748\" duration=\"14037000\" />\n      <workItem from=\"1764681523545\" duration=\"229000\" />\n      <workItem from=\"1764681759497\" duration=\"35000\" />\n      <workItem from=\"1764681800434\" duration=\"85000\" />\n      <workItem from=\"1764681930431\" duration=\"52000\" />\n    </task>\n    <servers />\n  </component>\n  <component name=\"TypeScriptGeneratedFilesManager\">\n    <option name=\"version\" value=\"3\" />\n  </component>\n</project>
+===================================================================
+diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+--- a/.idea/workspace.xml	(revision 33cf11a66ac1e4c96943180f4916bc79765068ee)
++++ b/.idea/workspace.xml	(date 1764745794993)
+@@ -4,9 +4,7 @@
+     <option name="autoReloadType" value="SELECTIVE" />
+   </component>
+   <component name="ChangeListManager">
+-    <list default="true" id="0280a05d-6831-4375-b197-f173055bf21d" name="Changes" comment="">
+-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+-    </list>
++    <list default="true" id="0280a05d-6831-4375-b197-f173055bf21d" name="Changes" comment="" />
+     <option name="SHOW_DIALOG" value="false" />
+     <option name="HIGHLIGHT_CONFLICTS" value="true" />
+     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+@@ -27,7 +25,7 @@
+   <component name="Git.Settings">
+     <option name="RECENT_BRANCH_BY_REPOSITORY">
+       <map>
+-        <entry key="$PROJECT_DIR$" value="Telegram" />
++        <entry key="$PROJECT_DIR$" value="main" />
+       </map>
+     </option>
+     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+@@ -57,35 +55,35 @@
+     <option name="hideEmptyMiddlePackages" value="true" />
+     <option name="showLibraryContents" value="true" />
+   </component>
+-  <component name="PropertiesComponent"><![CDATA[{
+-  "keyToString": {
+-    "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
+-    "Jest.Engine test with mock UI (1).executor": "Run",
+-    "Jest.Engine test with mock UI (2).executor": "Run",
+-    "Jest.Engine test with mock UI.executor": "Run",
+-    "Jest.Engine test with mock UI.should traverse the flow correctly choosing first answers.executor": "Debug",
+-    "RunOnceActivity.ShowReadmeOnStart": "true",
+-    "RunOnceActivity.git.unshallow": "true",
+-    "git-widget-placeholder": "frontend",
+-    "kotlin-language-version-configured": "true",
+-    "last_opened_file_path": "/Users/deu/Projects/no-code-bot",
+-    "list.type.of.created.stylesheet": "CSS",
+-    "node.js.detected.package.eslint": "true",
+-    "node.js.detected.package.tslint": "true",
+-    "node.js.selected.package.eslint": "(autodetect)",
+-    "node.js.selected.package.tslint": "(autodetect)",
+-    "nodejs.jest.jest_package": "/Users/deu/Projects/no-code-bot/backend/node_modules/jest",
+-    "nodejs_package_manager_path": "npm",
+-    "npm.start.executor": "Run",
+-    "npm.test.executor": "Run",
+-    "project.structure.last.edited": "Modules",
+-    "project.structure.proportion": "0.0",
+-    "project.structure.side.proportion": "0.0",
+-    "settings.editor.selected.configurable": "preferences.lookFeel",
+-    "ts.external.directory.path": "/Applications/IntelliJ IDEA.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external",
+-    "vue.rearranger.settings.migration": "true"
++  <component name="PropertiesComponent">{
++  &quot;keyToString&quot;: {
++    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
++    &quot;Jest.Engine test with mock UI (1).executor&quot;: &quot;Run&quot;,
++    &quot;Jest.Engine test with mock UI (2).executor&quot;: &quot;Run&quot;,
++    &quot;Jest.Engine test with mock UI.executor&quot;: &quot;Run&quot;,
++    &quot;Jest.Engine test with mock UI.should traverse the flow correctly choosing first answers.executor&quot;: &quot;Debug&quot;,
++    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
++    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
++    &quot;git-widget-placeholder&quot;: &quot;frontend&quot;,
++    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
++    &quot;last_opened_file_path&quot;: &quot;/Users/deu/Projects/no-code-bot&quot;,
++    &quot;list.type.of.created.stylesheet&quot;: &quot;CSS&quot;,
++    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
++    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
++    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
++    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
++    &quot;nodejs.jest.jest_package&quot;: &quot;/Users/deu/Projects/no-code-bot/backend/node_modules/jest&quot;,
++    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
++    &quot;npm.start.executor&quot;: &quot;Run&quot;,
++    &quot;npm.test.executor&quot;: &quot;Run&quot;,
++    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
++    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
++    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
++    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.lookFeel&quot;,
++    &quot;ts.external.directory.path&quot;: &quot;/Applications/IntelliJ IDEA.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external&quot;,
++    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+   }
+-}]]></component>
++}</component>
+   <component name="RecentsManager">
+     <key name="MoveFile.RECENT_KEYS">
+       <recent name="$PROJECT_DIR$/backend" />
