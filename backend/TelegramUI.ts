@@ -41,6 +41,26 @@ export class TelegramUI implements UI {
       this.inputResolver = null;
     }
   }
+
+  async sendFile(path: string): Promise<void> {
+    // Отправка файла в Telegram
+    try {
+      await this.ctx.replyWithDocument({ source: path });
+    } catch (error) {
+      await this.ctx.reply(`Ошибка отправки файла: ${path}`);
+    }
+  }
+
+  getFile(pathToSave: string, name: string): string {
+    // В Telegram получаем файл от пользователя
+    // Возвращаем уникальное имя для сохранения
+    return `${name}_${Date.now()}`;
+  }
+
+  deleteFile(path: string): void {
+    // Удаление файла (в Telegram это просто логирование)
+    console.log(`Удаление файла: ${path}`);
+  }
 }
 
 

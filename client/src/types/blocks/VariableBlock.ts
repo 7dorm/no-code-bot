@@ -8,6 +8,7 @@ export interface VariableBlockData extends BlockInterface {
   type: 'variable';
   variableName: string; // Имя переменной
   value: string; // Значение переменной (может содержать {{переменные}})
+  saveNextInput?: boolean; // Если true, следующий ответ пользователя будет сохранен в эту переменную
 }
 
 /**

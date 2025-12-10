@@ -4,19 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0280a05d-6831-4375-b197-f173055bf21d" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/backend/test/test1.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/tsconfig.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/Engine.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/Engine.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/client/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/components/Export/ExportModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Export/ExportModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/components/Toolbar/Toolbar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Toolbar/Toolbar.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/store/useEditorStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/store/useEditorStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/utils/backend/projectAdapter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/utils/backend/projectAdapter.ts" afterDir="false" />
-    </list>
+    <list default="true" id="0280a05d-6831-4375-b197-f173055bf21d" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -212,5 +200,9 @@
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
   </component>
 </project>

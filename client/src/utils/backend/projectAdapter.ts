@@ -101,6 +101,11 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         engineNode.Type = 'variable';
         engineNode.VariableName = varData.variableName;
         engineNode.VariableValue = varData.value;
+        
+        // Проверяем, нужно ли сохранять следующий ответ пользователя
+        if (varData.saveNextInput) {
+          engineNode.SaveNextToVariable = varData.variableName;
+        }
 
         // Получаем следующий блок
         const nextTarget = blockConnections?.get('output');
@@ -129,10 +134,49 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         break;
       }
 
-      case 'api':
+      case 'api': {
+        const apiData = block.data as ApiBlockData;
+        engineNode.Type = 'api';
+        engineNode.ApiUrl = apiData.url;
+        engineNode.ApiMethod = apiData.method || 'GET';
+        engineNode.ApiHeaders = apiData.headers;
+        engineNode.ApiBody = apiData.body;
+        // Сохраняем переменную для ответа, даже если она пустая (для отладки)
+        engineNode.ApiResponseVariable = apiData.responseVariable?.trim() || undefined;
+        
+        console.log('API block adapted:', {
+          id: block.id,
+          url: apiData.url,
+          method: apiData.method,
+          responseVariable: engineNode.ApiResponseVariable,
+          originalResponseVariable: apiData.responseVariable
+        });
+
+        // Получаем следующий блок
+        const nextTarget = blockConnections?.get('output');
+        if (nextTarget) {
+          engineNode.Nexts.push(nextTarget);
+        }
+        break;
+      }
+
       case 'file': {
-        // Для api и file блоков создаем skip (пока не реализованы в Engine)
-        engineNode.Type = 'skip';
+        const fileData = block.data as FileBlockData;
+        engineNode.Type = 'FILE';
+        
+        // Преобразуем действие файла
+        const actionMap: Record<string, 'Upload' | 'DownLoad' | 'Delete' | 'Read'> = {
+          'upload': 'Upload',
+          'download': 'DownLoad',
+          'delete': 'Delete',
+          'read': 'Read',
+        };
+        engineNode.FILEAct = actionMap[fileData.action || 'upload'];
+        engineNode.FileName = fileData.fileName;
+        engineNode.PathToFile = fileData.filePath;
+        engineNode.PathToSave = fileData.filePath; // Для upload используем filePath как путь сохранения
+
+        // Получаем следующий блок
         const nextTarget = blockConnections?.get('output');
         if (nextTarget) {
           engineNode.Nexts.push(nextTarget);
@@ -149,7 +193,7 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
 /**
  * Преобразует тип блока в тип Engine
  */
-function mapBlockTypeToEngine(blockType: string): 'output' | 'condition' | 'start' | 'variable' | 'skip' | 'end' {
+function mapBlockTypeToEngine(blockType: string): 'output' | 'condition' | 'start' | 'variable' | 'api' | 'FILE' | 'skip' | 'end' {
   switch (blockType) {
     case 'message':
       return 'output';
@@ -159,6 +203,10 @@ function mapBlockTypeToEngine(blockType: string): 'output' | 'condition' | 'star
       return 'start';
     case 'variable':
       return 'variable';
+    case 'api':
+      return 'api';
+    case 'file':
+      return 'FILE';
     case 'end':
       return 'end';
     default:

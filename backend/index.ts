@@ -26,7 +26,7 @@ bot.start(async (ctx) => {
     const data = JSON.parse(raw);
 
     const ui = new TelegramUI(ctx);
-    const eng = new Engine(ui, data);
+    const eng = new Engine(ui, data, {});
 
     userStates.set(chatId, { eng, ui });
 

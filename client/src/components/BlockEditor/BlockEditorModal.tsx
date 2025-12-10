@@ -273,16 +273,34 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
               <small className="editor-hint">Имя переменной без пробелов и специальных символов</small>
             </div>
             <div className="editor-group">
-              <label className="editor-label">Значение</label>
-              <input
-                type="text"
-                className="editor-input"
-                value={variableData.value || ''}
-                onChange={(e) => updateBlockData<VariableBlockData>({ value: e.target.value })}
-                placeholder="Значение переменной. Можно использовать {{другие_переменные}}"
-              />
-              <small className="editor-hint">Используйте {'{{'}переменная{'}}'} для подстановки других переменных</small>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={variableData.saveNextInput || false}
+                  onChange={(e) => {
+                    updateBlockData<VariableBlockData>({ 
+                      saveNextInput: e.target.checked,
+                      value: e.target.checked ? '' : variableData.value || ''
+                    });
+                  }}
+                />
+                <span>Сохранить следующий ответ пользователя в эту переменную</span>
+              </label>
+              <small className="editor-hint">Если включено, следующий ответ пользователя будет автоматически сохранен в эту переменную</small>
             </div>
+            {!variableData.saveNextInput && (
+              <div className="editor-group">
+                <label className="editor-label">Значение</label>
+                <input
+                  type="text"
+                  className="editor-input"
+                  value={variableData.value || ''}
+                  onChange={(e) => updateBlockData<VariableBlockData>({ value: e.target.value })}
+                  placeholder="Значение переменной. Можно использовать {{другие_переменные}}"
+                />
+                <small className="editor-hint">Используйте {'{{'}переменная{'}}'} для подстановки других переменных</small>
+              </div>
+            )}
           </>
         );
 
@@ -314,19 +332,38 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
                 <option value="PATCH">PATCH</option>
               </select>
             </div>
-            {apiData.method === 'GET' && (
-              <div className="editor-group">
-                <label className="editor-label">Переменная для ответа</label>
-                <input
-                  type="text"
-                  className="editor-input"
-                  value={apiData.responseVariable || ''}
-                  onChange={(e) => updateBlockData<ApiBlockData>({ responseVariable: e.target.value || undefined })}
-                  placeholder="Например: apiResponse"
-                />
-                <small className="editor-hint">Ответ GET будет сохранен в эту переменную</small>
-              </div>
-            )}
+            <div className="editor-group">
+              <label className="editor-label">Переменная для ответа</label>
+              <input
+                type="text"
+                className="editor-input"
+                value={apiData.responseVariable || ''}
+                onChange={(e) => {
+                  const value = e.target.value.trim();
+                  updateBlockData<ApiBlockData>({ responseVariable: value || undefined });
+                }}
+                placeholder="Например: apiResponse"
+              />
+              <small className="editor-hint">Ответ API будет сохранен в эту переменную. Укажите имя переменной без пробелов.</small>
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Заголовки (JSON, опционально)</label>
+              <textarea
+                className="editor-textarea"
+                value={apiData.headers ? JSON.stringify(apiData.headers, null, 2) : ''}
+                onChange={(e) => {
+                  try {
+                    const headers = e.target.value.trim() ? JSON.parse(e.target.value) : undefined;
+                    updateBlockData<ApiBlockData>({ headers });
+                  } catch (err) {
+                    // Игнорируем ошибки парсинга во время ввода
+                  }
+                }}
+                placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'
+                rows={4}
+              />
+              <small className="editor-hint">JSON объект с заголовками HTTP запроса</small>
+            </div>
             {(apiData.method === 'POST' || apiData.method === 'PUT' || apiData.method === 'PATCH') && (
               <div className="editor-group">
                 <label className="editor-label">Тело запроса (Body)</label>

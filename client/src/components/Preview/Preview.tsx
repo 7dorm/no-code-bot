@@ -67,8 +67,9 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
 
     webUIRef.current = webUI;
 
-    // Создаем Engine
-    const engine = new Engine(webUI, engineNodes);
+    // Создаем Engine с глобальными константами
+    const globalConstants = currentProject.globalConstants || {};
+    const engine = new Engine(webUI, engineNodes, globalConstants);
     engineRef.current = engine;
 
     // Начинаем выполнение бота (skip=true для первого запуска, чтобы начать без ввода)

@@ -36,7 +36,7 @@ async function main() {
     const ui = new ConsoleUi();
     const raw = readFileSync("./test/test.json", "utf-8");
     const data = JSON.parse(raw);
-    const eng = new Engine(ui, data);
+    const eng = new Engine(ui, data, {});
 
     while (!ui.Is_done()) {
         await eng.execute();

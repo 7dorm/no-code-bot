@@ -52,6 +52,7 @@ export interface ExecutionContext {
   variables: Record<string, any>;
   userInput?: string;
   currentMessage?: string;
+  globalConstants?: Record<string, any>;
 }
 
 // Узел блока (для React Flow)

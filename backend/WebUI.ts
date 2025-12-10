@@ -45,4 +45,27 @@ export class WebUI implements UI {
       this.onFinishCallback();
     }
   }
+
+  sendFile(path: string): void {
+    // Для WebUI отправка файла - это просто сообщение
+    if (this.onMessageCallback) {
+      this.onMessageCallback(`📎 Файл отправлен: ${path}`, []);
+    }
+  }
+
+  getFile(pathToSave: string, name: string): string {
+    // Для WebUI возвращаем уникальное имя файла
+    const uniqueName = `${name}_${Date.now()}`;
+    if (this.onMessageCallback) {
+      this.onMessageCallback(`📎 Файл получен: ${uniqueName}`, []);
+    }
+    return uniqueName;
+  }
+
+  deleteFile(path: string): void {
+    // Для WebUI удаление файла - это просто сообщение
+    if (this.onMessageCallback) {
+      this.onMessageCallback(`🗑️ Файл удален: ${path}`, []);
+    }
+  }
 }

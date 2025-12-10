@@ -54,7 +54,7 @@ function executeMessage(
   const message = messageData.text || block.data.label || 'Сообщение без текста';
 
   // Заменяем переменные в сообщении
-  const processedMessage = replaceVariables(message, context.variables);
+  const processedMessage = replaceVariables(message, context.variables, context.globalConstants);
 
   // Если указана переменная для сохранения ответа, она будет сохранена в Preview компоненте
   // после получения ответа пользователя
@@ -205,7 +205,7 @@ function executeVariable(
   const value = variableData.value || '';
 
   // Заменяем переменные в значении
-  const processedValue = replaceVariables(value, context.variables);
+  const processedValue = replaceVariables(value, context.variables, context.globalConstants);
 
   // Обновляем контекст
   context.variables[variableName] = processedValue;
@@ -228,7 +228,7 @@ function executeAPI(
   const apiData = block.data as ApiBlockData;
   const url = apiData.url || '';
   const method = apiData.method || 'GET';
-  const processedUrl = replaceVariables(url, context.variables);
+  const processedUrl = replaceVariables(url, context.variables, context.globalConstants);
 
   // Имитация ответа API с простым определением статуса
   const isBadStatus = !processedUrl || processedUrl.toLowerCase().includes('error');
@@ -260,7 +260,7 @@ function executeFile(
   const fileData = block.data as FileBlockData;
   const action = fileData.action || 'upload';
   const fileName = fileData.fileName || 'file';
-  const processedFileName = replaceVariables(fileName, context.variables);
+  const processedFileName = replaceVariables(fileName, context.variables, context.globalConstants);
 
   const result = `Файл ${processedFileName} обработан (${action})`;
 
@@ -280,7 +280,7 @@ function executeEnd(
   connections: Array<{ source: string; target: string }>
 ): BlockExecutionResult {
   const endData = block.data as EndBlockData;
-  const message = endData.message ? replaceVariables(endData.message, context.variables) : null;
+  const message = endData.message ? replaceVariables(endData.message, context.variables, context.globalConstants) : null;
 
   return {
     success: true,
@@ -291,9 +291,16 @@ function executeEnd(
 
 // Вспомогательные функции
 
-function replaceVariables(text: string, variables: Record<string, any>): string {
+function replaceVariables(text: string, variables: Record<string, any>, globalConstants?: Record<string, any>): string {
   return text.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
-    return variables[varName] !== undefined ? String(variables[varName]) : match;
+    // Сначала проверяем переменные, затем глобальные константы
+    if (variables[varName] !== undefined) {
+      return String(variables[varName]);
+    }
+    if (globalConstants && globalConstants[varName] !== undefined) {
+      return String(globalConstants[varName]);
+    }
+    return match;
   });
 }
 
@@ -301,6 +308,10 @@ function getVariableValue(varRef: string, context: ExecutionContext): any {
   // Если это ссылка на переменную
   if (context.variables[varRef] !== undefined) {
     return context.variables[varRef];
+  }
+  // Проверяем глобальные константы
+  if (context.globalConstants && context.globalConstants[varRef] !== undefined) {
+    return context.globalConstants[varRef];
   }
   // Если это строка в кавычках
   if ((varRef.startsWith('"') && varRef.endsWith('"')) ||
