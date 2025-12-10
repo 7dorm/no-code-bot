@@ -23,7 +23,7 @@ export interface EngineNode {
 }
 
 /**
- * Улучшенная функция оценки условий
+ * Функция оценки условий
  */
 function evalCondition(condStr: string, variables: Record<string, any>, userInput: string = ''): boolean {
   if (condStr === "default") return true;
@@ -53,7 +53,7 @@ function evalCondition(condStr: string, variables: Record<string, any>, userInpu
 }
 
 function evaluateSimpleCondition(cond: string, variables: Record<string, any>, userInput: string = ''): boolean {
-  // Проверка на сравнение чисел (с поддержкой переменных)
+  // Проверка на сравнение чисел 
   const numMatch = cond.match(/^\s*([\w{}]+)\s*([<>]=?|==|!=)\s*([\w{}]+)\s*$/);
   if (numMatch) {
     // @ts-ignore
@@ -158,6 +158,7 @@ function evaluateSimpleCondition(cond: string, variables: Record<string, any>, u
 export class Engine {
   private nodeStructure: Record<string, EngineNode> = {};
   private variables: Record<string, any> = {};
+  private files: Record<string, any> = {};
   private ui: UI;
   private index: string | null = null;
   private saveNext = false;
@@ -447,8 +448,8 @@ export class Engine {
       );
 
       // Сохраняем имя файла в переменные
-      this.variables[fileName] = uniqueName;
-      this.variables['lastFile'] = uniqueName;
+      this.files[fileName] = uniqueName;
+      this.files['lastFile'] = uniqueName;
       break;
     }
 
@@ -463,8 +464,8 @@ export class Engine {
       const matches = [...filePath.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]);
 
       matches.forEach((match: string) => {
-        if (this.variables[match] !== undefined) {
-          filePath = filePath.replace(`{{${match}}}`, String(this.variables[match]));
+        if (this.files[match] !== undefined) {
+          filePath = filePath.replace(`{{${match}}}`, String(this.files[match]));
         }
       });
 
@@ -482,8 +483,8 @@ export class Engine {
       const matches = [...filePath.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]);
 
       matches.forEach((match: string) => {
-        if (this.variables[match] !== undefined) {
-          filePath = filePath.replace(`{{${match}}}`, String(this.variables[match]));
+        if (this.files[match] !== undefined) {
+          filePath = filePath.replace(`{{${match}}}`, String(this.files[match]));
         }
       });
 
