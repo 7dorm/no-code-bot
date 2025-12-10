@@ -12,6 +12,7 @@ interface PreviewProps {
 interface ChatMessage {
   role: 'bot' | 'user';
   content: string;
+  answers?: string[];
 }
 
 const Preview: React.FC<PreviewProps> = ({ onClose }) => {
@@ -48,9 +49,9 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
 
     // Создаем WebUI с колбэками
     const webUI = new WebUI(
-      (message: string) => {
+      (message: string, answers?: string[]) => {
         // Колбэк для отправки сообщения бота
-        setMessages(prev => [...prev, { role: 'bot', content: message }]);
+        setMessages(prev => [...prev, { role: 'bot', content: message, answers }]);
       },
       () => {
         // Колбэк для завершения диалога
@@ -98,23 +99,15 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
     };
   }, [currentProject]);
 
-  const handleSendMessage = useCallback(() => {
-    if (!userInput.trim() || !webUIRef.current || !waitingForInput) return;
+  const sendToEngine = useCallback((text: string) => {
+    if (!text || !webUIRef.current || !waitingForInput) return;
 
-    const inputText = userInput.trim();
-    
-    // Добавляем сообщение пользователя в историю
-    setMessages(prev => [...prev, { role: 'user', content: inputText }]);
-    
-    // Очищаем поле ввода сразу
+    setMessages(prev => [...prev, { role: 'user', content: text }]);
     setUserInput('');
     setWaitingForInput(false);
 
-    // Отправляем сообщение в Engine через WebUI
-    // Это разблокирует Promise в getInput() и продолжит выполнение Engine
-    webUIRef.current.handleUserMessage(inputText);
+    webUIRef.current.handleUserMessage(text);
 
-    // Продолжаем выполнение Engine после получения ввода
     if (engineRef.current) {
       const continueExecution = async () => {
         try {
@@ -132,7 +125,17 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
       };
       continueExecution();
     }
-  }, [userInput, waitingForInput]);
+  }, [waitingForInput]);
+
+  const handleSendMessage = useCallback(() => {
+    const inputText = userInput.trim();
+    if (!inputText) return;
+    sendToEngine(inputText);
+  }, [userInput, sendToEngine]);
+
+  const handleQuickReply = useCallback((reply: string) => {
+    sendToEngine(reply);
+  }, [sendToEngine]);
 
   if (!currentProject) {
     return (
@@ -162,7 +165,23 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
             )}
             {messages.map((msg, idx) => (
               <div key={idx} className={`chat-message ${msg.role}`}>
-                <div className="message-bubble">{msg.content}</div>
+                <div className="message-bubble">
+                  {msg.content}
+                  {msg.role === 'bot' && msg.answers && msg.answers.length > 0 && (
+                    <div className="quick-replies">
+                      {msg.answers.map((ans, i) => (
+                        <button
+                          key={`${idx}-ans-${i}`}
+                          className="quick-reply-btn"
+                          onClick={() => handleQuickReply(ans)}
+                          disabled={!waitingForInput}
+                        >
+                          {ans}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

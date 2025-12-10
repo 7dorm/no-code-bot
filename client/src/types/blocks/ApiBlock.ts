@@ -10,6 +10,7 @@ export interface ApiBlockData extends BlockInterface {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH'; // HTTP метод
   headers?: Record<string, string>; // HTTP заголовки (опционально)
   body?: string; // Тело запроса для POST/PUT (опционально)
+  responseVariable?: string; // Имя переменной, куда сохранить ответ (для GET)
 }
 
 /**

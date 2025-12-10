@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
-import { BlockNode, BlockData, StartBlockData, MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData, ApiBlockData, FileBlockData, EndBlockData } from '../../types';
+import { BlockData, MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData, ApiBlockData, FileBlockData, EndBlockData } from '../../types';
 import './BlockEditorModal.css';
 
 interface BlockEditorModalProps {
@@ -15,11 +15,16 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
   
   const [label, setLabel] = useState(node?.data.label || '');
   const [blockData, setBlockData] = useState<BlockData>(node?.data || { type: 'start' });
+  const [messageCaretInVar, setMessageCaretInVar] = useState(false);
 
   useEffect(() => {
     if (node) {
       setLabel(node.data.label || '');
-      setBlockData(node.data);
+      const dataWithDefault = (node.data.type === 'condition')
+        ? { ...node.data, hasDefault: true }
+        : node.data;
+      setBlockData(dataWithDefault);
+      setMessageCaretInVar(false);
     }
   }, [node]);
 
@@ -28,6 +33,7 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
       updateBlock(nodeId, {
         data: {
           ...blockData,
+          ...(blockData.type === 'condition' ? { hasDefault: true } : {}),
           label,
         } as BlockData,
       });
@@ -67,17 +73,71 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
 
       case 'message':
         const messageData = blockData as MessageBlockData;
+        const renderMessagePreview = (text: string) => {
+          if (!text) return null;
+          const parts = text.split(/(\{\{\w+\}\})/g).filter(Boolean);
+          return (
+            <div className="editor-message-preview">
+              {parts.map((part, idx) => {
+                const match = part.match(/^\{\{(\w+)\}\}$/);
+                if (match) {
+                  return (
+                    <React.Fragment key={idx}>
+                      <span className="editor-message-brace">{'{{'}</span>
+                      <strong className="editor-message-var">{match[1]}</strong>
+                      <span className="editor-message-brace">{'}}'}</span>
+                    </React.Fragment>
+                  );
+                }
+                return <span key={idx}>{part}</span>;
+              })}
+            </div>
+          );
+        };
+        const isCaretInsidePlaceholder = (text: string, caret: number | null): boolean => {
+          if (caret == null) return false;
+          const regex = /\{\{\s*\w+\s*\}\}/g;
+          let match: RegExpExecArray | null;
+          while ((match = regex.exec(text)) !== null) {
+            const start = match.index;
+            const end = start + match[0].length;
+            if (caret > start && caret <= end) {
+              return true;
+            }
+          }
+          return false;
+        };
+        const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+          const val = e.target.value;
+          const caret = e.target.selectionStart;
+          setMessageCaretInVar(isCaretInsidePlaceholder(val, caret));
+          updateBlockData<MessageBlockData>({ text: val });
+        };
+        const handleMessageSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+          const target = e.target as HTMLTextAreaElement;
+          const caret = target.selectionStart;
+          setMessageCaretInVar(isCaretInsidePlaceholder(target.value, caret));
+        };
         return (
           <>
             <div className="editor-group">
               <label className="editor-label">Текст сообщения</label>
-              <textarea
-                className="editor-textarea"
-                value={messageData.text || ''}
-                onChange={(e) => updateBlockData<MessageBlockData>({ text: e.target.value })}
-                placeholder="Введите текст сообщения для отправки пользователю. Можно использовать {{переменные}}"
-                rows={4}
-              />
+              <div className="editor-textarea-wrapper">
+                <div className="editor-textarea-overlay">
+                  {messageCaretInVar
+                    ? <pre className="editor-textarea-overlay-raw">{messageData.text || ''}</pre>
+                    : renderMessagePreview(messageData.text || '')}
+                </div>
+                <textarea
+                  className="editor-textarea editor-textarea--transparent"
+                  value={messageData.text || ''}
+                  onChange={handleMessageChange}
+                  onSelect={handleMessageSelect}
+                  onKeyUp={handleMessageSelect}
+                  placeholder="Введите текст сообщения для отправки пользователю. Можно использовать {{переменные}}"
+                  rows={4}
+                />
+              </div>
               <small className="editor-hint">Используйте {'{{'}имя_переменной{'}}'} для подстановки переменных</small>
             </div>
             <div className="editor-group">
@@ -97,6 +157,12 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
       case 'condition':
         const conditionData = blockData as ConditionBlockData;
         const conditions = conditionData.conditions || [];
+        const getConditionVariables = (expr: string): string[] => {
+          const vars = new Set<string>();
+          const matches = expr.match(/\b[a-zA-Z_]\w*\b/g) || [];
+          matches.forEach(v => vars.add(v));
+          return Array.from(vars);
+        };
         
         const addCondition = () => {
           const newCondition: ConditionCase = { condition: '', label: '' };
@@ -175,23 +241,18 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
                     <small className="editor-hint" style={{ display: 'block', marginTop: '4px' }}>
                       Поддерживаемые операторы: ===, !==, &gt;, &lt;, &gt;=, &lt;=, contains, &&, ||. Можно использовать переменные.
                     </small>
+                    {condition.condition && (
+                      <div style={{ marginTop: '6px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {getConditionVariables(condition.condition).map(v => (
+                          <span key={v} style={{ background: '#e8f5e9', color: '#1b5e20', padding: '2px 8px', borderRadius: '10px', fontSize: '11px' }}>
+                            {v}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
-            </div>
-            
-            <div className="editor-group">
-              <label className="editor-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={conditionData.hasDefault || false}
-                  onChange={(e) => updateBlockData<ConditionBlockData>({ hasDefault: e.target.checked })}
-                />
-                <span>Дефолтная ветка (else)</span>
-              </label>
-              <small className="editor-hint">
-                Если ни одно условие не выполнится, переход произойдет по дефолтной ветке
-              </small>
             </div>
           </>
         );
@@ -253,6 +314,19 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
                 <option value="PATCH">PATCH</option>
               </select>
             </div>
+            {apiData.method === 'GET' && (
+              <div className="editor-group">
+                <label className="editor-label">Переменная для ответа</label>
+                <input
+                  type="text"
+                  className="editor-input"
+                  value={apiData.responseVariable || ''}
+                  onChange={(e) => updateBlockData<ApiBlockData>({ responseVariable: e.target.value || undefined })}
+                  placeholder="Например: apiResponse"
+                />
+                <small className="editor-hint">Ответ GET будет сохранен в эту переменную</small>
+              </div>
+            )}
             {(apiData.method === 'POST' || apiData.method === 'PUT' || apiData.method === 'PATCH') && (
               <div className="editor-group">
                 <label className="editor-label">Тело запроса (Body)</label>

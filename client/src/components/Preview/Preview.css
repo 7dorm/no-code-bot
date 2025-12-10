@@ -91,6 +91,34 @@
   color: white;
 }
 
+.quick-replies {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.quick-reply-btn {
+  background: #fff;
+  border: 1px solid #90caf9;
+  color: #0d47a1;
+  border-radius: 16px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.quick-reply-btn:hover:enabled {
+  background: #e3f2fd;
+  border-color: #42a5f5;
+}
+
+.quick-reply-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .chat-input-container {
   display: flex;
   gap: 8px;

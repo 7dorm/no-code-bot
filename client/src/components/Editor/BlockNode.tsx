@@ -145,7 +145,7 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
   // Получаем количество выходов для condition блока
   const conditionData = data.type === 'condition' ? data as ConditionBlockData : null;
   const conditionCount = conditionData ? (conditionData.conditions?.length || 0) : 0;
-  const hasDefault = conditionData?.hasDefault || false;
+  const hasDefault = conditionData ? true : false;
 
   return (
     <div

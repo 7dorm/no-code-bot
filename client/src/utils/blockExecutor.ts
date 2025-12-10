@@ -78,6 +78,7 @@ function executeCondition(
 ): BlockExecutionResult {
   const conditionData = block.data as ConditionBlockData;
   const conditions = conditionData.conditions || [];
+  const hasDefault = conditionData.hasDefault ?? true;
   
   if (conditions.length === 0) {
     return {
@@ -106,7 +107,7 @@ function executeCondition(
   }
 
   // Если ни одно условие не выполнилось, проверяем дефолтную ветку
-  if (conditionData.hasDefault) {
+  if (hasDefault) {
     const defaultConnection = connections.find(
       c => c.source === block.id && c.sourceHandle === 'output-default'
     );
@@ -229,15 +230,24 @@ function executeAPI(
   const method = apiData.method || 'GET';
   const processedUrl = replaceVariables(url, context.variables);
 
-  // Имитация API вызова
-  const result = `API ${method} ${processedUrl} - Результат получен`;
+  // Имитация ответа API с простым определением статуса
+  const isBadStatus = !processedUrl || processedUrl.toLowerCase().includes('error');
+  const status = isBadStatus ? 500 : 200;
+  const body = isBadStatus ? { error: 'Bad status' } : { ok: true, url: processedUrl };
+
+  // Для GET сохраняем ответ в переменную, если указано
+  if (!isBadStatus && method === 'GET' && apiData.responseVariable) {
+    context.variables[apiData.responseVariable] = body;
+  }
 
   const nextConnection = connections.find(c => c.source === block.id);
 
   return {
-    success: true,
+    success: !isBadStatus,
     nextNodeId: nextConnection?.target || null,
-    output: result,
+    output: isBadStatus
+      ? `API ${method} ${processedUrl} - Ошибка, статус ${status}`
+      : `API ${method} ${processedUrl} - Успех, статус ${status}`,
   };
 }
 

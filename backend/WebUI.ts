@@ -2,12 +2,12 @@ import { UI } from "./UI";
 
 export class WebUI implements UI {
   private inputResolver: ((value: string) => void) | null = null;
-  private onMessageCallback?: (message: string) => void;
+  private onMessageCallback?: (message: string, answers?: string[]) => void;
   private onFinishCallback?: () => void;
   private onInputRequestedCallback?: () => void; // Колбэк когда запрошен ввод
 
   constructor(
-    onMessage?: (message: string) => void, 
+    onMessage?: (message: string, answers?: string[]) => void, 
     onFinish?: () => void,
     onInputRequested?: () => void
   ) {
@@ -18,7 +18,7 @@ export class WebUI implements UI {
 
   async sendMessage(message: string, answers: string[]): Promise<void> {
     if (this.onMessageCallback) {
-      this.onMessageCallback(message);
+      this.onMessageCallback(message, answers);
     }
   }
 

@@ -5,7 +5,7 @@ import { UI } from "./UI";
  */
 export interface EngineNode {
   id: string;
-  Type: 'output' | 'condition' | 'start' | 'variable' | 'skip' | 'end';
+  Type: 'output' | 'condition' | 'start' | 'variable' | 'FILE' | 'skip' | 'end';
   Text?: string;
   VarName?: string;
   VarType?: string;
@@ -15,10 +15,15 @@ export interface EngineNode {
   Answers?: string[];
   VariableName?: string; // Для variable блоков
   VariableValue?: string; // Для variable блоков
+
+  FILEAct? : 'Upload' | 'DownLoad' | 'Delete';
+  FileName?: string; // Для FILE блоков
+  PathToSave?: string; // Для FILE блоков
+  PathToFile?: string; // Для FILE блоков
 }
 
 /**
- * Улучшенная функция оценки условий
+ * Функция оценки условий
  */
 function evalCondition(condStr: string, variables: Record<string, any>, userInput: string = ''): boolean {
   if (condStr === "default") return true;
@@ -48,7 +53,7 @@ function evalCondition(condStr: string, variables: Record<string, any>, userInpu
 }
 
 function evaluateSimpleCondition(cond: string, variables: Record<string, any>, userInput: string = ''): boolean {
-  // Проверка на сравнение чисел (с поддержкой переменных)
+  // Проверка на сравнение чисел 
   const numMatch = cond.match(/^\s*([\w{}]+)\s*([<>]=?|==|!=)\s*([\w{}]+)\s*$/);
   if (numMatch) {
     // @ts-ignore
@@ -153,6 +158,7 @@ function evaluateSimpleCondition(cond: string, variables: Record<string, any>, u
 export class Engine {
   private nodeStructure: Record<string, EngineNode> = {};
   private variables: Record<string, any> = {};
+  private files: Record<string, any> = {};
   private ui: UI;
   private index: string | null = null;
   private saveNext = false;
@@ -242,6 +248,9 @@ export class Engine {
       case "variable":
         await this.executeVariable();
         break;
+      case "FILE":
+        await this.executeFILE();
+        break;
       case "skip":
         await this.executeSkip();
         break;
@@ -283,8 +292,13 @@ export class Engine {
       }
     });
 
-    // Отправляем сообщение сразу
-    await this.ui.sendMessage(processedText, block.Answers || []);
+    if (block.Answers){
+        const answer = await this.ui.sendMessage(processedText, block.Answers || []);
+        const ind = block.Answers.indexOf(answer!)
+        if (ind == -1) throw "Unknown answer at block: " + this.index
+        this.index = block.Nexts[ind]!;
+    } else {
+        await this.ui.sendMessage(processedText, block.Answers || []);
 
     // Сохранить в переменную если необходимо (тогда ждем ввода)
     if (block.VarName != null) {
@@ -320,7 +334,6 @@ export class Engine {
         return;
       }
     }
-
     // Последнее сообщение
     if (block.Nexts.length == 0) {
       this.ui.finish();
@@ -331,6 +344,8 @@ export class Engine {
     // Переход к следующему блоку
     // @ts-ignore
     this.index = block.Nexts[0];
+  }
+
 
     // Перейти к исполнению следующего блока
     // Если следующий блок требует ввода, выполнение остановится на getInput()
@@ -416,6 +431,83 @@ export class Engine {
       this.isFinished = true;
     }
   }
+
+  async executeFILE(): Promise<void> {
+  const block = this.nodeStructure[this.index!];
+  if (!block) return;
+
+  switch (block.FILEAct) {
+
+    case 'Upload': {
+      // Загрузка файла от пользователя
+      const fileName = block.FileName || 'file';
+
+      const uniqueName = this.ui.getFile(
+        block.PathToSave || '',
+        fileName
+      );
+
+      // Сохраняем имя файла в переменные
+      this.files[fileName] = uniqueName;
+      this.files['lastFile'] = uniqueName;
+      break;
+    }
+
+    case 'DownLoad': {
+      // Отдача файла пользователю
+      if (!block.PathToFile) {
+        throw new Error(`PathToFile is required for download in block ${this.index}`);
+      }
+
+      // Подмена переменных в пути
+      let filePath = block.PathToFile;
+      const matches: string[] = [...filePath.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]).filter(Boolean) as string[];
+
+      matches.forEach((match) => {
+        if (match && this.files[match] !== undefined) {
+          filePath = filePath.replace(`{{${match}}}`, String(this.files[match]));
+        }
+      });
+
+      this.ui.sendFile(filePath);
+      break;
+    }
+
+    case 'Delete': {
+      // Удаление файла
+      if (!block.PathToFile) {
+        throw new Error(`PathToFile is required for delete in block ${this.index}`);
+      }
+
+      let filePath = block.PathToFile;
+      const matches: string[] = [...filePath.matchAll(/\{\{(\w+)\}\}/g)].map(m => m[1]).filter(Boolean) as string[];
+
+      matches.forEach((match) => {
+        if (match && this.files[match] !== undefined) {
+          filePath = filePath.replace(`{{${match}}}`, String(this.files[match]));
+        }
+      });
+
+      this.ui.deleteFile(filePath);
+      break;
+    }
+
+    default:
+      throw new Error(`Unknown FILEAct in block ${this.index}`);
+  }
+
+  // Переход к следующему блоку
+  const nextId = block.Nexts.find(Boolean);
+  if (nextId) {
+    this.index = nextId;
+    this.skipInput = true;
+    await this.execute();
+  } else {
+    this.ui.finish();
+    this.isFinished = true;
+  }
+}
+
 
   async executeSkip(): Promise<void> {
     // Skip блоки просто переходят дальше

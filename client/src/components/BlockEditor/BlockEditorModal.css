@@ -104,7 +104,7 @@
   border: 1px solid #ddd;
   border-radius: 6px;
   font-size: 14px;
-  font-family: inherit;
+  font-family: var(--editor-mono, 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace);
   resize: vertical;
   min-height: 80px;
 }
@@ -112,6 +112,45 @@
 .editor-textarea:focus {
   outline: none;
   border-color: #667eea;
+}
+
+.editor-textarea-wrapper {
+  position: relative;
+}
+
+.editor-textarea-overlay {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  pointer-events: none;
+  color: #333;
+  font-size: 14px;
+  font-family: var(--editor-mono, 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.editor-textarea-overlay .editor-message-var {
+  font-weight: 700;
+}
+
+.editor-message-brace {
+  opacity: 0;
+  display: inline-block;
+}
+
+.editor-textarea-overlay-raw {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: var(--editor-mono, 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace);
+}
+
+.editor-textarea--transparent {
+  background: transparent;
+  color: transparent;
+  caret-color: #333;
 }
 
 .editor-select {

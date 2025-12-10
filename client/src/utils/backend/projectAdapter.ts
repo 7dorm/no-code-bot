@@ -63,6 +63,7 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
       case 'condition': {
         const condData = block.data as ConditionBlockData;
         engineNode.Type = 'condition';
+        const hasDefault = condData.hasDefault ?? true;
 
         // Преобразуем условия - только реальные условия, не "default"
         if (condData.conditions && condData.conditions.length > 0) {
@@ -82,11 +83,14 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
           engineNode.Cond = [];
         }
 
-        // Дефолтная ветка (если есть)
-        if (condData.hasDefault) {
-          const defaultTarget = blockConnections?.get('output-default');
+        // Дефолтная ветка всегда включена
+        const defaultTarget = blockConnections?.get('output-default');
+        if (hasDefault) {
           if (defaultTarget) {
             engineNode.Nexts.push(defaultTarget);
+          } else {
+            // Добавляем пустую ветку, чтобы индекс соответствовал наличию else
+            engineNode.Nexts.push('');
           }
         }
         break;
