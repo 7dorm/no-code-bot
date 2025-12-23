@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
 import ExportModal from '../Export/ExportModal';
 import './Toolbar.css';
@@ -9,6 +9,7 @@ const Toolbar: React.FC = () => {
     createProject,
     exportProject,
     importProject,
+    updateProject,
     undo,
     redo,
     toggleSettings,
@@ -16,6 +17,52 @@ const Toolbar: React.FC = () => {
   } = useEditorStore();
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editName, setEditName] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Эффект для фокуса на поле ввода
+  useEffect(() => {
+    if (isEditingName && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditingName]);
+
+  // Обновляем editName когда меняется currentProject
+  useEffect(() => {
+    if (currentProject?.name) {
+      setEditName(currentProject.name);
+    }
+  }, [currentProject?.name]);
+
+  const handleNameClick = () => {
+    if (currentProject) {
+      setEditName(currentProject.name);
+      setIsEditingName(true);
+    }
+  };
+
+  const handleNameSubmit = () => {
+    const trimmedName = editName.trim();
+    if (trimmedName && trimmedName !== currentProject?.name) {
+      updateProject({ name: trimmedName });
+    }
+    setIsEditingName(false);
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleNameSubmit();
+    } else if (e.key === 'Escape') {
+      setEditName(currentProject?.name || '');
+      setIsEditingName(false);
+    }
+  };
+
+  const handleNameBlur = () => {
+    handleNameSubmit();
+  };
 
   const handleSave = () => {
     const json = exportProject();
@@ -62,7 +109,27 @@ const Toolbar: React.FC = () => {
       </div>
 
       <div className="toolbar-center">
-        <span className="project-name">{currentProject?.name || 'Нет проекта'}</span>
+        {isEditingName ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onBlur={handleNameBlur}
+            onKeyDown={handleNameKeyDown}
+            className="project-name-input"
+            placeholder="Название проекта"
+            maxLength={100}
+          />
+        ) : (
+          <span
+            className="project-name"
+            onClick={handleNameClick}
+            title="Нажмите для редактирования названия проекта"
+          >
+            {currentProject?.name || 'Нет проекта'}
+          </span>
+        )}
       </div>
 
       <div className="toolbar-right">

@@ -5,6 +5,7 @@ export class TelegramUI implements UI {
   private ctx: Context;
   private stop = false;
   private inputResolver: ((value: string) => void) | null = null;
+  private fileResolver: ((value: string) => void) | null = null;
 
   constructor(ctx: Context) {
     this.ctx = ctx;
@@ -51,10 +52,22 @@ export class TelegramUI implements UI {
     }
   }
 
-  getFile(pathToSave: string, name: string): string {
-    // В Telegram получаем файл от пользователя
-    // Возвращаем уникальное имя для сохранения
-    return `${name}_${Date.now()}`;
+  async getFile(pathToSave: string, name: string): Promise<string> {
+    // В Telegram запрашиваем файл от пользователя
+    await this.ctx.reply(`📎 Пожалуйста, отправьте файл: ${name}`);
+    
+    // Ожидаем загрузку файла от пользователя
+    return new Promise((resolve) => {
+      this.fileResolver = resolve;
+    });
+  }
+
+  handleUserFile(fileName: string): void {
+    if (this.fileResolver) {
+      const uniqueName = `${fileName}_${Date.now()}`;
+      this.fileResolver(uniqueName);
+      this.fileResolver = null;
+    }
   }
 
   deleteFile(path: string): void {

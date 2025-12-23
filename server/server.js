@@ -27,20 +27,6 @@ const schedule = {
   }
 };
 
-app.use((req, res, next) => {
-  console.log('------------------------------');
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-
-  if (Object.keys(req.query).length > 0) {
-    console.log('Query:', req.query);
-  }
-
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log('Body:', req.body);
-  }
-
-  next();
-});
 
 
 const appointments = [];
@@ -53,7 +39,61 @@ app.get('/api/doctors', (req, res) => {
 });
 
 /**
- * 2️⃣ GET — доступное время
+ * 2️⃣ GET — доступные даты для врача (когда можно записаться)
+ * 
+ * Использование:
+ *   GET /api/dates?doctor=Терапевт
+ *   GET /api/dates?doctor=Кардиолог
+ *   GET /api/dates?doctor=Невролог
+ * 
+ * Параметры:
+ *   doctor (query, обязательный) - имя врача
+ * 
+ * Ответ:
+ *   {
+ *     "doctor": "Терапевт",
+ *     "dates": ["01.06.25", "02.06.25"]
+ *   }
+ * 
+ * Ошибки:
+ *   400 - если не указан параметр doctor
+ *   404 - если врач не найден
+ */
+app.get('/api/dates', (req, res) => {
+  const { doctor } = req.query;
+
+  if (!doctor) {
+    return res.status(400).json({
+      error: 'doctor is required',
+      message: 'Укажите параметр doctor в query string. Пример: /api/dates?doctor=Терапевт'
+    });
+  }
+
+  // Проверяем, существует ли такой врач
+  if (!doctors.includes(doctor)) {
+    return res.status(404).json({
+      error: 'Doctor not found',
+      message: `Врач "${doctor}" не найден. Доступные врачи: ${doctors.join(', ')}`,
+      availableDoctors: doctors
+    });
+  }
+
+  // Получаем все даты, для которых есть доступные слоты у этого врача
+  const doctorSchedule = schedule[doctor] || {};
+  const dates = Object.keys(doctorSchedule).filter(date => {
+    const times = doctorSchedule[date] || [];
+    return times.length > 0; // Возвращаем только даты с доступными слотами
+  });
+
+  res.json({
+    doctor,
+    dates,
+    count: dates.length
+  });
+});
+
+/**
+ * 3️⃣ GET — доступное время
  * query:
  *  doctor=Терапевт
  *  date=01.06.25
@@ -68,7 +108,6 @@ app.get('/api/slots', (req, res) => {
   }
 
   const times = schedule[doctor]?.[date] || [];
-console.log(times)
   res.json({
     doctor,
     date,
@@ -77,7 +116,7 @@ console.log(times)
 });
 
 /**
- * 3️⃣ POST — запись к врачу
+ * 4️⃣ POST — запись к врачу
  */
 app.post('/api/appointments', (req, res) => {
   const { doctor, date, time, patient } = req.body;

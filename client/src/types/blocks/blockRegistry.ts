@@ -9,7 +9,7 @@ import { ConditionBlockMeta } from './ConditionBlock';
 import { VariableBlockMeta } from './VariableBlock';
 import { ApiBlockMeta } from './ApiBlock';
 import { FileBlockMeta } from './FileBlock';
-import { EndBlockMeta } from './EndBlock';
+import { ScriptBlockMeta } from './ScriptBlock';
 
 export type BlockType = 
   | 'start'
@@ -18,7 +18,7 @@ export type BlockType =
   | 'variable'
   | 'api'
   | 'file'
-  | 'end';
+  | 'script';
 
 // Базовый тип для метаданных блока
 export type BlockMeta = {
@@ -42,7 +42,7 @@ export const BLOCK_METADATA: Record<BlockType, BlockMeta> = {
   variable: VariableBlockMeta,
   api: ApiBlockMeta,
   file: FileBlockMeta,
-  end: EndBlockMeta,
+  script: ScriptBlockMeta,
 };
 
 /**

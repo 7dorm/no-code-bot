@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { BlockData, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, EndBlockData, getBlockIcon, getBlockColor } from '../../types';
+import { BlockData, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, getBlockIcon, getBlockColor } from '../../types';
 import './BlockNode.css';
 
 // Функция для получения отображаемой информации о блоке
@@ -49,9 +49,10 @@ const getBlockPreview = (data: BlockData): string => {
       }[fileData.action || 'upload'];
       return fileData.fileName ? `${actionLabel}: ${fileData.fileName.substring(0, 20)}` : `${actionLabel} файл...`;
     }
-    case 'end': {
-      const endData = data as EndBlockData;
-      return endData.message ? `Завершить: ${endData.message.substring(0, 25)}` : 'Завершить диалог';
+    case 'script': {
+      const scriptData = data as ScriptBlockData;
+      const codePreview = scriptData.code ? scriptData.code.substring(0, 30).replace(/\n/g, ' ') : 'JavaScript код...';
+      return scriptData.returnVariable ? `⚡ ${codePreview} → ${scriptData.returnVariable}` : `⚡ ${codePreview}`;
     }
     case 'start':
     default:
@@ -175,7 +176,7 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
         )}
       </div>
 
-      {data.type !== 'end' && data.type !== 'condition' && (
+      {data.type !== 'condition' && (
         <Handle
           type="source"
           position={Position.Bottom}

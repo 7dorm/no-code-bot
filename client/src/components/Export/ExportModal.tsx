@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
 import { ExportPlatform } from '../../types';
 import { createTelegramExport } from '../../utils/telegramExporter';
+import { createWebExport } from '../../utils/webExporter';
 import './ExportModal.css';
-import {adaptProjectToEngine} from "../../utils/backend/projectAdapter.ts";
+import { adaptProjectToEngine } from "../../utils/backend/projectAdapter.ts";
+import JSZip from 'jszip';
 
 interface ExportModalProps {
   onClose: () => void;
@@ -11,40 +13,72 @@ interface ExportModalProps {
 
 const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
   const { currentProject } = useEditorStore();
-  const [exportType, setExportType] = useState<'messenger' | 'nodejs'>('messenger');
+  const [exportType, setExportType] = useState<'messenger' | 'webpage' | 'nodejs'>('messenger');
   const [selectedPlatform, setSelectedPlatform] = useState<ExportPlatform>(
     currentProject?.exportPlatform || 'telegram'
   );
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!currentProject) return;
 
     if (exportType === 'messenger') {
       // Экспорт для мессенджера
       try {
-        const { code, instructions } = createTelegramExport(currentProject);
+        const { files } = createTelegramExport(currentProject);
 
-        // Скачиваем bot.js
-        const codeBlob = new Blob([code], { type: 'text/javascript;charset=utf-8' });
-        const codeUrl = URL.createObjectURL(codeBlob);
-        const a1 = document.createElement('a');
-        a1.href = codeUrl;
-        a1.download = 'bot.js';
-        a1.click();
-        URL.revokeObjectURL(codeUrl);
+        // Создаем ZIP архив
+        const zip = new JSZip();
 
-        // Скачиваем README.md
-        const readmeBlob = new Blob([instructions], { type: 'text/markdown;charset=utf-8' });
-        const readmeUrl = URL.createObjectURL(readmeBlob);
-        const a2 = document.createElement('a');
-        a2.href = readmeUrl;
-        a2.download = 'README.md';
-        a2.click();
-        URL.revokeObjectURL(readmeUrl);
+        // Добавляем все файлы в архив
+        files.forEach(file => {
+          zip.file(file.name, file.content);
+        });
+
+        // Генерируем ZIP файл
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+        // Скачиваем ZIP архив
+        const zipUrl = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = zipUrl;
+        a.download = `${currentProject.name.replace(/[^a-zA-Z0-9]/g, '_')}_telegram_bot.zip`;
+        a.click();
+        URL.revokeObjectURL(zipUrl);
 
         onClose();
+        alert('ZIP архив с Telegram ботом успешно создан и скачан!');
       } catch (e) {
         alert('Ошибка экспорта кода. Проверьте настройки токена в проекте.');
+        console.error(e);
+      }
+    } else if (exportType === 'webpage') {
+      // Экспорт веб-страницы
+      try {
+        const { files } = createWebExport(currentProject);
+
+        // Создаем ZIP архив
+        const zip = new JSZip();
+
+        // Добавляем все файлы в архив
+        files.forEach(file => {
+          zip.file(file.name, file.content);
+        });
+
+        // Генерируем ZIP файл
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+        // Скачиваем ZIP архив
+        const zipUrl = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = zipUrl;
+        a.download = `${currentProject.name.replace(/[^a-zA-Z0-9]/g, '_')}_web_bot.zip`;
+        a.click();
+        URL.revokeObjectURL(zipUrl);
+
+        onClose();
+        alert('ZIP архив с веб-ботом успешно создан и скачан!');
+      } catch (e) {
+        alert('Ошибка экспорта веб-приложения.');
         console.error(e);
       }
     } else {
@@ -79,9 +113,19 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
                   name="exportType"
                   value="messenger"
                   checked={exportType === 'messenger'}
-                  onChange={(e) => setExportType(e.target.value as 'messenger')}
+                  onChange={(e) => setExportType(e.target.value as 'messenger' | 'webpage' | 'nodejs')}
                 />
                 <span>Мессенджер (Telegram/WhatsApp)</span>
+              </label>
+              <label className="export-option">
+                <input
+                  type="radio"
+                  name="exportType"
+                  value="webpage"
+                  checked={exportType === 'webpage'}
+                  onChange={(e) => setExportType(e.target.value as 'webpage')}
+                />
+                <span>Веб-страница (HTML/CSS/JS)</span>
               </label>
               <label className="export-option">
                 <input

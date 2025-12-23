@@ -1,0 +1,384 @@
+{
+  "id": "2247a8cf-7f0a-4522-bd4c-d88fd35b0d40",
+  "name": "Новый проект",
+  "blocks": [
+    {
+      "id": "start-block",
+      "type": "blockNode",
+      "position": {
+        "x": 262,
+        "y": 4.5
+      },
+      "data": {
+        "type": "start",
+        "label": "Старт"
+      }
+    },
+    {
+      "id": "c74952ec-d6fa-4b3d-8bc3-a555f6aa9d92",
+      "type": "blockNode",
+      "position": {
+        "x": 247.90541543332643,
+        "y": 124.56447101594483
+      },
+      "data": {
+        "type": "api",
+        "label": "Блок api",
+        "url": "http://localhost:3003/api/doctors",
+        "method": "GET",
+        "responseVariable": "d",
+        "answersPath": "doctors",
+        "answersVariable": "doctors"
+      }
+    },
+    {
+      "id": "0d79d1b3-00a0-408b-be4a-bea2e086c76f",
+      "type": "blockNode",
+      "position": {
+        "x": 140.7152484209089,
+        "y": 265.57585069022787
+      },
+      "data": {
+        "type": "message",
+        "label": "Блок message",
+        "text": "Здравствуйте, этот бот для записи к врачу.\nВыберите врача для записи",
+        "answersFromVariable": "doctors",
+        "saveResponseToVariable": "choosedDoctor"
+      }
+    },
+    {
+      "id": "4123e84a-8d29-42dc-a5ed-e1a6e62f0ad3",
+      "type": "blockNode",
+      "position": {
+        "x": 258.2073431798897,
+        "y": 593.7280982863839
+      },
+      "data": {
+        "type": "api",
+        "label": "Блок api",
+        "url": "http://localhost:3003/api/slots?doctor={{choosedDoctor}}&date={{choosedDate}}",
+        "method": "GET",
+        "responseVariable": "date",
+        "answersPath": "times",
+        "answersVariable": "times"
+      }
+    },
+    {
+      "id": "dates-api-block",
+      "type": "blockNode",
+      "position": {
+        "x": 213.76079255147124,
+        "y": 406.0343378513255
+      },
+      "data": {
+        "type": "api",
+        "label": "Блок api",
+        "url": "http://localhost:3003/api/dates?doctor={{choosedDoctor}}",
+        "method": "GET",
+        "responseVariable": "datesResponse",
+        "answersPath": "dates",
+        "answersVariable": "availableDates"
+      }
+    },
+    {
+      "id": "6ce4ab86-900a-4311-8e98-d4fb594c96a5",
+      "type": "blockNode",
+      "position": {
+        "x": 213.76079255147124,
+        "y": 500.0343378513255
+      },
+      "data": {
+        "type": "message",
+        "label": "Блок message",
+        "text": "Выберите дату для записи",
+        "answersFromVariable": "availableDates",
+        "saveResponseToVariable": "choosedDate"
+      }
+    },
+    {
+      "id": "80dde485-224e-4d5b-9222-e797e75af64a",
+      "type": "blockNode",
+      "position": {
+        "x": 35.97033260807548,
+        "y": 68.22724288389392
+      },
+      "data": {
+        "type": "message",
+        "label": "Блок message",
+        "text": ""
+      }
+    },
+    {
+      "id": "efd1c76a-2512-4f57-9843-e14c5fc90325",
+      "type": "blockNode",
+      "position": {
+        "x": 259.4368366616976,
+        "y": 750.934346693243
+      },
+      "data": {
+        "type": "condition",
+        "label": "Блок condition",
+        "conditions": [
+          {
+            "condition": "times.length >0"
+          }
+        ],
+        "hasDefault": true
+      }
+    },
+    {
+      "id": "1e08f84a-1cf7-406e-b889-1b729a70d0ef",
+      "type": "blockNode",
+      "position": {
+        "x": 652.2167155920258,
+        "y": 566.6326280000278
+      },
+      "data": {
+        "type": "message",
+        "label": "Блок message",
+        "text": "На указанную дату нет времени на запись, выберите другую дату ",
+        "saveResponseToVariable": "choosedDate",
+        "answersFromVariable": "availableDates"
+      }
+    },
+    {
+      "id": "c104b129-6bcd-4a59-83a4-75f59a6586b0",
+      "type": "blockNode",
+      "position": {
+        "x": 176.98715446984886,
+        "y": 916.1026614414124
+      },
+      "data": {
+        "type": "message",
+        "label": "Блок message",
+        "text": "Выберите время для записи",
+        "answersFromVariable": "times",
+        "saveResponseToVariable": "time"
+      }
+    },
+    {
+      "id": "54553505-4b2e-40cd-b033-d4f54019134c",
+      "type": "blockNode",
+      "position": {
+        "x": -133.99728639314654,
+        "y": 256.8150627938076
+      },
+      "data": {
+        "type": "message",
+        "label": "Блок message",
+        "text": ""
+      }
+    },
+    {
+      "id": "7d397dc4-5897-4988-8baf-7ffb31ada1ed",
+      "type": "blockNode",
+      "position": {
+        "x": -222.4727024211124,
+        "y": 95.58868230900569
+      },
+      "data": {
+        "type": "message",
+        "label": "Блок message",
+        "text": ""
+      }
+    },
+    {
+      "id": "d3f5be7c-81f2-4dcf-916f-d548549ac4c3",
+      "type": "blockNode",
+      "position": {
+        "x": -239.42777648321373,
+        "y": 899.5033406131971
+      },
+      "data": {
+        "type": "message",
+        "label": "Блок message",
+        "text": "Прикрепите фото документов удостоверяющих личность"
+      }
+    },
+    {
+      "id": "24823b08-07a5-4af9-83a1-9def7dbcdf16",
+      "type": "blockNode",
+      "position": {
+        "x": -210.89171267838742,
+        "y": 1077.858320139573
+      },
+      "data": {
+        "type": "file",
+        "label": "Блок file",
+        "action": "upload",
+        "filePath": "/patients/",
+        "fileName": ""
+      }
+    },
+    {
+      "id": "9ac05a05-b6c2-427d-8348-e5327447a4f9",
+      "type": "blockNode",
+      "position": {
+        "x": 240.59998844026205,
+        "y": 1077.85449732943
+      },
+      "data": {
+        "type": "message",
+        "label": "Блок message",
+        "text": "Введите ФИО",
+        "saveResponseToVariable": "fio"
+      }
+    },
+    {
+      "id": "4ad70f37-6b1f-4000-b776-f6e50f6593e1",
+      "type": "blockNode",
+      "position": {
+        "x": 80.80029024958459,
+        "y": 1213.8555813040073
+      },
+      "data": {
+        "type": "message",
+        "label": "Блок message",
+        "text": "Укажите номер телефона",
+        "saveResponseToVariable": "phone"
+      }
+    },
+    {
+      "id": "5eada83a-019f-4e8c-8cf3-80645ad7abc7",
+      "type": "blockNode",
+      "position": {
+        "x": -228.2269375702999,
+        "y": 1253.598112297334
+      },
+      "data": {
+        "type": "api",
+        "label": "Блок api",
+        "url": "http://localhost:3003/api/appointments",
+        "method": "POST",
+        "responseVariable": "api",
+        "body": "{\n  \"doctor\": {{choosedDoctor}}, \n  \"date\": {{choosedDate}}, \n  \"time\": {{time}}, \n  \"patient\": {\n    \"name\": {{fio}}, \n    \"phone\": {{phone}} \n  }\n}"
+      }
+    },
+    {
+      "id": "f3fbf6bd-b84a-4f4d-8a82-710f962d9d13",
+      "type": "blockNode",
+      "position": {
+        "x": 558.7718203818201,
+        "y": 110.490376660203
+      },
+      "data": {
+        "type": "api",
+        "label": "Блок api",
+        "url": "http://localhost:3003/api/appointments",
+        "method": "POST",
+        "responseVariable": "api",
+        "body": "{\n  \"doctor\": {{choosedDoctor}}, \n  \"date\": {{choosedDate}}, \n  \"time\": {{time}}, \n  \"patient\": {\n    \"name\": {{fio}}, \n    \"phone\": {{phone}} \n  }\n}"
+      }
+    },
+    {
+      "id": "379dadb8-4cf9-4640-9883-0dd6be407676",
+      "type": "blockNode",
+      "position": {
+        "x": -205.92595831571077,
+        "y": 1396.1131614132437
+      },
+      "data": {
+        "type": "message",
+        "label": "Блок message",
+        "text": "{{api}}"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "id": "e-start-block-c74952ec-d6fa-4b3d-8bc3-a555f6aa9d92",
+      "source": "start-block",
+      "target": "c74952ec-d6fa-4b3d-8bc3-a555f6aa9d92",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "e-c74952ec-d6fa-4b3d-8bc3-a555f6aa9d92-0d79d1b3-00a0-408b-be4a-bea2e086c76f",
+      "source": "c74952ec-d6fa-4b3d-8bc3-a555f6aa9d92",
+      "target": "0d79d1b3-00a0-408b-be4a-bea2e086c76f",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "e-0d79d1b3-00a0-408b-be4a-bea2e086c76f-dates-api-block",
+      "source": "0d79d1b3-00a0-408b-be4a-bea2e086c76f",
+      "target": "dates-api-block",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "e-dates-api-block-6ce4ab86-900a-4311-8e98-d4fb594c96a5",
+      "source": "dates-api-block",
+      "target": "6ce4ab86-900a-4311-8e98-d4fb594c96a5",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "e-6ce4ab86-900a-4311-8e98-d4fb594c96a5-4123e84a-8d29-42dc-a5ed-e1a6e62f0ad3",
+      "source": "6ce4ab86-900a-4311-8e98-d4fb594c96a5",
+      "target": "4123e84a-8d29-42dc-a5ed-e1a6e62f0ad3",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "e-4123e84a-8d29-42dc-a5ed-e1a6e62f0ad3-efd1c76a-2512-4f57-9843-e14c5fc90325",
+      "source": "4123e84a-8d29-42dc-a5ed-e1a6e62f0ad3",
+      "target": "efd1c76a-2512-4f57-9843-e14c5fc90325",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "e-efd1c76a-2512-4f57-9843-e14c5fc90325-1e08f84a-1cf7-406e-b889-1b729a70d0ef",
+      "source": "efd1c76a-2512-4f57-9843-e14c5fc90325",
+      "target": "1e08f84a-1cf7-406e-b889-1b729a70d0ef",
+      "sourceHandle": "output-default"
+    },
+    {
+      "id": "e-1e08f84a-1cf7-406e-b889-1b729a70d0ef-4123e84a-8d29-42dc-a5ed-e1a6e62f0ad3",
+      "source": "1e08f84a-1cf7-406e-b889-1b729a70d0ef",
+      "target": "4123e84a-8d29-42dc-a5ed-e1a6e62f0ad3",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "e-efd1c76a-2512-4f57-9843-e14c5fc90325-c104b129-6bcd-4a59-83a4-75f59a6586b0",
+      "source": "efd1c76a-2512-4f57-9843-e14c5fc90325",
+      "target": "c104b129-6bcd-4a59-83a4-75f59a6586b0",
+      "sourceHandle": "output-0"
+    },
+    {
+      "id": "e-d3f5be7c-81f2-4dcf-916f-d548549ac4c3-24823b08-07a5-4af9-83a1-9def7dbcdf16",
+      "source": "d3f5be7c-81f2-4dcf-916f-d548549ac4c3",
+      "target": "24823b08-07a5-4af9-83a1-9def7dbcdf16",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "e-c104b129-6bcd-4a59-83a4-75f59a6586b0-9ac05a05-b6c2-427d-8348-e5327447a4f9",
+      "source": "c104b129-6bcd-4a59-83a4-75f59a6586b0",
+      "target": "9ac05a05-b6c2-427d-8348-e5327447a4f9",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "e-9ac05a05-b6c2-427d-8348-e5327447a4f9-4ad70f37-6b1f-4000-b776-f6e50f6593e1",
+      "source": "9ac05a05-b6c2-427d-8348-e5327447a4f9",
+      "target": "4ad70f37-6b1f-4000-b776-f6e50f6593e1",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "e-4ad70f37-6b1f-4000-b776-f6e50f6593e1-d3f5be7c-81f2-4dcf-916f-d548549ac4c3",
+      "source": "4ad70f37-6b1f-4000-b776-f6e50f6593e1",
+      "target": "d3f5be7c-81f2-4dcf-916f-d548549ac4c3",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "e-24823b08-07a5-4af9-83a1-9def7dbcdf16-5eada83a-019f-4e8c-8cf3-80645ad7abc7",
+      "source": "24823b08-07a5-4af9-83a1-9def7dbcdf16",
+      "target": "5eada83a-019f-4e8c-8cf3-80645ad7abc7",
+      "sourceHandle": "output"
+    },
+    {
+      "id": "e-5eada83a-019f-4e8c-8cf3-80645ad7abc7-379dadb8-4cf9-4640-9883-0dd6be407676",
+      "source": "5eada83a-019f-4e8c-8cf3-80645ad7abc7",
+      "target": "379dadb8-4cf9-4640-9883-0dd6be407676",
+      "sourceHandle": "output"
+    }
+  ],
+  "createdAt": "2025-12-23T18:01:39.455Z",
+  "updatedAt": "2025-12-23T19:10:41.730Z",
+  "exportPlatform": "telegram",
+  "botToken": "8262480994:AAG5KLqcDBQsAeZASODuuHiYmXU_qdIsjOg",
+  "globalConstants": {}
+}

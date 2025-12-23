@@ -348,11 +348,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           filePath: oldParams.filePath,
         };
         break;
-      case 'end':
+      case 'script':
         newData = {
-          type: 'end',
+          type: 'script',
           label: block.data.label,
-          message: oldParams.message || '',
+          code: oldParams.code || '',
+          returnVariable: oldParams.returnVariable || '',
         };
         break;
       case 'start':

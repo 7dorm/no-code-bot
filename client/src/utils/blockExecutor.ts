@@ -1,4 +1,4 @@
-import { BlockNode, BlockExecutionResult, ExecutionContext, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, EndBlockData } from '../types';
+import { BlockNode, BlockExecutionResult, ExecutionContext, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData } from '../types';
 
 // Функция выполнения блока по типу
 export function executeBlock(
@@ -19,8 +19,8 @@ export function executeBlock(
       return executeAPI(block, context, connections);
     case 'file':
       return executeFile(block, context, connections);
-    case 'end':
-      return executeEnd(block, context, connections);
+    case 'script':
+      return executeScript(block, context, connections);
     default:
       return {
         success: false,
@@ -273,20 +273,93 @@ function executeFile(
   };
 }
 
-// END блок - завершение диалога
-function executeEnd(
+// SCRIPT блок - выполнение JavaScript кода
+function executeScript(
   block: BlockNode,
   context: ExecutionContext,
   connections: Array<{ source: string; target: string }>
 ): BlockExecutionResult {
-  const endData = block.data as EndBlockData;
-  const message = endData.message ? replaceVariables(endData.message, context.variables, context.globalConstants) : null;
+  const scriptData = block.data as ScriptBlockData;
+  const code = scriptData.code || '';
 
-  return {
-    success: true,
-    nextNodeId: null, // Конец диалога, нет следующего блока
-    output: message || 'Диалог завершен',
-  };
+  if (!code.trim()) {
+    const nextConnection = connections.find(c => c.source === block.id);
+    return {
+      success: true,
+      nextNodeId: nextConnection?.target || null,
+      output: 'Скрипт пуст',
+    };
+  }
+
+  try {
+    // Создаем безопасный контекст для выполнения скрипта
+    const scriptContext = {
+      variables: context.variables,
+      globalConstants: context.globalConstants,
+      // Предоставляем функции для работы с переменными
+      setVariable: (name: string, value: any) => {
+        context.variables[name] = value;
+      },
+      getVariable: (name: string) => {
+        return context.variables[name] !== undefined ? context.variables[name] : 
+               (context.globalConstants && context.globalConstants[name] !== undefined ? context.globalConstants[name] : undefined);
+      },
+    };
+
+    // Выполняем скрипт в изолированном контексте
+    const scriptFunction = new Function(
+      'variables',
+      'globalConstants',
+      'setVariable',
+      'getVariable',
+      `
+      try {
+        ${code}
+      } catch (error) {
+        throw new Error('Script execution error: ' + error.message);
+      }
+      `
+    );
+
+    // Выполняем скрипт
+    const result = scriptFunction.call(
+      scriptContext,
+      context.variables,
+      context.globalConstants,
+      scriptContext.setVariable,
+      scriptContext.getVariable
+    );
+
+    // Если указана переменная для результата и скрипт вернул значение
+    if (scriptData.returnVariable && result !== undefined) {
+      context.variables[scriptData.returnVariable] = result;
+    }
+
+    const nextConnection = connections.find(c => c.source === block.id);
+
+    return {
+      success: true,
+      nextNodeId: nextConnection?.target || null,
+      output: result !== undefined ? `Скрипт выполнен. Результат: ${String(result)}` : 'Скрипт выполнен',
+    };
+  } catch (error: any) {
+    const errorMessage = error.message || String(error);
+    const nextConnection = connections.find(c => c.source === block.id);
+
+    // В случае ошибки сохраняем информацию об ошибке в переменную
+    if (scriptData.returnVariable) {
+      context.variables[scriptData.returnVariable] = { 
+        error: errorMessage,
+        errorType: 'ScriptExecutionError'
+      };
+    }
+
+    return {
+      success: false,
+      nextNodeId: nextConnection?.target || null,
+      error: `Ошибка выполнения скрипта: ${errorMessage}`,
+    };
+  }
 }
 
 // Вспомогательные функции

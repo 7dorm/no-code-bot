@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
-import { BlockData, MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData, ApiBlockData, FileBlockData, EndBlockData } from '../../types';
+import { BlockData, MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData } from '../../types';
 import './BlockEditorModal.css';
 
 interface BlockEditorModalProps {
@@ -526,20 +526,43 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
           </>
         );
 
-      case 'end':
-        const endData = blockData as EndBlockData;
+      case 'script':
+        const scriptData = blockData as ScriptBlockData;
         return (
-          <div className="editor-group">
-            <label className="editor-label">Финальное сообщение (опционально)</label>
-            <textarea
-              className="editor-textarea"
-              value={endData.message || ''}
-              onChange={(e) => updateBlockData<EndBlockData>({ message: e.target.value })}
-              placeholder="Сообщение перед завершением диалога"
-              rows={3}
-            />
-            <small className="editor-hint">Если оставить пустым, диалог завершится без сообщения</small>
-          </div>
+          <>
+            <div className="editor-group">
+              <label className="editor-label">JavaScript код</label>
+              <textarea
+                className="editor-textarea"
+                value={scriptData.code || ''}
+                onChange={(e) => updateBlockData<ScriptBlockData>({ code: e.target.value })}
+                placeholder="// Доступны переменные: variables, globalConstants&#10;// Пример: variables.result = variables.a + variables.b;&#10;// Или: return variables.userInput.toUpperCase();"
+                rows={10}
+                style={{ fontFamily: 'monospace', fontSize: '13px' }}
+              />
+              <small className="editor-hint">
+                Выполняется JavaScript код. Доступны объекты: <code>variables</code> (все переменные), <code>globalConstants</code> (глобальные константы).
+                Используйте <code>return</code> для возврата значения или изменяйте переменные напрямую.
+              </small>
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Переменная для результата (опционально)</label>
+              <input
+                type="text"
+                className="editor-input"
+                value={scriptData.returnVariable || ''}
+                onChange={(e) => {
+                  const value = e.target.value.trim();
+                  updateBlockData<ScriptBlockData>({ returnVariable: value || undefined });
+                }}
+                placeholder="Например: result"
+              />
+              <small className="editor-hint">
+                Если указано, результат выполнения скрипта (значение return) будет сохранен в эту переменную.
+                Если не указано, результат будет проигнорирован.
+              </small>
+            </div>
+          </>
         );
 
       default:

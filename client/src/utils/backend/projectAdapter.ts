@@ -1,5 +1,5 @@
 import { Project, BlockNode } from '../../types';
-import { MessageBlockData, ConditionBlockData, VariableBlockData } from '../../types';
+import { MessageBlockData, ConditionBlockData, VariableBlockData, ScriptBlockData } from '../../types';
 import { EngineNode } from '@backend/Engine';
 
 // Re-export EngineNode for convenience
@@ -26,6 +26,11 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
     }
     const sourceMap = connectionsMap.get(conn.source)!;
     sourceMap.set(conn.sourceHandle || 'output', conn.target);
+    // #region agent log
+    if (typeof fetch !== 'undefined') {
+      fetch('http://127.0.0.1:7245/ingest/3dd875b0-2c9e-459b-8e6e-82c5c386ba6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projectAdapter.ts:28',message:'Connection mapped',data:{source:conn.source,target:conn.target,sourceHandle:conn.sourceHandle||'output'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'T'})}).catch(()=>{});
+    }
+    // #endregion
   });
 
   // Преобразуем каждый блок
@@ -35,6 +40,11 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
       Type: mapBlockTypeToEngine(block.data.type),
       Nexts: [],
     };
+    // #region agent log
+    if (typeof fetch !== 'undefined') {
+      fetch('http://127.0.0.1:7245/ingest/3dd875b0-2c9e-459b-8e6e-82c5c386ba6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projectAdapter.ts:33',message:'Processing block',data:{blockId:block.id,blockType:block.data.type},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'T'})}).catch(()=>{});
+    }
+    // #endregion
 
     // Получаем связи для этого блока
     const blockConnections = connectionsMap.get(block.id);
@@ -73,6 +83,11 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
           } else {
             engineNode.Nexts.push(nextTarget);
           }
+          // #region agent log
+          if (typeof fetch !== 'undefined') {
+            fetch('http://127.0.0.1:7245/ingest/3dd875b0-2c9e-459b-8e6e-82c5c386ba6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projectAdapter.ts:65',message:'Message block next target',data:{blockId:block.id,nextTarget,hasAnswers:!!engineNode.Answers,answersCount:engineNode.Answers?.length||0,answersFromVariable:engineNode.AnswersFromVariable},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'T'})}).catch(()=>{});
+          }
+          // #endregion
         }
         break;
       }
@@ -84,16 +99,27 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
 
         // Преобразуем условия - только реальные условия, не "default"
         if (condData.conditions && condData.conditions.length > 0) {
-          engineNode.Cond = condData.conditions
-            .map(c => c.condition)
-            .filter(c => c && c.trim() !== '' && c.toLowerCase() !== 'default');
+          // Сначала собираем валидные условия и их индексы
+          const validConditions: Array<{ condition: string; originalIndex: number }> = [];
+          condData.conditions.forEach((c, index) => {
+            const condStr = c.condition;
+            if (condStr && condStr.trim() !== '' && condStr.toLowerCase() !== 'default') {
+              validConditions.push({ condition: condStr, originalIndex: index });
+            }
+          });
 
-          // Упорядочиваем Nexts по порядку условий
-          // Каждое условие имеет свой выход output-0, output-1, etc.
-          condData.conditions.forEach((_, index) => {
-            const target = blockConnections?.get(`output-${index}`);
+          // Сохраняем только валидные условия
+          engineNode.Cond = validConditions.map(vc => vc.condition);
+
+          // Упорядочиваем Nexts по порядку валидных условий
+          // Каждое условие имеет свой выход output-{originalIndex}
+          validConditions.forEach(vc => {
+            const target = blockConnections?.get(`output-${vc.originalIndex}`);
             if (target) {
               engineNode.Nexts.push(target);
+            } else {
+              // Если связи нет, добавляем пустую строку для сохранения индекса
+              engineNode.Nexts.push('');
             }
           });
         } else {
@@ -145,9 +171,17 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         break;
       }
 
-      case 'end': {
-        engineNode.Type = 'end';
-        engineNode.Nexts = [];
+      case 'script': {
+        const scriptData = block.data as ScriptBlockData;
+        engineNode.Type = 'script';
+        engineNode.ScriptCode = scriptData.code || '';
+        engineNode.ScriptReturnVariable = scriptData.returnVariable;
+        
+        // Получаем следующий блок
+        const nextTarget = blockConnections?.get('output');
+        if (nextTarget) {
+          engineNode.Nexts.push(nextTarget);
+        }
         break;
       }
 
@@ -179,6 +213,11 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         if (nextTarget) {
           engineNode.Nexts.push(nextTarget);
         }
+        // #region agent log
+        if (typeof fetch !== 'undefined') {
+          fetch('http://127.0.0.1:7245/ingest/3dd875b0-2c9e-459b-8e6e-82c5c386ba6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'projectAdapter.ts:178',message:'API block next target',data:{blockId:block.id,nextTarget,apiUrl:apiData.url,answersVariable:engineNode.ApiAnswersVariable},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'T'})}).catch(()=>{});
+        }
+        // #endregion
         break;
       }
 
@@ -229,8 +268,6 @@ function mapBlockTypeToEngine(blockType: string): 'output' | 'condition' | 'star
       return 'api';
     case 'file':
       return 'FILE';
-    case 'end':
-      return 'end';
     default:
       return 'skip';
   }

@@ -17,7 +17,7 @@ export {
   VariableBlockMeta,
   ApiBlockMeta,
   FileBlockMeta,
-  EndBlockMeta,
+  ScriptBlockMeta,
   // Вспомогательные функции
   getBlockMeta,
   getBlockIcon,
@@ -33,7 +33,7 @@ export type {
   VariableBlockData,
   ApiBlockData,
   FileBlockData,
-  EndBlockData,
+  ScriptBlockData,
   BlockData,
   BlockType
 } from './blocks';

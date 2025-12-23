@@ -7,7 +7,7 @@ import {
   VariableBlockMeta,
   ApiBlockMeta,
   FileBlockMeta,
-  EndBlockMeta,
+  ScriptBlockMeta,
 } from '../../types';
 import BlockEditorModal from '../BlockEditor/BlockEditorModal';
 import './BlockLibrary.css';
@@ -18,7 +18,7 @@ const BLOCK_TYPES = [
   VariableBlockMeta,
   ApiBlockMeta,
   FileBlockMeta,
-  EndBlockMeta,
+  ScriptBlockMeta,
 ];
 
 const BlockLibrary: React.FC = () => {
@@ -48,8 +48,8 @@ const BlockLibrary: React.FC = () => {
       case 'file':
         blockData = { ...blockData, action: 'upload' as const };
         break;
-      case 'end':
-        blockData = { ...blockData, message: '' };
+      case 'script':
+        blockData = { ...blockData, code: '', returnVariable: '' };
         break;
       case 'start':
         // start не требует дополнительных полей

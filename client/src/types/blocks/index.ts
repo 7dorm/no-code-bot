@@ -15,8 +15,8 @@ export type { ApiBlockData } from './ApiBlock';
 export { ApiBlockMeta } from './ApiBlock';
 export type { FileBlockData } from './FileBlock';
 export { FileBlockMeta } from './FileBlock';
-export type { EndBlockData } from './EndBlock';
-export { EndBlockMeta } from './EndBlock';
+export type { ScriptBlockData } from './ScriptBlock';
+export { ScriptBlockMeta } from './ScriptBlock';
 
 // Экспортируем реестр и вспомогательные функции
 export type { BlockType, BlockMeta } from './blockRegistry';
@@ -37,4 +37,4 @@ export type BlockData =
   | import('./VariableBlock').VariableBlockData
   | import('./ApiBlock').ApiBlockData
   | import('./FileBlock').FileBlockData
-  | import('./EndBlock').EndBlockData;
+  | import('./ScriptBlock').ScriptBlockData;
