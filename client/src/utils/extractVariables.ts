@@ -1,5 +1,5 @@
 import { Project } from '../types';
-import { MessageBlockData, VariableBlockData } from '../types';
+import { MessageBlockData, VariableBlockData, ApiBlockData } from '../types';
 
 export interface VariableInfo {
   name: string;
@@ -39,6 +39,20 @@ export function extractVariables(project: Project): VariableInfo[] {
           }
         }
 
+        // Переменная для вариантов ответов из переменной
+        if (msgData.answersFromVariable) {
+          const varName = msgData.answersFromVariable;
+          if (!variablesMap.has(varName)) {
+            variablesMap.set(varName, {
+              name: varName,
+              type: 'used',
+              blockId: block.id,
+              blockType: 'message',
+              description: 'Используется для вариантов ответов',
+            });
+          }
+        }
+
         // Извлекаем переменные, используемые в тексте сообщения ({{varName}})
         if (msgData.text) {
           const matches = [...msgData.text.matchAll(/\{\{(\w+)\}\}/g)];
@@ -60,6 +74,39 @@ export function extractVariables(project: Project): VariableInfo[] {
               }
             }
           });
+        }
+        break;
+      }
+
+      case 'api': {
+        const apiData = block.data as ApiBlockData;
+        
+        // Переменная для ответа API
+        if (apiData.responseVariable) {
+          const varName = apiData.responseVariable;
+          if (!variablesMap.has(varName)) {
+            variablesMap.set(varName, {
+              name: varName,
+              type: 'saved',
+              blockId: block.id,
+              blockType: 'api',
+              description: 'Сохраняется ответ API',
+            });
+          }
+        }
+        
+        // Переменная для массива вариантов ответов
+        if (apiData.answersVariable) {
+          const varName = apiData.answersVariable;
+          if (!variablesMap.has(varName)) {
+            variablesMap.set(varName, {
+              name: varName,
+              type: 'saved',
+              blockId: block.id,
+              blockType: 'api',
+              description: 'Сохраняется массив вариантов ответов из API',
+            });
+          }
         }
         break;
       }

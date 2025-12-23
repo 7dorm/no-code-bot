@@ -33,13 +33,15 @@ async function handleBotFlow(chatId, userId, userMessage) {
 
 // Экспорт проекта в код для Telegram бота
 export function exportToTelegram(project: Project): string {
-  if (!project.telegramToken) {
+  // Проверяем токен в разных полях для совместимости
+  const token = project.telegramToken || project.botToken;
+  if (!token) {
     throw new Error('Telegram token не установлен в настройках проекта');
   }
 
   const header = `// Генерированный код для Telegram бота\n// Проект: ${project.name}\n// Дата: ${new Date().toISOString()}\n\n`;
   const requires = `const TelegramBot = require('node-telegram-bot-api');\n\n`;
-  const token = `const TOKEN = '${project.telegramToken}';\nconst bot = new TelegramBot(TOKEN, { polling: true });\n\n`;
+  const tokenLine = `const TOKEN = '${token}';\nconst bot = new TelegramBot(TOKEN, { polling: true });\n\n`;
   const globals = project.globalConstants ? generateGlobalConstants(project.globalConstants) + '\n' : '';
   const handlers = generateHandlersSection();
   const main = `
@@ -58,7 +60,7 @@ bot.on('message', async (msg) => {
 console.log('Бот запущен!');
 `;
 
-  return header + requires + token + globals + handlers + main;
+  return header + requires + tokenLine + globals + handlers + main;
 }
 
 // Создание архива для экспорта

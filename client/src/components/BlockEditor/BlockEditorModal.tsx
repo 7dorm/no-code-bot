@@ -9,7 +9,7 @@ interface BlockEditorModalProps {
 }
 
 const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) => {
-  const { currentProject, updateBlock } = useEditorStore();
+  const { currentProject, updateBlock, deleteBlock } = useEditorStore();
   
   const node = currentProject?.blocks.find(b => b.id === nodeId);
   
@@ -39,6 +39,21 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
       });
     }
     onClose();
+  };
+
+  const handleDelete = () => {
+    if (!node) return;
+    
+    // Нельзя удалить стартовый блок
+    if (node.data.type === 'start') {
+      alert('Нельзя удалить стартовый блок');
+      return;
+    }
+    
+    if (confirm('Вы уверены, что хотите удалить этот блок? Все соединения с ним также будут удалены.')) {
+      deleteBlock(nodeId);
+      onClose();
+    }
   };
 
   const updateBlockData = <T extends BlockData>(updates: Partial<T>) => {
@@ -151,6 +166,69 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
               />
               <small className="editor-hint">Если указано, ответ пользователя на это сообщение будет сохранен в указанную переменную</small>
             </div>
+            <div className="editor-group">
+              <label className="editor-label">Варианты ответов (опционально)</label>
+              <div style={{ marginBottom: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <input
+                    type="radio"
+                    name="answers-source"
+                    checked={!messageData.answersFromVariable}
+                    onChange={() => updateBlockData<MessageBlockData>({ 
+                      answersFromVariable: undefined,
+                      answersPath: undefined
+                    })}
+                  />
+                  <span>Указать вручную</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="radio"
+                    name="answers-source"
+                    checked={!!messageData.answersFromVariable}
+                    onChange={() => updateBlockData<MessageBlockData>({ 
+                      answers: undefined,
+                      answersFromVariable: messageData.answersFromVariable || 'apiResponse'
+                    })}
+                  />
+                  <span>Взять из переменной</span>
+                </label>
+              </div>
+              {!messageData.answersFromVariable ? (
+                <>
+                  <textarea
+                    className="editor-textarea"
+                    value={(messageData.answers || []).join('\n')}
+                    onChange={(e) => {
+                      const lines = e.target.value.split('\n').filter(line => line.trim() !== '');
+                      updateBlockData<MessageBlockData>({ answers: lines.length > 0 ? lines : undefined });
+                    }}
+                    placeholder="Введите варианты ответов, каждый с новой строки&#10;Например:&#10;10:00&#10;11:00&#10;12:00"
+                    rows={4}
+                  />
+                  <small className="editor-hint">Введите варианты ответов, каждый с новой строки. Пользователь сможет выбрать один из них.</small>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    className="editor-input"
+                    value={messageData.answersFromVariable || ''}
+                    onChange={(e) => updateBlockData<MessageBlockData>({ answersFromVariable: e.target.value || undefined })}
+                    placeholder="Например: apiResponse, times"
+                    style={{ marginBottom: '8px' }}
+                  />
+                  <input
+                    type="text"
+                    className="editor-input"
+                    value={messageData.answersPath || ''}
+                    onChange={(e) => updateBlockData<MessageBlockData>({ answersPath: e.target.value || undefined })}
+                    placeholder="Путь к массиву (например: data.times или data) - оставьте пустым если переменная уже массив"
+                  />
+                  <small className="editor-hint">Укажите имя переменной и путь к массиву (например, "data.times" для доступа к data.times в переменной). Если переменная уже массив, оставьте путь пустым.</small>
+                </>
+              )}
+            </div>
           </>
         );
 
@@ -239,7 +317,8 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
                       style={{ fontSize: '13px' }}
                     />
                     <small className="editor-hint" style={{ display: 'block', marginTop: '4px' }}>
-                      Поддерживаемые операторы: ===, !==, &gt;, &lt;, &gt;=, &lt;=, contains, &&, ||. Можно использовать переменные.
+                      Поддерживаемые операторы: ===, !==, &gt;, &lt;, &gt;=, &lt;=, contains, &&, ||. Можно использовать переменные. 
+                      Для проверки длины массива используйте: переменная.length (например: doctorsList.length &gt; 0)
                     </small>
                     {condition.condition && (
                       <div style={{ marginTop: '6px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -347,6 +426,34 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
               <small className="editor-hint">Ответ API будет сохранен в эту переменную. Укажите имя переменной без пробелов.</small>
             </div>
             <div className="editor-group">
+              <label className="editor-label">Извлечь массив для вариантов ответов (опционально)</label>
+              <input
+                type="text"
+                className="editor-input"
+                value={apiData.answersPath || ''}
+                onChange={(e) => {
+                  const value = e.target.value.trim();
+                  updateBlockData<ApiBlockData>({ answersPath: value || undefined });
+                }}
+                placeholder="Например: doctors, data.times или data"
+                style={{ marginBottom: '8px' }}
+              />
+              <input
+                type="text"
+                className="editor-input"
+                value={apiData.answersVariable || ''}
+                onChange={(e) => {
+                  const value = e.target.value.trim();
+                  updateBlockData<ApiBlockData>({ answersVariable: value || undefined });
+                }}
+                placeholder="Переменная для сохранения массива (например: doctorsList)"
+              />
+              <small className="editor-hint">
+                Укажите путь к массиву в ответе API. Например, если API возвращает {"{"}"doctors": ["Терапевт", "Кардиолог"]{"}"}, укажите путь "doctors". 
+                Массив будет сохранен в указанную переменную и может использоваться в блоке Сообщение как варианты ответов.
+              </small>
+            </div>
+            <div className="editor-group">
               <label className="editor-label">Заголовки (JSON, опционально)</label>
               <textarea
                 className="editor-textarea"
@@ -445,7 +552,27 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
       <div className="block-editor-modal" onClick={e => e.stopPropagation()} onKeyDown={handleModalKeyDown}>
         <div className="editor-header">
           <h3>✏️ Редактирование блока</h3>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {node.data.type !== 'start' && (
+              <button 
+                className="delete-btn" 
+                onClick={handleDelete}
+                style={{
+                  background: '#f44336',
+                  color: 'white',
+                  border: 'none',
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px'
+                }}
+                title="Удалить блок"
+              >
+                🗑️ Удалить
+              </button>
+            )}
+            <button className="close-btn" onClick={onClose}>✕</button>
+          </div>
         </div>
 
         <div className="editor-content">

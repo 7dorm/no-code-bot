@@ -2,9 +2,9 @@ import { UI } from "./UI";
 
 export class WebUI implements UI {
   private inputResolver: ((value: string) => void) | null = null;
-  private onMessageCallback?: (message: string, answers?: string[]) => void;
-  private onFinishCallback?: () => void;
-  private onInputRequestedCallback?: () => void; // Колбэк когда запрошен ввод
+  private onMessageCallback: ((message: string, answers?: string[]) => void) | undefined = undefined;
+  private onFinishCallback: (() => void) | undefined = undefined;
+  private onInputRequestedCallback: (() => void) | undefined = undefined; // Колбэк когда запрошен ввод
 
   constructor(
     onMessage?: (message: string, answers?: string[]) => void, 

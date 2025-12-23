@@ -12,6 +12,11 @@ const getBlockPreview = (data: BlockData): string => {
       if (msgData.saveResponseToVariable) {
         preview += ` [→${msgData.saveResponseToVariable}]`;
       }
+      if (msgData.answers && msgData.answers.length > 0) {
+        preview += ` [${msgData.answers.length} вариантов]`;
+      } else if (msgData.answersFromVariable) {
+        preview += ` [answers: ${msgData.answersFromVariable}${msgData.answersPath ? '.' + msgData.answersPath : ''}]`;
+      }
       return preview;
     }
     case 'condition': {

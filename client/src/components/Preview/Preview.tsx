@@ -23,6 +23,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
   const webUIRef = useRef<WebUI | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [waitingForInput, setWaitingForInput] = useState(false);
+  const [activeAnswersMessageIndex, setActiveAnswersMessageIndex] = useState<number | null>(null);
   const executionPromiseRef = useRef<Promise<void> | null>(null);
 
   // Инициализация Engine при открытии Preview
@@ -51,13 +52,21 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
     const webUI = new WebUI(
       (message: string, answers?: string[]) => {
         // Колбэк для отправки сообщения бота
-        setMessages(prev => [...prev, { role: 'bot', content: message, answers }]);
+        setMessages(prev => {
+          const newMessages = [...prev, { role: 'bot' as const, content: message, answers }];
+          // Если есть варианты ответов, отмечаем индекс этого сообщения как активный
+          if (answers && answers.length > 0) {
+            setActiveAnswersMessageIndex(newMessages.length - 1);
+          }
+          return newMessages;
+        });
       },
       () => {
         // Колбэк для завершения диалога
-        setMessages(prev => [...prev, { role: 'bot', content: '👋 Диалог завершен.' }]);
+        setMessages(prev => [...prev, { role: 'bot' as const, content: '👋 Диалог завершен.' }]);
         setIsRunning(false);
         setWaitingForInput(false);
+        setActiveAnswersMessageIndex(null);
       },
       () => {
         // Колбэк когда Engine запрашивает ввод пользователя
@@ -103,9 +112,12 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
   const sendToEngine = useCallback((text: string) => {
     if (!text || !webUIRef.current || !waitingForInput) return;
 
-    setMessages(prev => [...prev, { role: 'user', content: text }]);
+    // Добавляем сообщение пользователя
+    setMessages(prev => [...prev, { role: 'user' as const, content: text }]);
     setUserInput('');
     setWaitingForInput(false);
+    // Скрываем варианты ответов после выбора
+    setActiveAnswersMessageIndex(null);
 
     webUIRef.current.handleUserMessage(text);
 
@@ -117,11 +129,12 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
         } catch (err) {
           console.error('Ошибка выполнения бота:', err);
           setMessages(prev => [...prev, { 
-            role: 'bot', 
+            role: 'bot' as const, 
             content: '⚠️ Произошла ошибка при выполнении бота.' 
           }]);
           setIsRunning(false);
           setWaitingForInput(false);
+          setActiveAnswersMessageIndex(null);
         }
       };
       continueExecution();
@@ -168,14 +181,18 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
               <div key={idx} className={`chat-message ${msg.role}`}>
                 <div className="message-bubble">
                   {msg.content}
-                  {msg.role === 'bot' && msg.answers && msg.answers.length > 0 && (
+                  {msg.role === 'bot' && 
+                   msg.answers && 
+                   msg.answers.length > 0 && 
+                   activeAnswersMessageIndex === idx && 
+                   waitingForInput && (
                     <div className="quick-replies">
                       {msg.answers.map((ans, i) => (
                         <button
                           key={`${idx}-ans-${i}`}
                           className="quick-reply-btn"
                           onClick={() => handleQuickReply(ans)}
-                          disabled={!waitingForInput}
+                          disabled={!waitingForInput || activeAnswersMessageIndex !== idx}
                         >
                           {ans}
                         </button>
@@ -191,7 +208,15 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
             <input
               type="text"
               className="chat-input"
-              placeholder={waitingForInput ? "Введите сообщение..." : (isRunning ? "Ожидание..." : "Диалог завершен")}
+              placeholder={
+                waitingForInput && activeAnswersMessageIndex !== null
+                  ? "Выберите вариант выше или введите свой ответ..."
+                  : waitingForInput
+                  ? "Введите сообщение..."
+                  : isRunning
+                  ? "Ожидание..."
+                  : "Диалог завершен"
+              }
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               onKeyPress={(e) => {

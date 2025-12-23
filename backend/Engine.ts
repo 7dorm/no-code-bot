@@ -17,7 +17,9 @@ export interface EngineNode {
   Nexts: string[];
   Cond?: string[];
   skip?: boolean;
-  Answers?: string[];
+  Answers?: string[]; // Варианты ответов для выбора пользователем
+  AnswersFromVariable?: string; // Имя переменной, содержащей массив для вариантов ответов
+  AnswersPath?: string; // Путь к массиву в переменной (например, "data.times")
   VariableName?: string; // Для variable блоков
   VariableValue?: string; // Для variable блоков
   SaveNextToVariable?: string; // Для variable блоков - сохранить следующий ответ пользователя
@@ -28,6 +30,8 @@ export interface EngineNode {
   ApiHeaders?: Record<string, string>;
   ApiBody?: string;
   ApiResponseVariable?: string; // Имя переменной для сохранения ответа
+  ApiAnswersPath?: string; // Путь к массиву в ответе API для использования в качестве вариантов ответов
+  ApiAnswersVariable?: string; // Имя переменной для сохранения массива вариантов ответов
 
   FILEAct? : 'Upload' | 'DownLoad' | 'Delete' | 'Read';
   FileName?: string; // Для FILE блоков
@@ -69,19 +73,45 @@ function evalCondition(condStr: string, variables: Record<string, any>, userInpu
 }
 
 function evaluateSimpleCondition(cond: string, variables: Record<string, any>, userInput: string = '', globalConstants?: Record<string, any>): boolean {
-  // Проверка на сравнение чисел 
-  const numMatch = cond.match(/^\s*([\w{}]+)\s*([<>]=?|==|!=)\s*([\w{}]+)\s*$/);
+  // Функция для получения значения переменной (включая .length)
+  const getValue = (expr: string): any => {
+    expr = expr.trim().replace(/[{}]/g, '');
+    
+    // Проверка на .length
+    if (expr.includes('.length')) {
+      const parts = expr.split('.length');
+      if (parts.length > 0 && parts[0]) {
+        const varName = parts[0].trim();
+        const value = variables[varName] !== undefined ? variables[varName] : 
+                     (globalConstants && globalConstants[varName] !== undefined ? globalConstants[varName] : null);
+        if (Array.isArray(value)) {
+          return value.length;
+        }
+        return 0;
+      }
+    }
+    
+    // Обычная переменная
+    if (variables[expr] !== undefined) {
+      return variables[expr];
+    }
+    if (globalConstants && globalConstants[expr] !== undefined) {
+      return globalConstants[expr];
+    }
+    return expr;
+  };
+
+  // Проверка на сравнение чисел (включая .length)
+  const numMatch = cond.match(/^\s*([\w{}.]+)\s*([<>]=?|==|!=)\s*([\w{}.]+)\s*$/);
   if (numMatch) {
     // @ts-ignore
-    let leftStr = numMatch[1].replace(/[{}]/g, '');
+    const leftValue = getValue(numMatch[1]);
     // @ts-ignore
-    let rightStr = numMatch[3].replace(/[{}]/g, '');
+    const rightValue = getValue(numMatch[3]);
     const op = numMatch[2];
 
-    const left = variables[leftStr] !== undefined ? Number(variables[leftStr]) : 
-                 (globalConstants && globalConstants[leftStr] !== undefined ? Number(globalConstants[leftStr]) : Number(leftStr));
-    const right = variables[rightStr] !== undefined ? Number(variables[rightStr]) : 
-                  (globalConstants && globalConstants[rightStr] !== undefined ? Number(globalConstants[rightStr]) : Number(rightStr));
+    const left = typeof leftValue === 'number' ? leftValue : Number(leftValue);
+    const right = typeof rightValue === 'number' ? rightValue : Number(rightValue);
 
     if (!isNaN(left) && !isNaN(right)) {
       switch (op) {
@@ -109,74 +139,82 @@ function evaluateSimpleCondition(cond: string, variables: Record<string, any>, u
     }
   }
 
-  // Проверка на равенство строк
+  // Проверка на равенство строк (включая .length)
   if (cond.includes('===') || cond.includes('==')) {
-    const [left, right] = cond.split(/===|==/).map(s => s.trim().replace(/['"]/g, ''));
-    // @ts-ignore
-    const leftValue = variables[left] !== undefined ? String(variables[left]) : 
-                     (globalConstants && globalConstants[left] !== undefined ? String(globalConstants[left]) : left);
-    // @ts-ignore
-    const rightValue = variables[right] !== undefined ? String(variables[right]) : 
-                      (globalConstants && globalConstants[right] !== undefined ? String(globalConstants[right]) : right);
-    return leftValue === rightValue;
+    const parts = cond.split(/===|==/);
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      const left = parts[0].trim().replace(/['"]/g, '');
+      const right = parts[1].trim().replace(/['"]/g, '');
+      const leftValue = getValue(left);
+      const rightValue = getValue(right);
+      return String(leftValue) === String(rightValue);
+    }
   }
 
-  // Проверка на неравенство строк
+  // Проверка на неравенство строк (включая .length)
   if (cond.includes('!==') || cond.includes('!=')) {
-    const [left, right] = cond.split(/!==|!=/).map(s => s.trim().replace(/['"]/g, ''));
-    // @ts-ignore
-    const leftValue = variables[left] !== undefined ? String(variables[left]) : 
-                     (globalConstants && globalConstants[left] !== undefined ? String(globalConstants[left]) : left);
-    // @ts-ignore
-    const rightValue = variables[right] !== undefined ? String(variables[right]) : 
-                      (globalConstants && globalConstants[right] !== undefined ? String(globalConstants[right]) : right);
-    return leftValue !== rightValue;
+    const parts = cond.split(/!==|!=/);
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      const left = parts[0].trim().replace(/['"]/g, '');
+      const right = parts[1].trim().replace(/['"]/g, '');
+      const leftValue = getValue(left);
+      const rightValue = getValue(right);
+      return String(leftValue) !== String(rightValue);
+    }
   }
 
   // Проверка на >= и <=
   if (cond.includes('>=')) {
-    const [left, right] = cond.split('>=').map(s => s.trim());
-    // @ts-ignore
-    const leftValue = variables[left] !== undefined ? Number(variables[left]) : 
-                     (globalConstants && globalConstants[left] !== undefined ? Number(globalConstants[left]) : Number(left));
-    // @ts-ignore
-    const rightValue = variables[right] !== undefined ? Number(variables[right]) : 
-                      (globalConstants && globalConstants[right] !== undefined ? Number(globalConstants[right]) : Number(right));
-    return !isNaN(leftValue) && !isNaN(rightValue) && leftValue >= rightValue;
+    const parts = cond.split('>=');
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      const left = parts[0].trim();
+      const right = parts[1].trim();
+      const leftValue = getValue(left);
+      const rightValue = getValue(right);
+      const leftNum = typeof leftValue === 'number' ? leftValue : Number(leftValue);
+      const rightNum = typeof rightValue === 'number' ? rightValue : Number(rightValue);
+      return !isNaN(leftNum) && !isNaN(rightNum) && leftNum >= rightNum;
+    }
   }
 
   if (cond.includes('<=')) {
-    const [left, right] = cond.split('<=').map(s => s.trim());
-    // @ts-ignore
-    const leftValue = variables[left] !== undefined ? Number(variables[left]) : 
-                     (globalConstants && globalConstants[left] !== undefined ? Number(globalConstants[left]) : Number(left));
-    // @ts-ignore
-    const rightValue = variables[right] !== undefined ? Number(variables[right]) : 
-                      (globalConstants && globalConstants[right] !== undefined ? Number(globalConstants[right]) : Number(right));
-    return !isNaN(leftValue) && !isNaN(rightValue) && leftValue <= rightValue;
+    const parts = cond.split('<=');
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      const left = parts[0].trim();
+      const right = parts[1].trim();
+      const leftValue = getValue(left);
+      const rightValue = getValue(right);
+      const leftNum = typeof leftValue === 'number' ? leftValue : Number(leftValue);
+      const rightNum = typeof rightValue === 'number' ? rightValue : Number(rightValue);
+      return !isNaN(leftNum) && !isNaN(rightNum) && leftNum <= rightNum;
+    }
   }
 
   // Проверка на > и <
-  if (cond.includes('>')) {
-    const [left, right] = cond.split('>').map(s => s.trim());
-    // @ts-ignore
-    const leftValue = variables[left] !== undefined ? Number(variables[left]) : 
-                     (globalConstants && globalConstants[left] !== undefined ? Number(globalConstants[left]) : Number(left));
-    // @ts-ignore
-    const rightValue = variables[right] !== undefined ? Number(variables[right]) : 
-                      (globalConstants && globalConstants[right] !== undefined ? Number(globalConstants[right]) : Number(right));
-    return !isNaN(leftValue) && !isNaN(rightValue) && leftValue > rightValue;
+  if (cond.includes('>') && !cond.includes('>=')) {
+    const parts = cond.split('>');
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      const left = parts[0].trim();
+      const right = parts[1].trim();
+      const leftValue = getValue(left);
+      const rightValue = getValue(right);
+      const leftNum = typeof leftValue === 'number' ? leftValue : Number(leftValue);
+      const rightNum = typeof rightValue === 'number' ? rightValue : Number(rightValue);
+      return !isNaN(leftNum) && !isNaN(rightNum) && leftNum > rightNum;
+    }
   }
 
-  if (cond.includes('<')) {
-    const [left, right] = cond.split('<').map(s => s.trim());
-    // @ts-ignore
-    const leftValue = variables[left] !== undefined ? Number(variables[left]) : 
-                     (globalConstants && globalConstants[left] !== undefined ? Number(globalConstants[left]) : Number(left));
-    // @ts-ignore
-    const rightValue = variables[right] !== undefined ? Number(variables[right]) : 
-                      (globalConstants && globalConstants[right] !== undefined ? Number(globalConstants[right]) : Number(right));
-    return !isNaN(leftValue) && !isNaN(rightValue) && leftValue < rightValue;
+  if (cond.includes('<') && !cond.includes('<=')) {
+    const parts = cond.split('<');
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      const left = parts[0].trim();
+      const right = parts[1].trim();
+      const leftValue = getValue(left);
+      const rightValue = getValue(right);
+      const leftNum = typeof leftValue === 'number' ? leftValue : Number(leftValue);
+      const rightNum = typeof rightValue === 'number' ? rightValue : Number(rightValue);
+      return !isNaN(leftNum) && !isNaN(rightNum) && leftNum < rightNum;
+    }
   }
 
   if (cond.trim().toLowerCase() === 'default') {
@@ -268,6 +306,8 @@ export class Engine {
     switch (block.Type) {
       case "output":
         await this.executeMessage();
+        // executeMessage() сам обрабатывает переход к следующему блоку
+        // Не нужно вызывать execute() здесь, чтобы избежать дублирования
         break;
       case "condition":
         // Для condition нужно получить ввод перед проверкой
@@ -337,13 +377,70 @@ export class Engine {
       return match; // Если переменная не найдена, оставляем как есть
     });
 
-    if (block.Answers){
-        const answer = await this.ui.sendMessage(processedText, block.Answers || []);
-        const ind = block.Answers.indexOf(answer!)
-        if (ind == -1) throw "Unknown answer at block: " + this.index
-        this.index = block.Nexts[ind]!;
-    } else {
-        await this.ui.sendMessage(processedText, block.Answers || []);
+    // Получаем варианты ответов
+    let answers: string[] | undefined = block.Answers;
+    
+    // Если answers не указаны напрямую, пытаемся получить из переменной
+    if (!answers && block.AnswersFromVariable) {
+      const varName = block.AnswersFromVariable;
+      let answersData = this.variables[varName];
+      
+      // Если указан путь, извлекаем данные по пути
+      if (block.AnswersPath && block.AnswersPath.trim() !== '') {
+        const path = block.AnswersPath.trim();
+        const pathParts = path.split('.').filter(p => p.trim() !== '');
+        
+        for (const part of pathParts) {
+          if (answersData && typeof answersData === 'object' && part in answersData) {
+            answersData = answersData[part];
+          } else {
+            answersData = null;
+            break;
+          }
+        }
+      }
+      
+      // Если получили массив, используем его
+      if (Array.isArray(answersData)) {
+        answers = answersData.map(item => String(item));
+      } else {
+        console.warn(`⚠️ Variable "${varName}" does not contain an array for answers`);
+      }
+    }
+
+    // Если есть варианты ответов, показываем их и ждем выбора
+    if (answers && answers.length > 0) {
+      await this.ui.sendMessage(processedText, answers);
+      const userAnswer = await this.ui.getInput();
+      const answerIndex = answers.indexOf(userAnswer);
+      
+      if (answerIndex === -1) {
+        throw new Error(`Unknown answer "${userAnswer}" at block: ${this.index}`);
+      }
+      
+      // Сохраняем выбранный ответ в переменную, если нужно
+      if (block.VarName) {
+        this.variables[block.VarName] = userAnswer;
+      }
+      // Всегда сохраняем выбранный ответ в стандартные переменные
+      this.variables['lastMessage'] = userAnswer;
+      this.variables['userInput'] = userAnswer;
+      
+      // Переходим к следующему блоку по индексу выбранного ответа
+      if (answerIndex < block.Nexts.length && block.Nexts[answerIndex]) {
+        this.index = block.Nexts[answerIndex];
+        this.skipInput = true;
+        // Продолжаем выполнение следующего блока
+        await this.execute(true);
+      } else {
+        this.ui.finish();
+        this.isFinished = true;
+      }
+      return;
+    }
+
+    // Если нет вариантов ответов, просто отправляем сообщение
+    await this.ui.sendMessage(processedText, []);
 
     // Сохранить в переменную если необходимо (тогда ждем ввода)
     if (block.VarName != null) {
@@ -379,6 +476,7 @@ export class Engine {
         return;
       }
     }
+    
     // Последнее сообщение
     if (block.Nexts.length == 0) {
       this.ui.finish();
@@ -389,19 +487,8 @@ export class Engine {
     // Переход к следующему блоку
     // @ts-ignore
     this.index = block.Nexts[0];
-  }
-
-
-    // Перейти к исполнению следующего блока
-    // Если следующий блок требует ввода, выполнение остановится на getInput()
-    if (block.skip) {
-      this.skipInput = true;
-      await this.execute(false);
-    } else {
-      // Продолжаем выполнение следующего блока
-      // Если он запросит ввод, выполнение автоматически остановится
-      await this.execute(false);
-    }
+    // Продолжаем выполнение следующего блока
+    await this.execute(true);
   }
 
   // Проверка условных блоков
@@ -620,28 +707,80 @@ export class Engine {
     });
 
     try {
-      // Заменяем переменные в URL
-      let url = block.ApiUrl;
-      url = url.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
+      // Функция для замены переменных
+      const replaceVariable = (varName: string): string => {
         if (this.variables[varName] !== undefined && this.variables[varName] !== null) {
           return String(this.variables[varName]);
         } else if (this.globalConstants && this.globalConstants[varName] !== undefined && this.globalConstants[varName] !== null) {
           return String(this.globalConstants[varName]);
         }
-        return match;
-      });
+        return `{{${varName}}}`; // Если переменная не найдена, оставляем как есть
+      };
+
+      // Заменяем переменные в URL
+      let url = block.ApiUrl;
+      url = url.replace(/\{\{(\w+)\}\}/g, (match, varName) => replaceVariable(varName));
 
       // Заменяем переменные в теле запроса
       let body = block.ApiBody || '';
       if (body) {
+        // Умная замена переменных в JSON-подобном тексте
+        // Обрабатываем случаи: "key": {{variable}} и "key": "{{variable}}"
         body = body.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
-          if (this.variables[varName] !== undefined && this.variables[varName] !== null) {
-            return String(this.variables[varName]);
-          } else if (this.globalConstants && this.globalConstants[varName] !== undefined && this.globalConstants[varName] !== null) {
-            return String(this.globalConstants[varName]);
+          // Получаем значение переменной
+          const varValue = this.variables[varName] !== undefined ? this.variables[varName] : 
+                          (this.globalConstants && this.globalConstants[varName] !== undefined ? this.globalConstants[varName] : null);
+          
+          // Определяем тип значения
+          if (varValue === null || varValue === undefined) {
+            return 'null';
           }
-          return match;
+          
+          // Если значение - объект или массив, сериализуем в JSON
+          if (typeof varValue === 'object' && !Array.isArray(varValue)) {
+            return JSON.stringify(varValue);
+          }
+          
+          if (Array.isArray(varValue)) {
+            return JSON.stringify(varValue);
+          }
+          
+          // Если значение - число или boolean, подставляем как есть (без кавычек)
+          if (typeof varValue === 'number' || typeof varValue === 'boolean') {
+            return String(varValue);
+          }
+          
+          // Если значение - строка, проверяем контекст в исходном тексте
+          // Ищем позицию {{variable}} в исходном body
+          const matchIndex = body.indexOf(match);
+          if (matchIndex !== -1) {
+            // Проверяем, есть ли кавычки перед {{variable}}
+            const beforeMatch = body.substring(0, matchIndex);
+            const lastQuote = Math.max(
+              beforeMatch.lastIndexOf('"'),
+              beforeMatch.lastIndexOf("'")
+            );
+            const lastColon = beforeMatch.lastIndexOf(':');
+            
+            // Если после : нет кавычек до {{, значит это значение без кавычек - оборачиваем строку
+            if (lastColon !== -1 && (lastQuote === -1 || lastQuote < lastColon)) {
+              // Это значение JSON без кавычек - оборачиваем строку в кавычки
+              return JSON.stringify(String(varValue));
+            }
+          }
+          
+          // Иначе возвращаем как строку (уже в кавычках или в другом контексте)
+          return String(varValue);
         });
+        
+        // Пытаемся распарсить как JSON для валидации и форматирования
+        try {
+          const bodyObj = JSON.parse(body);
+          body = JSON.stringify(bodyObj);
+        } catch (e) {
+          // Если не удалось распарсить, оставляем как есть (может быть не JSON)
+          console.warn('⚠️ Body после подстановки переменных не является валидным JSON:', body);
+        }
       }
 
       // Подготавливаем заголовки
@@ -652,14 +791,9 @@ export class Engine {
 
       // Заменяем переменные в заголовках
       Object.keys(headers).forEach(key => {
-        headers[key] = headers[key].replace(/\{\{(\w+)\}\}/g, (match, varName) => {
-          if (this.variables[varName] !== undefined && this.variables[varName] !== null) {
-            return String(this.variables[varName]);
-          } else if (this.globalConstants && this.globalConstants[varName] !== undefined && this.globalConstants[varName] !== null) {
-            return String(this.globalConstants[varName]);
-          }
-          return match;
-        });
+        if (headers[key]) {
+          headers[key] = headers[key].replace(/\{\{(\w+)\}\}/g, (match, varName) => replaceVariable(varName));
+        }
       });
 
       // Выполняем HTTP запрос
@@ -747,6 +881,42 @@ export class Engine {
         });
       } else {
         console.warn('⚠️ API response received but no variable specified for saving. ResponseVariable:', block.ApiResponseVariable);
+      }
+
+      // Извлекаем массив для вариантов ответов, если указан путь
+      if (block.ApiAnswersPath && block.ApiAnswersPath.trim() !== '') {
+        try {
+          const path = block.ApiAnswersPath.trim();
+          let answersArray: any = responseData;
+          
+          // Парсим путь (например, "data.times" -> ["data", "times"])
+          const pathParts = path.split('.').filter(p => p.trim() !== '');
+          
+          // Проходим по пути
+          for (const part of pathParts) {
+            if (answersArray && typeof answersArray === 'object' && part in answersArray) {
+              answersArray = answersArray[part];
+            } else {
+              answersArray = null;
+              break;
+            }
+          }
+          console.log(path);
+          // Если получили массив, сохраняем его
+          if (Array.isArray(answersArray)) {
+            const answersVarName = block.ApiAnswersVariable?.trim() || `${block.ApiResponseVariable || 'apiResponse'}_answers`;
+            this.variables[answersVarName] = answersArray.map(item => String(item));
+            console.log(`✅ API answers array saved to variable: "${answersVarName}"`, {
+              path,
+              answers: answersArray,
+              count: answersArray.length
+            });
+          } else {
+            console.warn(`⚠️ Path "${path}" does not point to an array in API response`);
+          }
+        } catch (error) {
+          console.error(`❌ Failed to extract answers array from API response:`, error);
+        }
       }
 
       // Переходим к следующему блоку

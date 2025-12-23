@@ -11,6 +11,8 @@ export interface ApiBlockData extends BlockInterface {
   headers?: Record<string, string>; // HTTP заголовки (опционально)
   body?: string; // Тело запроса для POST/PUT (опционально)
   responseVariable?: string; // Имя переменной, куда сохранить ответ (для GET)
+  answersPath?: string; // Путь к массиву в ответе API для использования в качестве вариантов ответов (например, "data.times" или "data") (опционально)
+  answersVariable?: string; // Имя переменной, куда сохранить массив вариантов ответов (опционально)
 }
 
 /**

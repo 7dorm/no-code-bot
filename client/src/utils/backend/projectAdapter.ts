@@ -52,10 +52,27 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
           engineNode.VarType = 'string';
         }
 
-        // Получаем следующий блок (обычно один выход для message)
+        // Варианты ответов
+        if (msgData.answers && msgData.answers.length > 0) {
+          engineNode.Answers = msgData.answers;
+        } else if (msgData.answersFromVariable) {
+          // Answers будут получены из переменной во время выполнения
+          engineNode.AnswersFromVariable = msgData.answersFromVariable;
+          engineNode.AnswersPath = msgData.answersPath;
+        }
+
+        // Получаем следующий блок (один выход для message)
         const nextTarget = blockConnections?.get('output');
         if (nextTarget) {
-          engineNode.Nexts.push(nextTarget);
+          // Если есть answers, создаем несколько Nexts (по количеству вариантов)
+          // Все они ведут к одному и тому же следующему блоку
+          if (engineNode.Answers && engineNode.Answers.length > 0) {
+            engineNode.Answers.forEach(() => {
+              engineNode.Nexts.push(nextTarget);
+            });
+          } else {
+            engineNode.Nexts.push(nextTarget);
+          }
         }
         break;
       }
@@ -143,12 +160,17 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         engineNode.ApiBody = apiData.body;
         // Сохраняем переменную для ответа, даже если она пустая (для отладки)
         engineNode.ApiResponseVariable = apiData.responseVariable?.trim() || undefined;
+        // Сохраняем путь к массиву для вариантов ответов
+        engineNode.ApiAnswersPath = apiData.answersPath?.trim() || undefined;
+        engineNode.ApiAnswersVariable = apiData.answersVariable?.trim() || undefined;
         
         console.log('API block adapted:', {
           id: block.id,
           url: apiData.url,
           method: apiData.method,
           responseVariable: engineNode.ApiResponseVariable,
+          answersPath: engineNode.ApiAnswersPath,
+          answersVariable: engineNode.ApiAnswersVariable,
           originalResponseVariable: apiData.responseVariable
         });
 
