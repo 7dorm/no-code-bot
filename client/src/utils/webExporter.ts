@@ -274,7 +274,7 @@ class WebUI extends UI {
   }
 
   deleteFile(path) {
-    console.log(\`Удаление файла: \${path}\`);
+    // Удаление файла
   }
 
   isDone() {
@@ -496,7 +496,6 @@ class Engine {
       this.executionCount[this.index] = (this.executionCount[this.index] || 0) + 1;
 
       if (this.executionCount[this.index] > 50) {
-        console.error(\`⚠️ Обнаружен возможный бесконечный цикл в блоке \${this.index}. Остановка выполнения.\`);
         this.ui.finish();
         this.isFinished = true;
         return;
@@ -622,7 +621,6 @@ class Engine {
         if (isEmpty && this.lastEmptyAnswersBlock === this.index) {
           this.consecutiveEmptyAnswers++;
           if (this.consecutiveEmptyAnswers >= 3) {
-            console.error(\`⚠️ Обнаружен бесконечный цикл в блоке \${this.index}. Остановка выполнения.\`);
             await this.ui.sendMessage('⚠️ Произошла ошибка: нет доступных вариантов для выбора. Пожалуйста, попробуйте позже.', []);
             this.ui.finish();
             this.isFinished = true;
@@ -635,7 +633,6 @@ class Engine {
 
         answers = answersData.length > 0 ? answersData.map(item => String(item)) : [];
       } else {
-        console.warn(\`⚠️ Variable "\${varName}" does not contain an array for answers yet. Skipping message to avoid duplication.\`);
         if (block.Nexts.length > 0) {
           this.index = block.Nexts[0];
           this.skipInput = true;
@@ -685,7 +682,7 @@ class Engine {
     if (messageToSend !== '') {
       await this.ui.sendMessage(messageToSend, []);
     } else {
-      console.warn(\`⚠️ Пропущено пустое сообщение в блоке \${this.index}\`);
+      // Пустое сообщение пропускается
     }
 
     if (block.VarName != null) {
@@ -897,17 +894,11 @@ class Engine {
   async executeAPI() {
     const block = this.nodeStructure[this.index];
     if (!block || !block.ApiUrl) {
-      console.error('❌ API block missing URL');
       return;
     }
 
     const startTime = Date.now();
     const timestamp = new Date().toISOString();
-
-    console.log(\`🌐 API Request [\${timestamp}]\`);
-    console.log(\`   Block ID: \${block.id}\`);
-    console.log(\`   Method: \${block.ApiMethod || 'GET'}\`);
-    console.log(\`   Original URL: \${block.ApiUrl}\`);
 
     try {
       const replaceVariable = (varName) => {
@@ -927,10 +918,6 @@ class Engine {
         return value;
       });
 
-      console.log(\`   Processed URL: \${url}\`);
-      if (Object.keys(urlVariables).length > 0) {
-        console.log(\`   URL Variables:\`, urlVariables);
-      }
 
       let body = block.ApiBody || '';
       const bodyVariables = {};
@@ -977,7 +964,7 @@ class Engine {
           const bodyObj = JSON.parse(body);
           body = JSON.stringify(bodyObj);
         } catch (e) {
-          console.warn('⚠️ Body после подстановки переменных не является валидным JSON:', body);
+          // Body не является JSON, оставляем как есть
         }
       }
 
@@ -1004,21 +991,6 @@ class Engine {
         fetchOptions.body = body;
       }
 
-      if (Object.keys(headers).length > 0) {
-        console.log(\`   Headers:\`, headers);
-      }
-      if (method !== 'GET' && body) {
-        console.log(\`   Request Body:\`, body);
-        if (Object.keys(bodyVariables).length > 0) {
-          console.log(\`   Body Variables:\`, bodyVariables);
-        }
-      }
-      if (block.ApiResponseVariable) {
-        console.log(\`   Response Variable: \${block.ApiResponseVariable}\`);
-      }
-      if (block.ApiAnswersPath && block.ApiAnswersVariable) {
-        console.log(\`   Answers Path: \${block.ApiAnswersPath} → \${block.ApiAnswersVariable}\`);
-      }
 
       let fetchFn;
       const isBrowser = typeof window !== 'undefined';
@@ -1059,31 +1031,22 @@ class Engine {
       let responseData;
       const contentType = response.headers.get('content-type') || '';
 
-      console.log(\`   Response Status: \${response.status} \${response.statusText}\`);
-      console.log(\`   Response Time: \${duration}ms\`);
 
       if (contentType.includes('application/json')) {
         try {
           responseData = await response.json();
-          console.log(\`   Response Data:\`, JSON.stringify(responseData, null, 2));
         } catch (e) {
           const text = await response.text();
           responseData = { text, parseError: 'Failed to parse JSON' };
-          console.log(\`   Response Data (text):\`, text);
         }
       } else {
         responseData = await response.text();
-        console.log(\`   Response Data (text):\`, responseData);
       }
 
       if (block.ApiResponseVariable && block.ApiResponseVariable.trim() !== '') {
         const varName = block.ApiResponseVariable.trim();
         this.variables[varName] = responseData;
         this.variables[\`\${varName}_status\`] = response.status;
-        console.log(\`   ✅ Response saved to variable: "\${varName}"\`);
-        console.log(\`   ✅ Status saved to variable: "\${varName}_status" = \${response.status}\`);
-      } else {
-        console.warn('⚠️ API response received but no variable specified for saving. ResponseVariable:', block.ApiResponseVariable);
       }
 
       if (block.ApiAnswersPath && block.ApiAnswersPath.trim() !== '') {
@@ -1102,18 +1065,12 @@ class Engine {
           if (Array.isArray(answersArray)) {
             const answersVarName = block.ApiAnswersVariable?.trim() || \`\${block.ApiResponseVariable || 'apiResponse'}_answers\`;
             this.variables[answersVarName] = answersArray.map(item => String(item));
-            console.log(\`   ✅ Answers array saved to variable: "\${answersVarName}"\`);
-            console.log(\`   ✅ Answers count: \${answersArray.length}\`);
-            console.log(\`   ✅ Answers:\`, answersArray);
-          } else {
-            console.log(\`   ⚠️  Path "\${path}" does not point to an array in API response\`);
           }
         } catch (error) {
-          console.log(\`   ❌ Failed to extract answers array from API response:\`, error);
+          // Не удалось извлечь массив ответов
         }
       }
 
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n');
 
       if (block.Nexts.length > 0) {
         this.index = block.Nexts[0];
@@ -1125,10 +1082,6 @@ class Engine {
       }
     } catch (error) {
       const duration = Date.now() - startTime;
-      console.log(\`   ❌ API Request Failed\`);
-      console.log(\`   Error: \${error.message || String(error)}\`);
-      console.log(\`   Error Type: \${error.name || 'UnknownError'}\`);
-      console.log(\`   Duration: \${duration}ms\`);
 
       if (block.ApiResponseVariable && block.ApiResponseVariable.trim() !== '') {
         const varName = block.ApiResponseVariable.trim();
@@ -1137,12 +1090,8 @@ class Engine {
           errorType: error.name || 'UnknownError'
         };
         this.variables[\`\${varName}_status\`] = error.status || 0;
-        console.log(\`   ✅ Error saved to variable: "\${varName}"\`);
-      } else {
-        console.log(\`   ⚠️  No variable specified for saving error. ResponseVariable: \${block.ApiResponseVariable || 'not set'}\`);
       }
 
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n');
 
       if (block.Nexts.length > 0) {
         this.index = block.Nexts[0];
@@ -1158,7 +1107,6 @@ class Engine {
   async executeScript() {
     const block = this.nodeStructure[this.index];
     if (!block || !block.ScriptCode) {
-      console.warn('Script block missing code');
       if (block && block.Nexts.length > 0) {
         this.index = block.Nexts[0];
         this.skipInput = true;
@@ -1218,7 +1166,6 @@ class Engine {
         this.isFinished = true;
       }
     } catch (error) {
-      console.error('Script execution error:', error);
       if (block.ScriptReturnVariable) {
         this.variables[block.ScriptReturnVariable] = {
           error: error.message || String(error),
@@ -1363,7 +1310,6 @@ export function exportToWeb(project: Project): WebAppCode {
                 await currentEngine.execute(true);
 
             } catch (error) {
-                console.error('Bot error:', error);
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'message bot-message';
                 errorDiv.innerHTML = \`
@@ -1382,9 +1328,6 @@ export function exportToWeb(project: Project): WebAppCode {
         // Функция для перезапуска (экспортируется глобально)
         window.restartBot = restartBot;
 
-        console.log('🤖 Web bot loaded successfully!');
-        console.log('📊 Project: ${project.name}');
-        console.log('📅 Generated: ${new Date().toISOString()}');
 
         // ===== END WEB APP LOGIC =====
     </script>
@@ -1704,7 +1647,6 @@ export function exportToWeb(project: Project): WebAppCode {
                 await currentEngine.execute(true);
 
             } catch (error) {
-                console.error('Bot error:', error);
                 const chatMessages = document.getElementById('chatMessages');
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'message bot-message';
@@ -1721,9 +1663,6 @@ export function exportToWeb(project: Project): WebAppCode {
         // Функция для перезапуска (экспортируется глобально)
         window.restartBot = restartBot;
 
-        console.log('🤖 Web bot loaded successfully!');
-        console.log('📊 Project: ${project.name}');
-        console.log('📅 Generated: ${new Date().toISOString()}');
 
         // ===== END WEB APP LOGIC =====
 `;

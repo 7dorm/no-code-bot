@@ -21,26 +21,8 @@ export class WebUI implements UI {
   }
 
   async sendMessage(message: string, answers: string[]): Promise<void> {
-    console.log(`\n📤 WebUI.sendMessage called:`);
-    console.log(`   Message: "${message}"`);
-    console.log(`   Answers:`, answers);
-    console.log(`   Has callback:`, !!this.onMessageCallback);
-    // #region agent log
-    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    fetch('http://127.0.0.1:7245/ingest/3dd875b0-2c9e-459b-8e6e-82c5c386ba6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WebUI.ts:23',message:'WebUI.sendMessage called',data:{messageId,messageLength:message.length,hasCallback:!!this.onMessageCallback,answersCount:answers.length,messagePreview:message.substring(0,50)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C'})}).catch(()=>{});
-    // #endregion
     if (this.onMessageCallback) {
-      console.log(`   ✅ Calling onMessageCallback`);
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/3dd875b0-2c9e-459b-8e6e-82c5c386ba6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WebUI.ts:26',message:'Calling onMessageCallback',data:{messageId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C'})}).catch(()=>{});
-      // #endregion
       this.onMessageCallback(message, answers);
-      console.log(`   ✅ onMessageCallback completed`);
-      // #region agent log
-      fetch('http://127.0.0.1:7245/ingest/3dd875b0-2c9e-459b-8e6e-82c5c386ba6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'WebUI.ts:29',message:'onMessageCallback completed',data:{messageId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B,C'})}).catch(()=>{});
-      // #endregion
-    } else {
-      console.error(`   ❌ No callback registered!`);
     }
   }
 

@@ -86,9 +86,6 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
       },
       () => {
         // Колбэк когда Engine запрашивает ввод пользователя
-        // #region agent log
-        fetch('http://127.0.0.1:7245/ingest/3dd875b0-2c9e-459b-8e6e-82c5c386ba6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Preview.tsx:71',message:'onInputRequested callback called',data:{currentWaitingForInput:waitingForInput},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-        // #endregion
         // Не устанавливаем waitingForInput здесь, так как он уже устанавливается внутри setMessages
         // когда сообщение с ответами отправляется
       },
@@ -116,7 +113,6 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
         executionPromiseRef.current = engine.execute(true);
         await executionPromiseRef.current;
       } catch (err) {
-        console.error('Ошибка выполнения бота:', err);
         setMessages(prev => [...prev, { 
           role: 'bot', 
           content: '⚠️ Произошла ошибка при выполнении бота.' 
@@ -141,18 +137,10 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
   }, [currentProject]);
 
   const sendToEngine = useCallback((text: string) => {
-    console.log(`🎯 sendToEngine called with text: "${text}"`);
-    console.log(`   waitingForInput:`, waitingForInput);
-    console.log(`   activeAnswersMessageIndex:`, activeAnswersMessageIndex);
-
     if (!text || !webUIRef.current || !waitingForInput) {
-      console.log(`   ❌ Early return - conditions not met`);
       return;
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/3dd875b0-2c9e-459b-8e6e-82c5c386ba6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Preview.tsx:133',message:'sendToEngine called',data:{text,waitingForInput,activeAnswersMessageIndex},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-    // #endregion
 
     // Сбрасываем состояния после выбора ответа
     setActiveAnswersMessageIndex(null);
@@ -162,9 +150,6 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
     // Добавляем сообщение пользователя
     setMessages(prev => [...prev, { role: 'user' as const, content: text }]);
     setUserInput('');
-    // #region agent log
-    fetch('http://127.0.0.1:7245/ingest/3dd875b0-2c9e-459b-8e6e-82c5c386ba6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Preview.tsx:145',message:'User message sent, resetting waitingForInput',data:{previousIndex:activeAnswersMessageIndex,waitingForInput},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'K'})}).catch(()=>{});
-    // #endregion
 
     webUIRef.current.handleUserMessage(text);
 
@@ -174,7 +159,6 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
           executionPromiseRef.current = engineRef.current!.execute(false);
           await executionPromiseRef.current;
         } catch (err) {
-          console.error('Ошибка выполнения бота:', err);
           setMessages(prev => [...prev, { 
             role: 'bot' as const, 
             content: '⚠️ Произошла ошибка при выполнении бота.' 
@@ -195,7 +179,6 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
   }, [userInput, sendToEngine]);
 
   const handleQuickReply = useCallback((reply: string) => {
-    console.log(`🚀 handleQuickReply called with reply: "${reply}"`);
     sendToEngine(reply);
   }, [sendToEngine]);
 
@@ -219,20 +202,14 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
     // Создаем новый Engine и WebUI
     const webUI = new WebUI(
       (message: string, answers?: string[]) => {
-        console.log(`🔄 Preview: Received message from bot: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`);
-        console.log(`   Has answers:`, !!(answers && answers.length > 0));
-        console.log(`   userJustResponded:`, userJustResponded);
-
         // Если пользователь только что ответил и сообщение содержит кнопки, игнорируем его
         // Это предотвратит повторное отображение того же сообщения
         if (userJustResponded && answers && answers.length > 0) {
-          console.log(`   ⚠️  Ignoring message with answers because user just responded`);
           setUserJustResponded(false); // Сбрасываем флаг
           return; // Не добавляем сообщение
         }
 
         setMessages(prev => {
-          console.log(`   Adding message to chat, current messages count:`, prev.length);
           const newMessages = [...prev, { role: 'bot' as const, content: message, answers }];
           const newIndex = newMessages.length - 1;
 
@@ -288,7 +265,6 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
         executionPromiseRef.current = engine.execute(true);
         await executionPromiseRef.current;
       } catch (err) {
-        console.error('Ошибка выполнения бота:', err);
         setMessages(prev => [...prev, {
           role: 'bot',
           content: '⚠️ Произошла ошибка при выполнении бота.'
@@ -303,9 +279,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    console.log(`📎 handleFileUpload called with file:`, file?.name);
     if (!file || !webUIRef.current) {
-      console.log(`   ❌ No file or webUI not ready`);
       return;
     }
 
@@ -336,7 +310,6 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
           executionPromiseRef.current = engineRef.current!.execute(false);
           await executionPromiseRef.current;
         } catch (err) {
-          console.error('Ошибка выполнения бота:', err);
           setMessages(prev => [...prev, {
             role: 'bot' as const,
             content: '⚠️ Произошла ошибка при выполнении бота.'
@@ -378,16 +351,6 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
               </div>
             )}
             {messages.map((msg, idx) => {
-              // #region agent log
-              const shouldShowButtons = msg.role === 'bot' && 
-                                       msg.answers && 
-                                       msg.answers.length > 0 && 
-                                       activeAnswersMessageIndex === idx && 
-                                       waitingForInput;
-              if (msg.role === 'bot' && msg.answers && msg.answers.length > 0) {
-                fetch('http://127.0.0.1:7245/ingest/3dd875b0-2c9e-459b-8e6e-82c5c386ba6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Preview.tsx:204',message:'Rendering message with answers',data:{idx,activeAnswersMessageIndex,waitingForInput,shouldShowButtons,answersCount:msg.answers.length,answers:msg.answers},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N'})}).catch(()=>{});
-              }
-              // #endregion
               return (
                 <div key={idx} className={`chat-message ${msg.role}`}>
                   <div className="message-bubble">
@@ -403,9 +366,6 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
                           key={`${idx}-ans-${i}`}
                           className="quick-reply-btn"
                           onClick={() => {
-                            // #region agent log
-                            fetch('http://127.0.0.1:7245/ingest/3dd875b0-2c9e-459b-8e6e-82c5c386ba6d',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Preview.tsx:228',message:'Button clicked',data:{idx,answerIndex:i,answer:ans,activeAnswersMessageIndex,waitingForInput},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N'})}).catch(()=>{});
-                            // #endregion
                             handleQuickReply(ans);
                           }}
                           disabled={!waitingForInput || activeAnswersMessageIndex !== idx}

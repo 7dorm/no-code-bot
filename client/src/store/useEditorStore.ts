@@ -402,7 +402,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       alert('Проект успешно загружен');
     } catch (e) {
       alert('Ошибка при загрузке проекта');
-      console.error(e);
     }
   },
 
@@ -432,7 +431,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           historyIndex: 0,
         });
       } catch (e) {
-        console.error('Ошибка загрузки из localStorage:', e);
+        // Игнорируем ошибки загрузки из localStorage
       }
     }
   },

@@ -100,7 +100,7 @@ class TelegramUI extends UI {
   }
 
   deleteFile(path) {
-    console.log(\`Удаление файла: \${path}\`);
+    // Удаление файла
   }
 
   isDone() {
@@ -259,8 +259,8 @@ function evalCondition(condStr, variables, userInput = '', globalConstants = {})
         }
 
         if (part.trim().toLowerCase() === 'default') {
-          return true;
-        }
+  return true;
+}
 
         return false;
       });
@@ -322,7 +322,6 @@ class Engine {
       this.executionCount[this.index] = (this.executionCount[this.index] || 0) + 1;
 
       if (this.executionCount[this.index] > 50) {
-        console.error(\`⚠️ Обнаружен возможный бесконечный цикл в блоке \${this.index}. Остановка выполнения.\`);
         this.ui.finish();
         this.isFinished = true;
         return;
@@ -448,7 +447,6 @@ class Engine {
         if (isEmpty && this.lastEmptyAnswersBlock === this.index) {
           this.consecutiveEmptyAnswers++;
           if (this.consecutiveEmptyAnswers >= 3) {
-            console.error(\`⚠️ Обнаружен бесконечный цикл в блоке \${this.index}. Остановка выполнения.\`);
             await this.ui.sendMessage('⚠️ Произошла ошибка: нет доступных вариантов для выбора. Пожалуйста, попробуйте позже.', []);
             this.ui.finish();
             this.isFinished = true;
@@ -461,7 +459,6 @@ class Engine {
 
         answers = answersData.length > 0 ? answersData.map(item => String(item)) : [];
       } else {
-        console.warn(\`⚠️ Variable "\${varName}" does not contain an array for answers yet. Skipping message to avoid duplication.\`);
         if (block.Nexts.length > 0) {
           this.index = block.Nexts[0];
           this.skipInput = true;
@@ -511,7 +508,6 @@ class Engine {
     if (messageToSend !== '') {
       await this.ui.sendMessage(messageToSend, []);
     } else {
-      console.warn(\`⚠️ Пропущено пустое сообщение в блоке \${this.index}\`);
     }
 
     if (block.VarName != null) {
@@ -723,17 +719,12 @@ class Engine {
   async executeAPI() {
     const block = this.nodeStructure[this.index];
     if (!block || !block.ApiUrl) {
-      console.error('❌ API block missing URL');
       return;
     }
 
     const startTime = Date.now();
     const timestamp = new Date().toISOString();
 
-    console.log(\`🌐 API Request [\${timestamp}]\`);
-    console.log(\`   Block ID: \${block.id}\`);
-    console.log(\`   Method: \${block.ApiMethod || 'GET'}\`);
-    console.log(\`   Original URL: \${block.ApiUrl}\`);
 
     try {
       const replaceVariable = (varName) => {
@@ -753,9 +744,7 @@ class Engine {
         return value;
       });
 
-      console.log(\`   Processed URL: \${url}\`);
       if (Object.keys(urlVariables).length > 0) {
-        console.log(\`   URL Variables:\`, urlVariables);
       }
 
       let body = block.ApiBody || '';
@@ -803,7 +792,6 @@ class Engine {
           const bodyObj = JSON.parse(body);
           body = JSON.stringify(bodyObj);
         } catch (e) {
-          console.warn('⚠️ Body после подстановки переменных не является валидным JSON:', body);
         }
       }
 
@@ -831,19 +819,14 @@ class Engine {
       }
 
       if (Object.keys(headers).length > 0) {
-        console.log(\`   Headers:\`, headers);
       }
       if (method !== 'GET' && body) {
-        console.log(\`   Request Body:\`, body);
         if (Object.keys(bodyVariables).length > 0) {
-          console.log(\`   Body Variables:\`, bodyVariables);
         }
       }
       if (block.ApiResponseVariable) {
-        console.log(\`   Response Variable: \${block.ApiResponseVariable}\`);
       }
       if (block.ApiAnswersPath && block.ApiAnswersVariable) {
-        console.log(\`   Answers Path: \${block.ApiAnswersPath} → \${block.ApiAnswersVariable}\`);
       }
 
       let fetchFn;
@@ -885,31 +868,23 @@ class Engine {
       let responseData;
       const contentType = response.headers.get('content-type') || '';
 
-      console.log(\`   Response Status: \${response.status} \${response.statusText}\`);
-      console.log(\`   Response Time: \${duration}ms\`);
 
       if (contentType.includes('application/json')) {
         try {
           responseData = await response.json();
-          console.log(\`   Response Data:\`, JSON.stringify(responseData, null, 2));
         } catch (e) {
           const text = await response.text();
           responseData = { text, parseError: 'Failed to parse JSON' };
-          console.log(\`   Response Data (text):\`, text);
         }
       } else {
         responseData = await response.text();
-        console.log(\`   Response Data (text):\`, responseData);
       }
 
       if (block.ApiResponseVariable && block.ApiResponseVariable.trim() !== '') {
         const varName = block.ApiResponseVariable.trim();
         this.variables[varName] = responseData;
         this.variables[\`\${varName}_status\`] = response.status;
-        console.log(\`   ✅ Response saved to variable: "\${varName}"\`);
-        console.log(\`   ✅ Status saved to variable: "\${varName}_status" = \${response.status}\`);
       } else {
-        console.warn('⚠️ API response received but no variable specified for saving. ResponseVariable:', block.ApiResponseVariable);
       }
 
       if (block.ApiAnswersPath && block.ApiAnswersPath.trim() !== '') {
@@ -928,18 +903,12 @@ class Engine {
           if (Array.isArray(answersArray)) {
             const answersVarName = block.ApiAnswersVariable?.trim() || \`\${block.ApiResponseVariable || 'apiResponse'}_answers\`;
             this.variables[answersVarName] = answersArray.map(item => String(item));
-            console.log(\`   ✅ Answers array saved to variable: "\${answersVarName}"\`);
-            console.log(\`   ✅ Answers count: \${answersArray.length}\`);
-            console.log(\`   ✅ Answers:\`, answersArray);
           } else {
-            console.log(\`   ⚠️  Path "\${path}" does not point to an array in API response\`);
           }
         } catch (error) {
-          console.log(\`   ❌ Failed to extract answers array from API response:\`, error);
         }
       }
 
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n');
 
       if (block.Nexts.length > 0) {
         this.index = block.Nexts[0];
@@ -951,10 +920,6 @@ class Engine {
       }
     } catch (error) {
       const duration = Date.now() - startTime;
-      console.log(\`   ❌ API Request Failed\`);
-      console.log(\`   Error: \${error.message || String(error)}\`);
-      console.log(\`   Error Type: \${error.name || 'UnknownError'}\`);
-      console.log(\`   Duration: \${duration}ms\`);
 
       if (block.ApiResponseVariable && block.ApiResponseVariable.trim() !== '') {
         const varName = block.ApiResponseVariable.trim();
@@ -963,12 +928,9 @@ class Engine {
           errorType: error.name || 'UnknownError'
         };
         this.variables[\`\${varName}_status\`] = error.status || 0;
-        console.log(\`   ✅ Error saved to variable: "\${varName}"\`);
       } else {
-        console.log(\`   ⚠️  No variable specified for saving error. ResponseVariable: \${block.ApiResponseVariable || 'not set'}\`);
       }
 
-      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n');
 
       if (block.Nexts.length > 0) {
         this.index = block.Nexts[0];
@@ -984,7 +946,6 @@ class Engine {
   async executeScript() {
     const block = this.nodeStructure[this.index];
     if (!block || !block.ScriptCode) {
-      console.warn('Script block missing code');
       if (block && block.Nexts.length > 0) {
         this.index = block.Nexts[0];
         this.skipInput = true;
@@ -1044,7 +1005,6 @@ class Engine {
         this.isFinished = true;
       }
     } catch (error) {
-      console.error('Script execution error:', error);
       if (block.ScriptReturnVariable) {
         this.variables[block.ScriptReturnVariable] = {
           error: error.message || String(error),
@@ -1153,33 +1113,27 @@ bot.on('text', async (msg) => {
   const userId = msg.from.id;
   const text = msg.text;
 
-  console.log(\`📨 Message from \${userId} in chat \${chatId}: \${text}\`);
 
   try {
     const { ui, engine, isActive } = getBotForChat(chatId);
 
     // Если бот уже активен, передаем сообщение в UI
     if (isActive) {
-      console.log(\`🔄 Bot active for chat \${chatId}, handling message\`);
       ui.handleUserMessage(text);
       return;
     }
 
     // Если бот не активен, запускаем его
-    console.log(\`🚀 Starting bot for chat \${chatId}\`);
     botInstances.get(chatId).isActive = true;
 
     // Запускаем бота асинхронно
     (async () => {
       try {
         await engine.execute(true);
-        console.log(\`✅ Bot finished for chat \${chatId}\`);
       } catch (error) {
-        console.error(\`❌ Bot error for chat \${chatId}:\`, error);
         try {
           await bot.sendMessage(chatId, '⚠️ Произошла ошибка при обработке вашего запроса');
         } catch (sendError) {
-          console.error(\`Failed to send error message:\`, sendError);
         }
       } finally {
         botInstances.get(chatId).isActive = false;
@@ -1187,11 +1141,9 @@ bot.on('text', async (msg) => {
     })();
 
   } catch (error) {
-    console.error(\`❌ Error handling message from chat \${chatId}:\`, error);
     try {
       await bot.sendMessage(chatId, '⚠️ Произошла ошибка при обработке вашего запроса');
     } catch (sendError) {
-      console.error(\`Failed to send error message:\`, sendError);
     }
   }
 });
@@ -1201,7 +1153,6 @@ bot.on('callback_query', async (query) => {
   const chatId = query.message.chat.id;
   const data = query.data;
 
-  console.log(\`🔘 Callback from chat \${chatId}: \${data}\`);
 
   try {
     const { ui, isActive } = getBotForChat(chatId);
@@ -1214,7 +1165,6 @@ bot.on('callback_query', async (query) => {
       ui.handleUserMessage(data);
     }
   } catch (error) {
-    console.error(\`❌ Error handling callback from chat \${chatId}:\`, error);
   }
 });
 
@@ -1222,7 +1172,6 @@ bot.on('callback_query', async (query) => {
 bot.on('document', async (msg) => {
   const chatId = msg.chat.id;
 
-  console.log(\`📎 File received in chat \${chatId}\`);
 
   try {
     const { ui, isActive } = getBotForChat(chatId);
@@ -1233,7 +1182,6 @@ bot.on('document', async (msg) => {
       ui.handleUserFile(fileName);
     }
   } catch (error) {
-    console.error(\`❌ Error handling file from chat \${chatId}:\`, error);
   }
 });
 
@@ -1241,7 +1189,6 @@ bot.on('document', async (msg) => {
 bot.on('photo', async (msg) => {
   const chatId = msg.chat.id;
 
-  console.log(\`📷 Photo received in chat \${chatId}\`);
 
   try {
     const { ui, isActive } = getBotForChat(chatId);
@@ -1252,14 +1199,9 @@ bot.on('photo', async (msg) => {
       ui.handleUserFile(fileName);
     }
   } catch (error) {
-    console.error(\`❌ Error handling photo from chat \${chatId}:\`, error);
   }
 });
 
-console.log('🤖 Telegram бот запущен!');
-console.log(\`📊 Проект: ${project.name}\`);
-console.log(\`📅 Дата генерации: ${new Date().toISOString()}\`);
-console.log('🔄 Ожидание сообщений...');
 
 // ===== END BOT LOGIC =====
 `;
@@ -1338,12 +1280,12 @@ export function createTelegramExport(project: Project): { code: string; instruct
 2. Установите Node.js
 3. Запустите \`npm install && npm start\`
 4. Для постоянной работы используйте PM2:
-   \`\`\`bash
+\`\`\`bash
    npm install -g pm2
    pm2 start bot.js --name "telegram-bot"
    pm2 save
    pm2 startup
-   \`\`\`
+\`\`\`
 
 #### Railway, Render, или другие платформы
 1. Создайте проект

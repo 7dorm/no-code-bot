@@ -49,7 +49,6 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
         alert('ZIP архив с Telegram ботом успешно создан и скачан!');
       } catch (e) {
         alert('Ошибка экспорта кода. Проверьте настройки токена в проекте.');
-        console.error(e);
       }
     } else if (exportType === 'webpage') {
       // Экспорт веб-страницы
@@ -79,7 +78,6 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
         alert('ZIP архив с веб-ботом успешно создан и скачан!');
       } catch (e) {
         alert('Ошибка экспорта веб-приложения.');
-        console.error(e);
       }
     } else {
       // Экспорт Node.js проекта
