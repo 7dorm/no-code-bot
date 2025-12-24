@@ -13,10 +13,9 @@ export const VariableBlockMeta = {
   type: 'variable' as const,
   label: 'Переменная',
   icon: '📝',
-  color: '#9c7b0',
+  color: '#9c27b0',
   description: 'Работа с переменными',
   hasInput: true,
   hasOutput: true,
   hasMultipleOutputs: false,
 };
-

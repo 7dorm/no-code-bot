@@ -11,8 +11,8 @@ export interface ScriptBlockData extends BlockInterface {
 export const ScriptBlockMeta = {
   type: 'script' as const,
   label: 'Скрипт',
-  icon: '⚡',
-  color: '#9c7b0',
+  icon: '⚡️',
+  color: '#9c7b01',
   description: 'Выполнение JavaScript кода',
   hasInput: true,
   hasOutput: true,

@@ -12,15 +12,13 @@ export interface ApiBlockData extends BlockInterface {
   answersVariable?: string; 
 }
 
-
 export const ApiBlockMeta = {
   type: 'api' as const,
   label: 'API',
   icon: '🔌',
-  color: '#00bcd',
+  color: '#00bcd4',
   description: 'Вызов внешнего API endpoint',
   hasInput: true,
   hasOutput: true,
   hasMultipleOutputs: false,
 };
-

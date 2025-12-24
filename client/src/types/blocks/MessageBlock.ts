@@ -15,7 +15,7 @@ export const MessageBlockMeta = {
   type: 'message' as const,
   label: 'Сообщение',
   icon: '💬',
-  color: '#96f',
+  color: '#2196f3',
   description: 'Отправка текстового сообщения пользователю',
   hasInput: true,
   hasOutput: true,

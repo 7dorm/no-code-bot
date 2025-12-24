@@ -52,7 +52,7 @@ const BlockLibrary: React.FC = () => {
         blockData = { ...blockData, code: '', returnVariable: '' };
         break;
       case 'start':
-        
+        blockData = { ...blockData, skip: true };
         break;
     }
     
