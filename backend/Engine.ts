@@ -1,13 +1,11 @@
 import { UI } from "./UI";
 
-// Поддержка fetch для Node.js
+
 declare global {
   var fetch: typeof import('node-fetch').default | undefined;
 }
 
-/**
- * Интерфейс узла для Engine
- */
+
 export interface EngineNode {
   id: string;
   Type: 'output' | 'condition' | 'start' | 'variable' | 'FILE' | 'api' | 'skip' | 'script';
@@ -17,44 +15,42 @@ export interface EngineNode {
   Nexts: string[];
   Cond?: string[];
   skip?: boolean;
-  Answers?: string[]; // Варианты ответов для выбора пользователем
-  AnswersFromVariable?: string; // Имя переменной, содержащей массив для вариантов ответов
-  AnswersPath?: string; // Путь к массиву в переменной (например, "data.times")
-  VariableName?: string; // Для variable блоков
-  VariableValue?: string; // Для variable блоков
-  SaveNextToVariable?: string; // Для variable блоков - сохранить следующий ответ пользователя
+  Answers?: string[]; 
+  AnswersFromVariable?: string; 
+  AnswersPath?: string; 
+  VariableName?: string; 
+  VariableValue?: string; 
+  SaveNextToVariable?: string; 
 
-  // API блоки
+  
   ApiUrl?: string;
   ApiMethod?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   ApiHeaders?: Record<string, string>;
   ApiBody?: string;
-  ApiResponseVariable?: string; // Имя переменной для сохранения ответа
-  ApiAnswersPath?: string; // Путь к массиву в ответе API для использования в качестве вариантов ответов
-  ApiAnswersVariable?: string; // Имя переменной для сохранения массива вариантов ответов
+  ApiResponseVariable?: string; 
+  ApiAnswersPath?: string; 
+  ApiAnswersVariable?: string; 
 
   FILEAct? : 'Upload' | 'DownLoad' | 'Delete' | 'Read';
-  FileName?: string; // Для FILE блоков
-  PathToSave?: string; // Для FILE блоков
-  PathToFile?: string; // Для FILE блоков
+  FileName?: string; 
+  PathToSave?: string; 
+  PathToFile?: string; 
 
-  // Script блоки
-  ScriptCode?: string; // JavaScript код для выполнения
-  ScriptReturnVariable?: string; // Имя переменной для сохранения результата
+  
+  ScriptCode?: string; 
+  ScriptReturnVariable?: string; 
 }
 
-/**
- * Функция оценки условий
- */
+
 function evalCondition(condStr: string, variables: Record<string, any>, userInput: string = '', globalConstants?: Record<string, any>): boolean {
   if (condStr === "default") return true;
 
-  // Подмена переменных в фигурных скобках
+  
   let processedCond = condStr;
   const matches = [...condStr.matchAll(/\{([^}]+)\}/g)].map(m => m[1]);
-  // @ts-ignore
+  
   matches.forEach((match: string) => {
-    // Сначала проверяем переменные, затем глобальные константы
+    
     if (variables[match] !== undefined && variables[match] !== null) {
       processedCond = processedCond.replace(`{${match}}`, String(variables[match]));
     } else if (globalConstants && globalConstants[match] !== undefined && globalConstants[match] !== null) {
@@ -62,7 +58,7 @@ function evalCondition(condStr: string, variables: Record<string, any>, userInpu
     }
   });
 
-  // Заменяем userInput на фактический ввод пользователя
+  
   processedCond = processedCond.replace(/\buserInput\b/g, userInput);
 
   const orParts = processedCond.split('||').map(part => part.trim()).filter(Boolean);
@@ -77,11 +73,11 @@ function evalCondition(condStr: string, variables: Record<string, any>, userInpu
 }
 
 function evaluateSimpleCondition(cond: string, variables: Record<string, any>, userInput: string = '', globalConstants?: Record<string, any>): boolean {
-  // Функция для получения значения переменной (включая .length)
+  
   const getValue = (expr: string): any => {
     expr = expr.trim().replace(/[{}]/g, '');
     
-    // Проверка на .length
+    
     if (expr.includes('.length')) {
       const parts = expr.split('.length');
       if (parts.length > 0 && parts[0]) {
@@ -95,7 +91,7 @@ function evaluateSimpleCondition(cond: string, variables: Record<string, any>, u
       }
     }
     
-    // Обычная переменная
+    
     if (variables[expr] !== undefined) {
       return variables[expr];
     }
@@ -105,12 +101,12 @@ function evaluateSimpleCondition(cond: string, variables: Record<string, any>, u
     return expr;
   };
 
-  // Проверка на сравнение чисел (включая .length)
+  
   const numMatch = cond.match(/^\s*([\w{}.]+)\s*([<>]=?|==|!=)\s*([\w{}.]+)\s*$/);
   if (numMatch) {
-    // @ts-ignore
+    
     const leftValue = getValue(numMatch[1]);
-    // @ts-ignore
+    
     const rightValue = getValue(numMatch[3]);
     const op = numMatch[2];
 
@@ -129,13 +125,13 @@ function evaluateSimpleCondition(cond: string, variables: Record<string, any>, u
     }
   }
 
-  // Проверка на contains
+  
   if (cond.toLowerCase().includes('contains')) {
     const parts = cond.toLowerCase().split('contains');
     if (parts.length === 2) {
-      // @ts-ignore
+      
       const left = parts[0].trim();
-      // @ts-ignore
+      
       const right = parts[1].trim().replace(/['"]/g, '');
       const leftValue = variables[left] !== undefined ? variables[left] : 
                        (globalConstants && globalConstants[left] !== undefined ? globalConstants[left] : left) || userInput;
@@ -143,7 +139,7 @@ function evaluateSimpleCondition(cond: string, variables: Record<string, any>, u
     }
   }
 
-  // Проверка на равенство строк (включая .length)
+  
   if (cond.includes('===') || cond.includes('==')) {
     const parts = cond.split(/===|==/);
     if (parts.length === 2 && parts[0] && parts[1]) {
@@ -155,7 +151,7 @@ function evaluateSimpleCondition(cond: string, variables: Record<string, any>, u
     }
   }
 
-  // Проверка на неравенство строк (включая .length)
+  
   if (cond.includes('!==') || cond.includes('!=')) {
     const parts = cond.split(/!==|!=/);
     if (parts.length === 2 && parts[0] && parts[1]) {
@@ -167,7 +163,7 @@ function evaluateSimpleCondition(cond: string, variables: Record<string, any>, u
     }
   }
 
-  // Проверка на >= и <=
+  
   if (cond.includes('>=')) {
     const parts = cond.split('>=');
     if (parts.length === 2 && parts[0] && parts[1]) {
@@ -194,7 +190,7 @@ function evaluateSimpleCondition(cond: string, variables: Record<string, any>, u
     }
   }
 
-  // Проверка на > и <
+  
   if (cond.includes('>') && !cond.includes('>=')) {
     const parts = cond.split('>');
     if (parts.length === 2 && parts[0] && parts[1]) {
@@ -240,42 +236,44 @@ export class Engine {
   private saveType = "";
   private isFinished = false;
   private globalConstants: Record<string, any> = {};
-  private executionCount: Record<string, number> = {}; // Защита от бесконечных циклов
-  private lastExecutedBlock: string | null = null; // Последний выполненный блок
-  private consecutiveEmptyAnswers: number = 0; // Счетчик последовательных пустых ответов для предотвращения бесконечных циклов
-  private lastEmptyAnswersBlock: string | null = null; // Последний блок с пустыми ответами
+  private executionCount: Record<string, number> = {}; 
+  private lastExecutedBlock: string | null = null; 
+  private consecutiveEmptyAnswers: number = 0; 
+  private lastEmptyAnswersBlock: string | null = null; 
+  private maxExecutionCount: number = 0;
 
   constructor(ui: UI, botStructure: EngineNode[], globalConstants?: Record<string, any>) {
     botStructure.forEach((ele: EngineNode) => {
       this.nodeStructure[ele.id] = ele;
-      // Находим стартовый блок
+      
       if (ele.Type === 'start' && !this.index) {
         this.index = ele.id;
       }
+      this.maxExecutionCount += 1;
     });
     this.ui = ui;
 
-    // Инициализируем глобальные константы
+    
     if (globalConstants) {
       this.globalConstants = { ...globalConstants };
-      // Копируем глобальные константы в переменные для использования
+      
       Object.assign(this.variables, globalConstants);
     }
 
-    // Если нет явного стартового блока, берем первый
+    
     if (!this.index && botStructure.length > 0) {
-      // @ts-ignore
+      
       this.index = botStructure[0].id;
     }
   }
 
-  // Основной обработчик структуры бота
+  
   async execute(skipFirstInput: boolean = false): Promise<void> {
 
     if (skipFirstInput) {
       this.skipInput = true;
     }
-    // Проверяем, завершен ли бот
+    
     if (this.isFinished || !this.index) {
       if (!this.index) {
         this.ui.finish();
@@ -283,18 +281,18 @@ export class Engine {
       return;
     }
 
-    // Защита от бесконечных циклов
+    
     if (this.index) {
-      // Если перешли к другому блоку, сбрасываем счетчик предыдущего
+      
       if (this.lastExecutedBlock && this.lastExecutedBlock !== this.index) {
         this.executionCount[this.lastExecutedBlock] = 0;
       }
       
-      // Увеличиваем счетчик для текущего блока
+      
       this.executionCount[this.index] = (this.executionCount[this.index] || 0) + 1;
       
-      // Если блок выполняется слишком много раз подряд, это цикл
-      if (this.executionCount[this.index] > 50) {
+      
+      if (this.executionCount[this.index] > this.maxExecutionCount) {
         this.ui.finish();
         this.isFinished = true;
         return;
@@ -312,7 +310,7 @@ export class Engine {
       return;
     }
 
-    // Сохранение пользовательского ввода в переменную (происходит перед обработкой блока)
+    
     if (this.saveNext) {
       userInput = await this.ui.getInput();
       this.variables['lastMessage'] = userInput;
@@ -320,7 +318,7 @@ export class Engine {
 
       switch (this.saveType) {
         case "int":
-          this.variables[this.saveName] = parseInt(userInput, 10);
+          this.variables[this.saveName] = parseInt(userInput, 0);
           break;
         default:
           this.variables[this.saveName] = userInput;
@@ -331,17 +329,17 @@ export class Engine {
       this.saveType = "";
     }
 
-    // Обработка типа блока
+    
     switch (block.Type) {
       case "output":
         const outputBlockId = this.index;
-        const outputExecutionId = `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const outputExecutionId = `exec_${Date.now()}_${Math.random().toString(6).substr(1, 9)}`;
         await this.executeMessage();
-        // executeMessage() сам обрабатывает переход к следующему блоку
-        // Не нужно вызывать execute() здесь, чтобы избежать дублирования
+        
+        
         break;
       case "condition":
-        // Для condition нужно получить ввод перед проверкой
+        
         if (!this.skipInput) {
           userInput = await this.ui.getInput();
           this.variables['lastMessage'] = userInput;
@@ -379,9 +377,9 @@ export class Engine {
     const block = this.nodeStructure[this.index!];
     if (!block) return;
 
-    // Стартовый блок переходит к следующему без ожидания ввода
+    
     if (block.Nexts.length > 0) {
-      // @ts-ignore
+      
       this.index = block.Nexts[0];
       this.skipInput = true;
       await this.execute();
@@ -398,28 +396,28 @@ export class Engine {
 
 
 
-    // Заменяем переменные в тексте сообщения
+    
     let processedText = block.Text || '';
-    // Используем регулярное выражение с глобальным флагом для замены всех вхождений
+    
     processedText = processedText.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
-      // Сначала проверяем переменные, затем глобальные константы
+      
       if (this.variables[varName] !== undefined && this.variables[varName] !== null) {
         return String(this.variables[varName]);
       } else if (this.globalConstants && this.globalConstants[varName] !== undefined && this.globalConstants[varName] !== null) {
         return String(this.globalConstants[varName]);
       }
-      return match; // Если переменная не найдена, оставляем как есть
+      return match; 
     });
 
-    // Получаем варианты ответов
+    
     let answers: string[] | undefined = block.Answers;
     
-    // Если answers не указаны напрямую, пытаемся получить из переменной
+    
     if (!answers && block.AnswersFromVariable) {
       const varName = block.AnswersFromVariable;
       let answersData = this.variables[varName];
       
-      // Если указан путь, извлекаем данные по пути
+      
       if (block.AnswersPath && block.AnswersPath.trim() !== '') {
         const path = block.AnswersPath.trim();
         const pathParts = path.split('.').filter(p => p.trim() !== '');
@@ -434,17 +432,17 @@ export class Engine {
         }
       }
       
-      // Если получили массив, используем его
+      
       if (Array.isArray(answersData)) {
-        // Если массив пустой, все равно используем его (отправим сообщение без вариантов ответов)
-        // Это предотвратит бесконечные циклы, когда блок пропускается
+        
+        
         const isEmpty = answersData.length === 0;
         
-        // Защита от бесконечных циклов: если тот же блок с пустыми ответами выполняется несколько раз подряд
+        
         if (isEmpty && this.lastEmptyAnswersBlock === this.index) {
           this.consecutiveEmptyAnswers++;
-          if (this.consecutiveEmptyAnswers >= 3) {
-            await this.ui.sendMessage('⚠️ Произошла ошибка: нет доступных вариантов для выбора. Пожалуйста, попробуйте позже.', []);
+          if (this.consecutiveEmptyAnswers >= 1) {
+            await this.ui.sendMessage(' Произошла ошибка: нет доступных вариантов для выбора. Пожалуйста, попробуйте позже.', []);
             this.ui.finish();
             this.isFinished = true;
             return;
@@ -456,12 +454,12 @@ export class Engine {
         
         answers = answersData.length > 0 ? answersData.map(item => String(item)) : [];
       } else {
-        // Если переменная еще не заполнена (не массив или undefined), но мы ожидаем варианты ответов из нее,
-        // НЕ отправляем сообщение без вариантов - это предотвратит дублирование
-        // Вместо этого просто переходим к следующему блоку
-        // Переменная будет заполнена предыдущим блоком (например, API блоком)
+        
+        
+        
+        
         if (block.Nexts.length > 0) {
-          // @ts-ignore
+          
           this.index = block.Nexts[0];
           this.skipInput = true;
           await this.execute(true);
@@ -473,14 +471,14 @@ export class Engine {
       }
     }
 
-    // Если есть варианты ответов, показываем их и ждем выбора
-    // Даже если текст пустой, отправляем сообщение с вариантами ответов
-    // Если массив пустой (answers.length === 0), все равно отправляем сообщение без вариантов ответов
-    // чтобы предотвратить бесконечные циклы
+    
+    
+    
+    
     if (answers && answers.length > 0) {
-      // Если текст пустой, используем дефолтное сообщение
+      
       const messageToSend = processedText.trim() !== '' ? processedText : 'Выберите вариант:';
-      const messageId = `${this.index}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const messageId = `${this.index}_${Date.now()}_${Math.random().toString(6).substr(1, 9)}`;
       await this.ui.sendMessage(messageToSend, answers);
       const userAnswer = await this.ui.getInput();
       const answerIndex = answers.indexOf(userAnswer);
@@ -489,18 +487,18 @@ export class Engine {
         throw new Error(`Unknown answer "${userAnswer}" at block: ${this.index}`);
       }
       
-      // Сохраняем выбранный ответ в переменную, если нужно
+      
       if (block.VarName) {
         this.variables[block.VarName] = userAnswer;
       }
-      // Всегда сохраняем выбранный ответ в стандартные переменные
+      
       this.variables['lastMessage'] = userAnswer;
       this.variables['userInput'] = userAnswer;
       
-      // Переходим к следующему блоку по индексу выбранного ответа
-      // Если Nexts содержит только один элемент (что происходит когда answersFromVariable используется),
-      // используем его независимо от индекса ответа
-      const currentBlockId = this.index; // Сохраняем текущий ID блока для логирования
+      
+      
+      
+      const currentBlockId = this.index; 
       if (block.Nexts.length === 1) {
         const nextBlockId = block.Nexts[0];
         this.index = nextBlockId;
@@ -518,41 +516,41 @@ export class Engine {
       return;
     }
 
-    // Если нет вариантов ответов (включая пустой массив), отправляем сообщение
-    // Если answersFromVariable был указан и массив пустой, все равно отправляем сообщение,
-    // чтобы предотвратить бесконечные циклы
-    // Если текст пустой, используем дефолтное сообщение для пустых массивов
+    
+    
+    
+    
     const messageToSend = processedText.trim() !== '' ? processedText : 
                           (block.AnswersFromVariable ? 'Нет доступных вариантов для выбора.' : '');
     
     if (messageToSend !== '') {
-      const messageId = `${this.index}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const messageId = `${this.index}_${Date.now()}_${Math.random().toString(6).substr(1, 9)}`;
       await this.ui.sendMessage(messageToSend, []);
     } else {
-      // Пустое сообщение пропускается
+      
     }
 
-    // Сохранить в переменную если необходимо (тогда ждем ввода)
+    
     if (block.VarName != null) {
       this.saveNext = true;
       this.saveName = block.VarName;
       this.saveType = block.VarType || 'string';
 
-      // Переходим к следующему блоку, но перед его выполнением получим ввод
+      
       if (block.Nexts.length > 0) {
-        // @ts-ignore
+        
         this.index = block.Nexts[0];
-        // Продолжаем выполнение - следующий блок запросит ввод через saveNext
+        
         await this.execute(false);
         return;
       } else {
-        // Если нет следующего блока, ждем ввод и завершаем
+        
         const userInput = await this.ui.getInput();
         this.variables['lastMessage'] = userInput;
         this.variables['userInput'] = userInput;
         switch (this.saveType) {
           case "int":
-            this.variables[this.saveName] = parseInt(userInput, 10);
+            this.variables[this.saveName] = parseInt(userInput, 0);
             break;
           default:
             this.variables[this.saveName] = userInput;
@@ -567,21 +565,21 @@ export class Engine {
       }
     }
     
-    // Последнее сообщение
+    
     if (block.Nexts.length == 0) {
       this.ui.finish();
       this.isFinished = true;
       return;
     }
 
-    // Переход к следующему блоку
-    // @ts-ignore
+    
+    
     this.index = block.Nexts[0];
-    // Продолжаем выполнение следующего блока
+    
     await this.execute(true);
   }
 
-  // Проверка условных блоков
+  
   async executeCondition(msg: string): Promise<void> {
     const block = this.nodeStructure[this.index!];
     if (!block || !block.Cond) return;
@@ -589,26 +587,26 @@ export class Engine {
 
     let successfulCond = -1;
 
-    // Проход по всем условиям
+    
     for (let i = 0; i < block.Cond.length; i++) {
       const cond = block.Cond[i];
 
-      // @ts-ignore
+      
       if (evalCondition(cond, this.variables, msg, this.globalConstants)) {
         successfulCond = i;
         break;
       }
     }
 
-    // Если ни одно условие не выполнилось и есть дефолтная ветка
+    
     if (successfulCond === -1 && block.Nexts.length > block.Cond.length) {
-      successfulCond = block.Cond.length; // Дефолтная ветка
+      successfulCond = block.Cond.length; 
     }
 
 
-    // Переход к следующему блоку
+    
     if (successfulCond >= 0 && successfulCond < block.Nexts.length) {
-      // @ts-ignore
+      
       this.index = block.Nexts[successfulCond];
       this.skipInput = true;
       await this.execute();
@@ -622,21 +620,21 @@ export class Engine {
     const block = this.nodeStructure[this.index!];
     if (!block) return;
 
-    // Если нужно сохранить следующий ответ пользователя в переменную
+    
     if (block.SaveNextToVariable) {
       this.saveNext = true;
       this.saveName = block.SaveNextToVariable;
       this.saveType = 'string';
 
-      // Переходим к следующему блоку, но перед его выполнением получим ввод
+      
       if (block.Nexts.length > 0) {
-        // @ts-ignore
+        
         this.index = block.Nexts[0];
-        // Продолжаем выполнение - следующий блок запросит ввод через saveNext
+        
         await this.execute(false);
         return;
       } else {
-        // Если нет следующего блока, ждем ввод и завершаем
+        
         const userInput = await this.ui.getInput();
         this.variables['lastMessage'] = userInput;
         this.variables['userInput'] = userInput;
@@ -650,22 +648,22 @@ export class Engine {
       }
     }
 
-    // Обрабатываем установку переменной из значения
+    
     if (block.VariableName && block.VariableValue !== undefined) {
       let value = block.VariableValue;
 
-      // Заменяем переменные в значении
+      
       value = value.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
-        // Сначала проверяем переменные, затем глобальные константы
+        
         if (this.variables[varName] !== undefined && this.variables[varName] !== null) {
           return String(this.variables[varName]);
         } else if (this.globalConstants && this.globalConstants[varName] !== undefined && this.globalConstants[varName] !== null) {
           return String(this.globalConstants[varName]);
         }
-        return match; // Если переменная не найдена, оставляем как есть
+        return match; 
       });
 
-      // Пытаемся определить тип значения
+      
       const numValue = Number(value);
       if (!isNaN(numValue) && value.trim() !== '') {
         this.variables[block.VariableName] = numValue;
@@ -674,9 +672,9 @@ export class Engine {
       }
     }
 
-    // Переходим к следующему блоку
+    
     if (block.Nexts.length > 0) {
-      // @ts-ignore
+      
       this.index = block.Nexts[0];
       this.skipInput = true;
       await this.execute();
@@ -690,10 +688,10 @@ export class Engine {
   const block = this.nodeStructure[this.index!];
   if (!block) return;
 
-  // Функция для замены переменных в строке
+  
   const replaceVariables = (text: string): string => {
     return text.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
-      // Сначала проверяем файлы, затем переменные, затем глобальные константы
+      
       if (this.files[varName] !== undefined && this.files[varName] !== null) {
         return String(this.files[varName]);
       } else if (this.variables[varName] !== undefined && this.variables[varName] !== null) {
@@ -701,24 +699,24 @@ export class Engine {
       } else if (this.globalConstants && this.globalConstants[varName] !== undefined && this.globalConstants[varName] !== null) {
         return String(this.globalConstants[varName]);
       }
-      return match; // Если переменная не найдена, оставляем как есть
+      return match; 
     });
   };
 
   switch (block.FILEAct) {
 
     case 'Upload': {
-      // Загрузка файла от пользователя
+      
       let fileName = block.FileName || 'file';
       fileName = replaceVariables(fileName);
       
       let pathToSave = block.PathToSave || '';
       pathToSave = replaceVariables(pathToSave);
 
-      // Ожидаем загрузку файла от пользователя
+      
       const uniqueName = await this.ui.getFile(pathToSave, fileName);
 
-      // Сохраняем имя файла в переменные
+      
       const varName = block.FileName || 'lastFile';
       this.files[varName] = uniqueName;
       this.files['lastFile'] = uniqueName;
@@ -727,12 +725,12 @@ export class Engine {
     }
 
     case 'DownLoad': {
-      // Отдача файла пользователю
+      
       if (!block.PathToFile) {
         throw new Error(`PathToFile is required for download in block ${this.index}`);
       }
 
-      // Подмена переменных в пути
+      
       let filePath = replaceVariables(block.PathToFile);
 
       this.ui.sendFile(filePath);
@@ -740,7 +738,7 @@ export class Engine {
     }
 
     case 'Delete': {
-      // Удаление файла
+      
       if (!block.PathToFile) {
         throw new Error(`PathToFile is required for delete in block ${this.index}`);
       }
@@ -752,14 +750,14 @@ export class Engine {
     }
 
     case 'Read': {
-      // Чтение файла
+      
       if (!block.PathToFile) {
         throw new Error(`PathToFile is required for read in block ${this.index}`);
       }
 
       let filePath = replaceVariables(block.PathToFile);
 
-      // Для чтения файла сохраняем путь в переменную, если указано имя файла
+      
       if (block.FileName) {
         this.variables[block.FileName] = filePath;
         this.files[block.FileName] = filePath;
@@ -771,7 +769,7 @@ export class Engine {
       throw new Error(`Unknown FILEAct in block ${this.index}`);
   }
 
-  // Переход к следующему блоку
+  
   const nextId = block.Nexts.find(Boolean);
   if (nextId) {
     this.index = nextId;
@@ -794,17 +792,17 @@ export class Engine {
     const timestamp = new Date().toISOString();
 
     try {
-      // Функция для замены переменных
+      
       const replaceVariable = (varName: string): string => {
         if (this.variables[varName] !== undefined && this.variables[varName] !== null) {
           return String(this.variables[varName]);
         } else if (this.globalConstants && this.globalConstants[varName] !== undefined && this.globalConstants[varName] !== null) {
           return String(this.globalConstants[varName]);
         }
-        return `{{${varName}}}`; // Если переменная не найдена, оставляем как есть
+        return `{{${varName}}}`; 
       };
 
-      // Заменяем переменные в URL
+      
       let url = block.ApiUrl;
       const urlVariables: Record<string, string> = {};
       url = url.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
@@ -814,24 +812,24 @@ export class Engine {
       });
       
 
-      // Заменяем переменные в теле запроса
+      
       let body = block.ApiBody || '';
       const bodyVariables: Record<string, any> = {};
       if (body) {
-        // Умная замена переменных в JSON-подобном тексте
-        // Обрабатываем случаи: "key": {{variable}} и "key": "{{variable}}"
+        
+        
         body = body.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
-          // Получаем значение переменной
+          
           const varValue = this.variables[varName] !== undefined ? this.variables[varName] : 
                           (this.globalConstants && this.globalConstants[varName] !== undefined ? this.globalConstants[varName] : null);
           bodyVariables[varName] = varValue;
           
-          // Определяем тип значения
+          
           if (varValue === null || varValue === undefined) {
             return 'null';
           }
           
-          // Если значение - объект или массив, сериализуем в JSON
+          
           if (typeof varValue === 'object' && !Array.isArray(varValue)) {
             return JSON.stringify(varValue);
           }
@@ -840,16 +838,16 @@ export class Engine {
             return JSON.stringify(varValue);
           }
           
-          // Если значение - число или boolean, подставляем как есть (без кавычек)
+          
           if (typeof varValue === 'number' || typeof varValue === 'boolean') {
             return String(varValue);
           }
           
-          // Если значение - строка, проверяем контекст в исходном тексте
-          // Ищем позицию {{variable}} в исходном body
+          
+          
           const matchIndex = body.indexOf(match);
           if (matchIndex !== -1) {
-            // Проверяем, есть ли кавычки перед {{variable}}
+            
             const beforeMatch = body.substring(0, matchIndex);
             const lastQuote = Math.max(
               beforeMatch.lastIndexOf('"'),
@@ -857,45 +855,45 @@ export class Engine {
             );
             const lastColon = beforeMatch.lastIndexOf(':');
             
-            // Если после : нет кавычек до {{, значит это значение без кавычек - оборачиваем строку
+            
             if (lastColon !== -1 && (lastQuote === -1 || lastQuote < lastColon)) {
-              // Это значение JSON без кавычек - оборачиваем строку в кавычки
+              
               return JSON.stringify(String(varValue));
             }
           }
           
-          // Иначе возвращаем как строку (уже в кавычках или в другом контексте)
+          
           return String(varValue);
         });
         
-        // Пытаемся распарсить как JSON для валидации и форматирования
+        
         try {
           const bodyObj = JSON.parse(body);
           body = JSON.stringify(bodyObj);
         } catch (e) {
-          // Если не удалось распарсить, оставляем как есть (может быть не JSON)
+          
         }
       }
 
-      // Подготавливаем заголовки
+      
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...(block.ApiHeaders || {}),
       };
 
-      // Заменяем переменные в заголовках
+      
       Object.keys(headers).forEach(key => {
         if (headers[key]) {
           headers[key] = headers[key].replace(/\{\{(\w+)\}\}/g, (match, varName) => replaceVariable(varName));
         }
       });
 
-      // Выполняем HTTP запрос
+      
       const method = block.ApiMethod || 'GET';
       const fetchOptions: RequestInit = {
         method,
         headers,
-        // Добавляем режим для работы с CORS
+        
         mode: 'cors',
         credentials: 'omit',
       };
@@ -904,29 +902,29 @@ export class Engine {
         fetchOptions.body = body;
       }
 
-      // Логируем детали запроса
       
-      // Проверяем доступность fetch (для Node.js < 18 может потребоваться node-fetch)
+      
+      
       let fetchFn: any;
       const isBrowser = typeof window !== 'undefined';
       
       if (isBrowser) {
-        // В браузере используем встроенный fetch
+        
         fetchFn = globalThis.fetch;
       } else {
-        // На сервере проверяем доступность fetch
+        
         if (typeof globalThis.fetch !== 'undefined') {
           fetchFn = globalThis.fetch;
         } else if (typeof fetch !== 'undefined') {
           fetchFn = fetch;
         } else {
-          // Попытка использовать node-fetch если доступен
+          
           try {
-            // @ts-ignore
+            
             const nodeFetch = require('node-fetch');
             fetchFn = nodeFetch.default || nodeFetch;
           } catch (e) {
-            throw new Error('fetch is not available. Please install node-fetch (npm install node-fetch) or use Node.js 18+');
+            throw new Error('fetch is not available. Please install node-fetch (npm install node-fetch) or use Node.js 8+');
           }
         }
       }
@@ -935,10 +933,10 @@ export class Engine {
       try {
         response = await fetchFn(url, fetchOptions);
       } catch (fetchError: any) {
-        // Обработка CORS ошибок
+        
         const errorMessage = fetchError.message || String(fetchError);
         if (errorMessage.includes('CORS') || errorMessage.includes('access control')) {
-          const isLocalhost = url.includes('localhost') || url.includes('127.0.0.1');
+          const isLocalhost = url.includes('localhost') || url.includes('7.0.0.');
           const errorMsg = isLocalhost 
             ? `CORS error: The API server at ${url} does not allow requests from this origin. This is a browser security restriction. Please configure CORS on the server (add Access-Control-Allow-Origin header) or use an external API endpoint.`
             : `CORS error: The API server at ${url} does not allow requests from this origin. Please configure CORS on the server or contact the API provider.`;
@@ -947,7 +945,7 @@ export class Engine {
         throw fetchError;
       }
       
-      // Обрабатываем ответ
+      
       const duration = Date.now() - startTime;
       let responseData: any;
       const contentType = response.headers.get('content-type') || '';
@@ -964,24 +962,24 @@ export class Engine {
         responseData = await response.text();
       }
 
-      // Всегда сохраняем ответ, если указана переменная
+      
       if (block.ApiResponseVariable && block.ApiResponseVariable.trim() !== '') {
         const varName = block.ApiResponseVariable.trim();
         this.variables[varName] = responseData;
-        // Также сохраняем статус код
+        
         this.variables[`${varName}_status`] = response.status;
       }
 
-      // Извлекаем массив для вариантов ответов, если указан путь
+      
       if (block.ApiAnswersPath && block.ApiAnswersPath.trim() !== '') {
         try {
           const path = block.ApiAnswersPath.trim();
           let answersArray: any = responseData;
           
-          // Парсим путь (например, "data.times" -> ["data", "times"])
+          
           const pathParts = path.split('.').filter(p => p.trim() !== '');
           
-          // Проходим по пути
+          
           for (const part of pathParts) {
             if (answersArray && typeof answersArray === 'object' && part in answersArray) {
               answersArray = answersArray[part];
@@ -990,22 +988,22 @@ export class Engine {
               break;
             }
           }
-          // Если получили массив, сохраняем его
+          
           if (Array.isArray(answersArray)) {
             const answersVarName = block.ApiAnswersVariable?.trim() || `${block.ApiResponseVariable || 'apiResponse'}_answers`;
             this.variables[answersVarName] = answersArray.map(item => String(item));
           } else {
-            console.log(`   ⚠️  Path "${path}" does not point to an array in API response`);
+            console.log(`     Path "${path}" does not point to an array in API response`);
           }
         } catch (error) {
-          // Не удалось извлечь массив ответов
+          
         }
       }
 
 
-      // Переходим к следующему блоку
+      
       if (block.Nexts.length > 0) {
-        // @ts-ignore
+        
         this.index = block.Nexts[0];
         this.skipInput = true;
         await this.execute();
@@ -1016,7 +1014,7 @@ export class Engine {
     } catch (error: any) {
       const duration = Date.now() - startTime;
       
-      // В случае ошибки сохраняем информацию об ошибке
+      
       if (block.ApiResponseVariable && block.ApiResponseVariable.trim() !== '') {
         const varName = block.ApiResponseVariable.trim();
         this.variables[varName] = { 
@@ -1027,9 +1025,9 @@ export class Engine {
       }
       
       
-      // Переходим к следующему блоку даже при ошибке
+      
       if (block.Nexts.length > 0) {
-        // @ts-ignore
+        
         this.index = block.Nexts[0];
         this.skipInput = true;
         await this.execute();
@@ -1041,10 +1039,10 @@ export class Engine {
   }
 
   async executeSkip(): Promise<void> {
-    // Skip блоки просто переходят дальше
+    
     const block = this.nodeStructure[this.index!];
     if (block && block.Nexts.length > 0) {
-      // @ts-ignore
+      
       this.index = block.Nexts[0];
       this.skipInput = true;
       await this.execute();
@@ -1054,9 +1052,9 @@ export class Engine {
   async executeScript(): Promise<void> {
     const block = this.nodeStructure[this.index!];
     if (!block || !block.ScriptCode) {
-      // Переходим к следующему блоку или завершаем
+      
       if (block && block.Nexts.length > 0) {
-        // @ts-ignore
+        
         this.index = block.Nexts[0];
         this.skipInput = true;
         await this.execute();
@@ -1068,11 +1066,11 @@ export class Engine {
     }
 
     try {
-      // Создаем безопасный контекст для выполнения скрипта
+      
       const scriptContext = {
         variables: this.variables,
         globalConstants: this.globalConstants,
-        // Предоставляем функции для работы с переменными
+        
         setVariable: (name: string, value: any) => {
           this.variables[name] = value;
         },
@@ -1082,8 +1080,8 @@ export class Engine {
         },
       };
 
-      // Выполняем скрипт в изолированном контексте
-      // Используем Function constructor для создания функции с нужным контекстом
+      
+      
       const scriptFunction = new Function(
         'variables',
         'globalConstants',
@@ -1098,7 +1096,7 @@ export class Engine {
         `
       );
 
-      // Выполняем скрипт
+      
       const result = scriptFunction.call(
         scriptContext,
         this.variables,
@@ -1107,24 +1105,24 @@ export class Engine {
         scriptContext.getVariable
       );
 
-      // Если указана переменная для результата и скрипт вернул значение
+      
       if (block.ScriptReturnVariable && result !== undefined) {
         this.variables[block.ScriptReturnVariable] = result;
       }
 
-      // Переходим к следующему блоку
+      
       if (block.Nexts.length > 0) {
-        // @ts-ignore
+        
         this.index = block.Nexts[0];
         this.skipInput = true;
         await this.execute();
       } else {
-        // Если нет следующего блока, завершаем диалог
+        
         this.ui.finish();
         this.isFinished = true;
       }
     } catch (error: any) {
-      // В случае ошибки сохраняем информацию об ошибке в переменную
+      
       if (block.ScriptReturnVariable) {
         this.variables[block.ScriptReturnVariable] = { 
           error: error.message || String(error),
@@ -1132,9 +1130,9 @@ export class Engine {
         };
       }
       
-      // Переходим к следующему блоку даже при ошибке
+      
       if (block.Nexts.length > 0) {
-        // @ts-ignore
+        
         this.index = block.Nexts[0];
         this.skipInput = true;
         await this.execute();
@@ -1145,32 +1143,32 @@ export class Engine {
     }
   }
 
-  // Получить переменные (для отладки)
+  
   getVariables(): Record<string, any> {
     return { ...this.variables };
   }
 
-  // Получить значение переменной
+  
   getVariable(name: string): any {
     return this.variables[name];
   }
 
-  // Проверить, существует ли переменная
+  
   hasVariable(name: string): boolean {
     return name in this.variables;
   }
 
-  // Сброс состояния
+  
   reset(): void {
     this.variables = {};
-    // Восстанавливаем глобальные константы после сброса
+    
     if (this.globalConstants) {
       Object.assign(this.variables, this.globalConstants);
     }
     this.isFinished = false;
     this.skipInput = false;
     this.saveNext = false;
-    this.executionCount = {}; // Сбрасываем счетчик выполнения
-    this.lastExecutedBlock = null; // Сбрасываем последний выполненный блок
+    this.executionCount = {}; 
+    this.lastExecutedBlock = null; 
   }
 }

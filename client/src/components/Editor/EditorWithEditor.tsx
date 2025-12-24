@@ -9,15 +9,15 @@ const EditorWithEditor: React.FC = () => {
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const { selectedNodeId, deleteBlock, isPreviewMode } = useEditorStore();
 
-  // Обработка клавиши Delete для удаления блоков
+  
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
 
-      // Не реагируем на горячие клавиши, когда:
-      // - открыт предпросмотр
-      // - фокус в элементах ввода текста
-      // - внутри модальных окон (например, предпросмотр)
+      
+      
+      
+      
       const isTextInput = !!target && (
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
@@ -33,12 +33,12 @@ const EditorWithEditor: React.FC = () => {
         }
       }
       
-      // Escape закрывает редактор
+      
       if (e.key === 'Escape') {
         setEditingNodeId(null);
       }
 
-      // Enter или E открывает редактор
+      
       if ((e.key === 'Enter' || e.key === 'e') && selectedNodeId && !e.ctrlKey && !e.metaKey) {
         setEditingNodeId(selectedNodeId);
       }
@@ -68,14 +68,14 @@ const EditorWithEditor: React.FC = () => {
     };
   }, []);
 
-  // Слушаем изменения selectedNodeId через подписку
+  
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
     const unsubscribe = useEditorStore.subscribe(
       (state) => state.selectedNodeId,
       (nodeId) => {
-        // Добавляем небольшую задержку перед открытием редактора
+        
         clearTimeout(timeoutId);
       }
     );

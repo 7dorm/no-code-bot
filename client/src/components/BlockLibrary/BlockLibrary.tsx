@@ -28,10 +28,10 @@ const BlockLibrary: React.FC = () => {
   const { currentProject, addBlock, selectNode, selectedNodeId } = useEditorStore();
 
   const handleAddBlock = (type: BlockType) => {
-    // Создаем базовую структуру данных блока в зависимости от типа
+    
     let blockData: any = { type, label: `Блок ${type}` };
     
-    // Инициализируем специфичные поля для каждого типа блока
+    
     switch (type) {
       case 'message':
         blockData = { ...blockData, text: '' };
@@ -52,19 +52,19 @@ const BlockLibrary: React.FC = () => {
         blockData = { ...blockData, code: '', returnVariable: '' };
         break;
       case 'start':
-        // start не требует дополнительных полей
+        
         break;
     }
     
     const newBlock: BlockNode = {
       id: crypto.randomUUID(),
       type: 'blockNode',
-      position: { x: Math.random() * 400, y: Math.random() * 400 },
+      position: { x: Math.random() * 300, y: Math.random() * 300 },
       data: blockData,
     };
     
     addBlock(newBlock);
-    // Открываем редактор для нового блока
+    
     setEditingNodeId(newBlock.id);
     setIsEditing(true);
     selectNode(newBlock.id);
@@ -92,7 +92,7 @@ const BlockLibrary: React.FC = () => {
   return (
     <div className="block-library">
       <div className="library-header">
-        <h3>📚 Библиотека блоков</h3>
+        <h>📚 Библиотека блоков</h>
       </div>
       
       <div className="library-content">

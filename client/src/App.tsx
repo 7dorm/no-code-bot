@@ -21,21 +21,21 @@ function App() {
   useEffect(() => {
     loadFromLocalStorage();
     
-    // Проверяем, есть ли проект
+    
     if (!currentProject) {
       createProject('Новый проект');
     }
   }, []);
 
-  // Обработка клавиатурных шорткатов для undo/redo
+  
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+Z для undo (Cmd+Z на Mac)
+      
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         undo();
       }
-      // Ctrl+Shift+Z или Ctrl+Y для redo (Cmd+Shift+Z на Mac)
+      
       if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && e.key === 'z') || e.key === 'y')) {
         e.preventDefault();
         redo();
@@ -54,7 +54,6 @@ function App() {
       
       <div className="app-content">
         <EditorWithEditor />
-        
         {isSettingsOpen && <SettingsModal onClose={toggleSettings} />}
         {isPreviewMode && <Preview onClose={() => useEditorStore.setState({ isPreviewMode: false })} />}
       </div>

@@ -15,7 +15,7 @@ const VariablesPanel: React.FC = () => {
       case 'defined':
         return '📝';
       case 'used':
-        return '🔍';
+        return '';
       default:
         return '📌';
     }
@@ -38,7 +38,7 @@ const VariablesPanel: React.FC = () => {
     return (
       <div className="variables-panel">
         <div className="variables-panel-header">
-          <h3>📊 Переменные</h3>
+          <h2>📊 Переменные</h2>
         </div>
         <div className="variables-panel-content">
           <div className="variables-empty">
@@ -52,7 +52,7 @@ const VariablesPanel: React.FC = () => {
   return (
     <div className="variables-panel">
       <div className="variables-panel-header">
-        <h3>📊 Переменные</h3>
+        <h2>📊 Переменные</h2>
         <span className="variables-count">{variables.length}</span>
       </div>
       <div className="variables-panel-content">

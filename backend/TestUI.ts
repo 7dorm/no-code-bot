@@ -23,7 +23,7 @@ class ConsoleUi implements UI {
     }
 
     async getFile(pathToSave: string, name: string): Promise<string> {
-        console.log(`📎 Пожалуйста, введите имя файла для загрузки: ${name}`);
+        console.log(` Пожалуйста, введите имя файла для загрузки: ${name}`);
         return new Promise(resolve => {
             this.rl.question("Имя файла: ", fileName => {
                 const uniqueName = `${fileName}_${Date.now()}`;
@@ -33,11 +33,11 @@ class ConsoleUi implements UI {
     }
 
     sendFile(path: string): void {
-        console.log(`📎 Файл отправлен: ${path}`);
+        console.log(` Файл отправлен: ${path}`);
     }
 
     deleteFile(path: string): void {
-        console.log(`🗑️ Файл удален: ${path}`);
+        console.log(` Файл удален: ${path}`);
     }
 
     finish(): void {

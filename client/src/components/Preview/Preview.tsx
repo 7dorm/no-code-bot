@@ -30,7 +30,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
   const executionPromiseRef = useRef<Promise<void> | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Инициализация Engine при открытии Preview
+  
   useEffect(() => {
     if (!currentProject) {
       setMessages([]);
@@ -38,39 +38,39 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
       return;
     }
 
-    // Очищаем предыдущее состояние
+    
     setMessages([]);
     setIsRunning(true);
     setWaitingForInput(false);
     setUserJustResponded(false);
 
-    // Преобразуем проект в формат Engine
+    
     const engineNodes = adaptProjectToEngine(currentProject);
     
     if (engineNodes.length === 0) {
-      setMessages([{ role: 'bot', content: '⚠️ Проект не содержит блоков.' }]);
+      setMessages([{ role: 'bot', content: ' Проект не содержит блоков.' }]);
       setIsRunning(false);
       return;
     }
 
-    // Создаем WebUI с колбэками
+    
     const webUI = new WebUI(
       (message: string, answers?: string[]) => {
-        // Колбэк для отправки сообщения бота
+        
         setMessages(prev => {
           const newMessages = [...prev, { role: 'bot' as const, content: message, answers }];
           const newIndex = newMessages.length - 1;
           
-          // Устанавливаем activeAnswersMessageIndex и waitingForInput синхронно внутри setMessages
-          // Используем функциональную форму setState, чтобы избежать проблем с замыканиями
+          
+          
           if (answers && answers.length > 0) {
-            // Устанавливаем activeAnswersMessageIndex синхронно для нового сообщения
+            
             setActiveAnswersMessageIndex(newIndex);
-            // Убеждаемся, что waitingForInput установлен в true для отображения кнопок
+            
             setWaitingForInput(true);
           } else {
-            // Если сообщение отправляется без вариантов ответов, сбрасываем activeAnswersMessageIndex,
-            // чтобы скрыть кнопки предыдущего сообщения
+            
+            
             setActiveAnswersMessageIndex(null);
           }
           
@@ -78,36 +78,35 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
         });
       },
       () => {
-        // Колбэк для завершения диалога
-        setMessages(prev => [...prev, { role: 'bot' as const, content: '👋 Диалог завершен.' }]);
+        
+        setMessages(prev => [...prev, { role: 'bot' as const, content: ' Диалог завершен.' }]);
         setIsRunning(false);
         setWaitingForInput(false);
         setActiveAnswersMessageIndex(null);
       },
       () => {
-        // Колбэк когда Engine запрашивает ввод пользователя
-        // Не устанавливаем waitingForInput здесь, так как он уже устанавливается внутри setMessages
-        // когда сообщение с ответами отправляется
+        
+        setWaitingForInput(true);
       },
       (fileName: string) => {
-        // Колбэк когда Engine запрашивает файл
+        
         setWaitingForFile(true);
         setRequestedFileName(fileName);
         setMessages(prev => [...prev, { 
           role: 'bot' as const, 
-          content: `📎 Пожалуйста, загрузите файл: ${fileName}` 
+          content: ` Пожалуйста, загрузите файл: ${fileName}` 
         }]);
       }
     );
 
     webUIRef.current = webUI;
 
-    // Создаем Engine с глобальными константами
+    
     const globalConstants = currentProject.globalConstants || {};
     const engine = new Engine(webUI, engineNodes, globalConstants);
     engineRef.current = engine;
 
-    // Начинаем выполнение бота (skip=true для первого запуска, чтобы начать без ввода)
+    
     const executeBot = async () => {
       try {
         executionPromiseRef.current = engine.execute(true);
@@ -115,7 +114,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
       } catch (err) {
         setMessages(prev => [...prev, { 
           role: 'bot', 
-          content: '⚠️ Произошла ошибка при выполнении бота.' 
+          content: ' Произошла ошибка при выполнении бота.' 
         }]);
         setIsRunning(false);
         setWaitingForInput(false);
@@ -124,7 +123,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
 
     executeBot();
 
-    // Очистка при закрытии
+    
     return () => {
       setIsRunning(false);
       setWaitingForInput(false);
@@ -141,35 +140,18 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
       return;
     }
 
-
-    // Сбрасываем состояния после выбора ответа
+    
     setActiveAnswersMessageIndex(null);
-    setWaitingForInput(false); // Сбрасываем ожидание ввода
-    setUserJustResponded(true); // Помечаем, что пользователь только что ответил
+    setWaitingForInput(false); 
+    setUserJustResponded(true); 
 
-    // Добавляем сообщение пользователя
+    
     setMessages(prev => [...prev, { role: 'user' as const, content: text }]);
     setUserInput('');
 
     webUIRef.current.handleUserMessage(text);
 
-    if (engineRef.current) {
-      const continueExecution = async () => {
-        try {
-          executionPromiseRef.current = engineRef.current!.execute(false);
-          await executionPromiseRef.current;
-        } catch (err) {
-          setMessages(prev => [...prev, { 
-            role: 'bot' as const, 
-            content: '⚠️ Произошла ошибка при выполнении бота.' 
-          }]);
-          setIsRunning(false);
-          setWaitingForInput(false);
-          setActiveAnswersMessageIndex(null);
-        }
-      };
-      continueExecution();
-    }
+    
   }, [waitingForInput]);
 
   const handleSendMessage = useCallback(() => {
@@ -183,7 +165,10 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
   }, [sendToEngine]);
 
   const handleRestart = useCallback(() => {
-    // Очищаем состояние
+    if (!currentProject) {
+      return;
+    }
+    
     setMessages([]);
     setUserInput('');
     setIsRunning(true);
@@ -193,20 +178,20 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
     setActiveAnswersMessageIndex(null);
     setUserJustResponded(false);
 
-    // Очищаем refs
+    
     executionPromiseRef.current = null;
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
 
-    // Создаем новый Engine и WebUI
+    
     const webUI = new WebUI(
       (message: string, answers?: string[]) => {
-        // Если пользователь только что ответил и сообщение содержит кнопки, игнорируем его
-        // Это предотвратит повторное отображение того же сообщения
+        
+        
         if (userJustResponded && answers && answers.length > 0) {
-          setUserJustResponded(false); // Сбрасываем флаг
-          return; // Не добавляем сообщение
+          setUserJustResponded(false); 
+          return; 
         }
 
         setMessages(prev => {
@@ -215,51 +200,51 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
 
           if (answers && answers.length > 0) {
             setActiveAnswersMessageIndex(newIndex);
-            // Не устанавливаем waitingForInput = true, если пользователь только что ответил
-            // (это предотвратит повторное выполнение того же блока)
+            
+            
             if (!userJustResponded) {
               setWaitingForInput(true);
             }
-            setUserJustResponded(false); // Сбрасываем флаг
+            setUserJustResponded(false); 
           } else {
             setActiveAnswersMessageIndex(null);
-            // Если сообщение без кнопок ответов, сбрасываем ожидание ввода
-            // (бот либо завершился, либо ждет другого типа ввода)
+            
+            
             setWaitingForInput(false);
-            setUserJustResponded(false); // Сбрасываем флаг
+            setUserJustResponded(false); 
           }
 
           return newMessages;
         });
       },
       () => {
-        setMessages(prev => [...prev, { role: 'bot' as const, content: '👋 Диалог завершен.' }]);
+        setMessages(prev => [...prev, { role: 'bot' as const, content: ' Диалог завершен.' }]);
         setIsRunning(false);
         setWaitingForInput(false);
         setActiveAnswersMessageIndex(null);
       },
       () => {
-        // Не устанавливаем waitingForInput здесь, так как он уже устанавливается внутри setMessages
-        // когда сообщение с ответами отправляется
+        
+        
       },
       (fileName: string) => {
         setWaitingForFile(true);
         setRequestedFileName(fileName);
         setMessages(prev => [...prev, {
           role: 'bot' as const,
-          content: `📎 Пожалуйста, загрузите файл: ${fileName}`
+          content: ` Пожалуйста, загрузите файл: ${fileName}`
         }]);
       }
     );
 
     webUIRef.current = webUI;
 
-    // Создаем Engine с глобальными константами
+    
     const globalConstants = currentProject.globalConstants || {};
     const engine = new Engine(webUI, adaptProjectToEngine(currentProject), globalConstants);
     engineRef.current = engine;
 
-    // Начинаем выполнение бота
+    
     const executeBot = async () => {
       try {
         executionPromiseRef.current = engine.execute(true);
@@ -267,7 +252,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
       } catch (err) {
         setMessages(prev => [...prev, {
           role: 'bot',
-          content: '⚠️ Произошла ошибка при выполнении бота.'
+          content: ' Произошла ошибка при выполнении бота.'
         }]);
         setIsRunning(false);
         setWaitingForInput(false);
@@ -283,45 +268,27 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
       return;
     }
 
-    // Добавляем сообщение пользователя о загрузке файла
+    
     setMessages(prev => [...prev, {
       role: 'user' as const,
-      content: `📎 Файл загружен: ${file.name}`
+      content: ` Файл загружен: ${file.name}`
     }]);
 
-    // Передаем имя файла в WebUI
+    
     webUIRef.current.handleUserFile(file.name);
 
-    // Сбрасываем состояния после загрузки файла
+    
     setWaitingForFile(false);
     setRequestedFileName('');
-    setWaitingForInput(false); // Сбрасываем ожидание ввода, так как файл загружен
-    setUserJustResponded(true); // Помечаем, что пользователь ответил (файлом)
+    setWaitingForInput(false); 
+    setUserJustResponded(true); 
 
-    // Очищаем input
+    
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
 
-    // Продолжаем выполнение бота
-    if (engineRef.current) {
-      const continueExecution = async () => {
-        try {
-          executionPromiseRef.current = engineRef.current!.execute(false);
-          await executionPromiseRef.current;
-        } catch (err) {
-          setMessages(prev => [...prev, {
-            role: 'bot' as const,
-            content: '⚠️ Произошла ошибка при выполнении бота.'
-          }]);
-          setIsRunning(false);
-          setWaitingForInput(false);
-          setWaitingForFile(false);
-          setActiveAnswersMessageIndex(null);
-        }
-      };
-      continueExecution();
-    }
+    
   }, []);
 
   if (!currentProject) {
@@ -339,7 +306,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
     <div className="preview-overlay" onClick={onClose}>
       <div className="preview-modal" onClick={e => e.stopPropagation()}>
         <div className="preview-header">
-          <h3>👁️ Предпросмотр бота</h3>
+          <h2> Предпросмотр бота</h2>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
 
@@ -347,7 +314,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
           <div className="chat-messages">
             {messages.length === 0 && (
               <div className="chat-message bot">
-                <div className="message-bubble">👋 Загрузка бота...</div>
+                <div className="message-bubble"> Загрузка бота...</div>
               </div>
             )}
             {messages.map((msg, idx) => {
@@ -388,7 +355,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
                   className="restart-btn"
                   onClick={handleRestart}
                 >
-                  🔄 Начать заново
+                   Начать заново
                 </button>
               </div>
             ) : waitingForFile ? (
@@ -401,7 +368,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
                     onChange={handleFileUpload}
                     style={{ display: 'none' }}
                   />
-                  <span className="file-upload-button">📎 Выбрать файл: {requestedFileName}</span>
+                  <span className="file-upload-button"> Выбрать файл: {requestedFileName}</span>
                 </label>
               </div>
             ) : (

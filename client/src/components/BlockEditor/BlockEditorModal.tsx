@@ -44,7 +44,7 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
   const handleDelete = () => {
     if (!node) return;
     
-    // Нельзя удалить стартовый блок
+    
     if (node.data.type === 'start') {
       alert('Нельзя удалить стартовый блок');
       return;
@@ -203,7 +203,7 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
                       const lines = e.target.value.split('\n').filter(line => line.trim() !== '');
                       updateBlockData<MessageBlockData>({ answers: lines.length > 0 ? lines : undefined });
                     }}
-                    placeholder="Введите варианты ответов, каждый с новой строки&#10;Например:&#10;10:00&#10;11:00&#10;12:00"
+                    placeholder="Введите варианты ответов, каждый с новой строки&#0;Например:&#0;0:00&#0;:00&#0;:00"
                     rows={4}
                   />
                   <small className="editor-hint">Введите варианты ответов, каждый с новой строки. Пользователь сможет выбрать один из них.</small>
@@ -281,49 +281,49 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
               )}
               
               {conditions.map((condition, index) => (
-                <div key={index} className="condition-item" style={{ marginBottom: '16px', padding: '12px', border: '1px solid #ddd', borderRadius: '6px' }}>
+                <div key={index} className="condition-item" style={{ marginBottom: '6px', padding: 'px', border: 'px solid #ddd', borderRadius: '6px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontWeight: 600, fontSize: '13px' }}>Условие {index + 1}</span>
+                    <span style={{ fontWeight: 600, fontSize: 'px' }}>Условие {index + 1}</span>
                     <button
                       type="button"
                       className="remove-param-btn"
                       onClick={() => removeCondition(index)}
-                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                      style={{ padding: 'px 8px', fontSize: 'px' }}
                     >
                       ✕ Удалить
                     </button>
                   </div>
                   
                   <div style={{ marginBottom: '8px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 500, display: 'block', marginBottom: '4px' }}>Подпись (опционально)</label>
+                    <label style={{ fontSize: 'px', fontWeight: 600, display: 'block', marginBottom: 'px' }}>Подпись (опционально)</label>
                     <input
                       type="text"
                       className="editor-input"
                       value={condition.label || ''}
                       onChange={(e) => updateCondition(index, 'label', e.target.value)}
-                      placeholder="Например: Возраст больше 18"
-                      style={{ fontSize: '13px' }}
+                      placeholder="Например: Возраст больше 8"
+                      style={{ fontSize: 'px' }}
                     />
                   </div>
                   
                   <div>
-                    <label style={{ fontSize: '12px', fontWeight: 500, display: 'block', marginBottom: '4px' }}>Выражение</label>
+                    <label style={{ fontSize: 'px', fontWeight: 600, display: 'block', marginBottom: 'px' }}>Выражение</label>
                     <input
                       type="text"
                       className="editor-input"
                       value={condition.condition}
                       onChange={(e) => updateCondition(index, 'condition', e.target.value)}
-                      placeholder="Например: age > 18 или userInput === 'yes'"
-                      style={{ fontSize: '13px' }}
+                      placeholder="Например: age > 8 или userInput === 'yes'"
+                      style={{ fontSize: 'px' }}
                     />
-                    <small className="editor-hint" style={{ display: 'block', marginTop: '4px' }}>
+                    <small className="editor-hint" style={{ display: 'block', marginTop: 'px' }}>
                       Поддерживаемые операторы: ===, !==, &gt;, &lt;, &gt;=, &lt;=, contains, &&, ||. Можно использовать переменные. 
                       Для проверки длины массива используйте: переменная.length (например: doctorsList.length &gt; 0)
                     </small>
                     {condition.condition && (
                       <div style={{ marginTop: '6px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {getConditionVariables(condition.condition).map(v => (
-                          <span key={v} style={{ background: '#e8f5e9', color: '#1b5e20', padding: '2px 8px', borderRadius: '10px', fontSize: '11px' }}>
+                          <span key={v} style={{ background: '#e8fe9', color: '#be0', padding: 'px 8px', borderRadius: '0px', fontSize: 'px' }}>
                             {v}
                           </span>
                         ))}
@@ -394,7 +394,7 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
                 className="editor-input"
                 value={apiData.url || ''}
                 onChange={(e) => updateBlockData<ApiBlockData>({ url: e.target.value })}
-                placeholder="https://api.example.com/endpoint"
+                placeholder="https:"
               />
             </div>
             <div className="editor-group">
@@ -457,13 +457,13 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
               <label className="editor-label">Заголовки (JSON, опционально)</label>
               <textarea
                 className="editor-textarea"
-                value={apiData.headers ? JSON.stringify(apiData.headers, null, 2) : ''}
+                value={apiData.headers ? JSON.stringify(apiData.headers, null, ) : ''}
                 onChange={(e) => {
                   try {
                     const headers = e.target.value.trim() ? JSON.parse(e.target.value) : undefined;
                     updateBlockData<ApiBlockData>({ headers });
                   } catch (err) {
-                    // Игнорируем ошибки парсинга во время ввода
+                    
                   }
                 }}
                 placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'
@@ -536,9 +536,9 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
                 className="editor-textarea"
                 value={scriptData.code || ''}
                 onChange={(e) => updateBlockData<ScriptBlockData>({ code: e.target.value })}
-                placeholder="// Доступны переменные: variables, globalConstants&#10;// Пример: variables.result = variables.a + variables.b;&#10;// Или: return variables.userInput.toUpperCase();"
-                rows={10}
-                style={{ fontFamily: 'monospace', fontSize: '13px' }}
+                placeholder="
+                rows={0}
+                style={{ fontFamily: 'monospace', fontSize: 'px' }}"
               />
               <small className="editor-hint">
                 Выполняется JavaScript код. Доступны объекты: <code>variables</code> (все переменные), <code>globalConstants</code> (глобальные константы).
@@ -574,24 +574,24 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
     <div className="block-editor-overlay" onClick={onClose}>
       <div className="block-editor-modal" onClick={e => e.stopPropagation()} onKeyDown={handleModalKeyDown}>
         <div className="editor-header">
-          <h3>✏️ Редактирование блока</h3>
+          <h> Редактирование блока</h>
           <div style={{ display: 'flex', gap: '8px' }}>
             {node.data.type !== 'start' && (
               <button 
                 className="delete-btn" 
                 onClick={handleDelete}
                 style={{
-                  background: '#f44336',
+                  background: '#f6',
                   color: 'white',
                   border: 'none',
-                  padding: '6px 12px',
-                  borderRadius: '4px',
+                  padding: '6px px',
+                  borderRadius: 'px',
                   cursor: 'pointer',
-                  fontSize: '14px'
+                  fontSize: 'px'
                 }}
                 title="Удалить блок"
               >
-                🗑️ Удалить
+                 Удалить
               </button>
             )}
             <button className="close-btn" onClick={onClose}>✕</button>

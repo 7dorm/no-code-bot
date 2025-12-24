@@ -94,7 +94,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     <div className="settings-overlay" onClick={onClose}>
       <div className="settings-modal" onClick={e => e.stopPropagation()}>
         <div className="settings-header">
-          <h2>⚙️ Настройки проекта</h2>
+          <h> Настройки проекта</h>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
 

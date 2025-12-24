@@ -8,7 +8,6 @@ export default defineConfig({
     port: 3000,
     open: true,
     proxy: {
-      // Прокси для API запросов к localhost
       '/api-proxy': {
         target: 'http://localhost:3000',
         changeOrigin: true,

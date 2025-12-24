@@ -3,12 +3,12 @@ import { Handle, Position, NodeProps } from 'reactflow';
 import { BlockData, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, getBlockIcon, getBlockColor } from '../../types';
 import './BlockNode.css';
 
-// Функция для получения отображаемой информации о блоке
+
 const getBlockPreview = (data: BlockData): string => {
   switch (data.type) {
     case 'message': {
       const msgData = data as MessageBlockData;
-      let preview = msgData.text ? msgData.text.substring(0, 30) : 'Текст сообщения...';
+      let preview = msgData.text ? msgData.text.substring(0, 0) : 'Текст сообщения...';
       if (msgData.saveResponseToVariable) {
         preview += ` [→${msgData.saveResponseToVariable}]`;
       }
@@ -31,13 +31,13 @@ const getBlockPreview = (data: BlockData): string => {
     case 'variable': {
       const varData = data as VariableBlockData;
       if (varData.variableName) {
-        return `${varData.variableName} = ${varData.value ? varData.value.substring(0, 15) : '...'}`;
+        return `${varData.variableName} = ${varData.value ? varData.value.substring(0, ) : '...'}`;
       }
       return 'Переменная...';
     }
     case 'api': {
       const apiData = data as ApiBlockData;
-      return apiData.url ? `${apiData.method || 'GET'} ${apiData.url.substring(0, 25)}` : 'API запрос...';
+      return apiData.url ? `${apiData.method || 'GET'} ${apiData.url.substring(0, )}` : 'API запрос...';
     }
     case 'file': {
       const fileData = data as FileBlockData;
@@ -47,11 +47,11 @@ const getBlockPreview = (data: BlockData): string => {
         'delete': 'Удалить',
         'read': 'Прочитать',
       }[fileData.action || 'upload'];
-      return fileData.fileName ? `${actionLabel}: ${fileData.fileName.substring(0, 20)}` : `${actionLabel} файл...`;
+      return fileData.fileName ? `${actionLabel}: ${fileData.fileName.substring(0, 0)}` : `${actionLabel} файл...`;
     }
     case 'script': {
       const scriptData = data as ScriptBlockData;
-      const codePreview = scriptData.code ? scriptData.code.substring(0, 30).replace(/\n/g, ' ') : 'JavaScript код...';
+      const codePreview = scriptData.code ? scriptData.code.substring(0, 0).replace(/\n/g, ' ') : 'JavaScript код...';
       return scriptData.returnVariable ? `⚡ ${codePreview} → ${scriptData.returnVariable}` : `⚡ ${codePreview}`;
     }
     case 'start':
@@ -60,7 +60,7 @@ const getBlockPreview = (data: BlockData): string => {
   }
 };
 
-// Функция для проверки условия (используется в blockExecutor)
+
 export function evaluateCondition(condition: string, context: { variables: Record<string, any>; userInput?: string }): boolean {
   const userInput = context.userInput || '';
   const normalized = condition.replace(/\buserInput\b/g, userInput);
@@ -148,7 +148,7 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
   const icon = getBlockIcon(data.type as any);
   const preview = getBlockPreview(data);
 
-  // Получаем количество выходов для condition блока
+  
   const conditionData = data.type === 'condition' ? data as ConditionBlockData : null;
   const conditionCount = conditionData ? (conditionData.conditions?.length || 0) : 0;
   const hasDefault = conditionData ? true : false;
@@ -186,7 +186,7 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
       
       {data.type === 'condition' && (
         <>
-          {/* Выходы для каждого условия */}
+          {}
           {Array.from({ length: conditionCount }).map((_, index) => (
             <Handle
               key={`output-${index}`}
@@ -198,14 +198,14 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
               }}
             />
           ))}
-          {/* Выход для дефолтной ветки */}
+          {}
           {hasDefault && (
             <Handle
               type="source"
               position={Position.Bottom}
               id="output-default"
               style={{ 
-                left: `${100 - (100 / (conditionCount + 2))}%`,
+                left: `${100 - (100 / (conditionCount + 1))}%`,
               }}
             />
           )}

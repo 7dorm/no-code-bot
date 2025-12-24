@@ -5,9 +5,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/**
- * Mock данные
- */
+
 const doctors = [
   'Терапевт',
   'Кардиолог',
@@ -31,34 +29,12 @@ const schedule = {
 
 const appointments = [];
 
-/**
- * 1️⃣ GET — список докторов
- */
+
 app.get('/api/doctors', (req, res) => {
   res.json({ doctors });
 });
 
-/**
- * 2️⃣ GET — доступные даты для врача (когда можно записаться)
- * 
- * Использование:
- *   GET /api/dates?doctor=Терапевт
- *   GET /api/dates?doctor=Кардиолог
- *   GET /api/dates?doctor=Невролог
- * 
- * Параметры:
- *   doctor (query, обязательный) - имя врача
- * 
- * Ответ:
- *   {
- *     "doctor": "Терапевт",
- *     "dates": ["01.06.25", "02.06.25"]
- *   }
- * 
- * Ошибки:
- *   400 - если не указан параметр doctor
- *   404 - если врач не найден
- */
+
 app.get('/api/dates', (req, res) => {
   const { doctor } = req.query;
 
@@ -69,7 +45,7 @@ app.get('/api/dates', (req, res) => {
     });
   }
 
-  // Проверяем, существует ли такой врач
+  
   if (!doctors.includes(doctor)) {
     return res.status(404).json({
       error: 'Doctor not found',
@@ -78,11 +54,11 @@ app.get('/api/dates', (req, res) => {
     });
   }
 
-  // Получаем все даты, для которых есть доступные слоты у этого врача
+  
   const doctorSchedule = schedule[doctor] || {};
   const dates = Object.keys(doctorSchedule).filter(date => {
     const times = doctorSchedule[date] || [];
-    return times.length > 0; // Возвращаем только даты с доступными слотами
+    return times.length > 0; 
   });
 
   res.json({
@@ -92,12 +68,7 @@ app.get('/api/dates', (req, res) => {
   });
 });
 
-/**
- * 3️⃣ GET — доступное время
- * query:
- *  doctor=Терапевт
- *  date=01.06.25
- */
+
 app.get('/api/slots', (req, res) => {
   const { doctor, date } = req.query;
 
@@ -115,9 +86,7 @@ app.get('/api/slots', (req, res) => {
   });
 });
 
-/**
- * 4️⃣ POST — запись к врачу
- */
+
 app.post('/api/appointments', (req, res) => {
   const { doctor, date, time, patient } = req.body;
 
@@ -127,7 +96,7 @@ app.post('/api/appointments', (req, res) => {
     });
   }
 
-  // проверка, что слот существует
+  
   const availableTimes = schedule[doctor]?.[date] || [];
   if (!availableTimes.includes(time)) {
     return res.status(409).json({
@@ -135,7 +104,7 @@ app.post('/api/appointments', (req, res) => {
     });
   }
 
-  // "занимаем" слот
+  
   schedule[doctor][date] = availableTimes.filter(t => t !== time);
 
   const appointment = {
@@ -152,9 +121,7 @@ app.post('/api/appointments', (req, res) => {
   res.json(appointment);
 });
 
-/**
- * Запуск сервера
- */
+
 const PORT = 3003;
 app.listen(PORT, () => {
   console.log(`Mock API server running on http://localhost:${PORT}`);

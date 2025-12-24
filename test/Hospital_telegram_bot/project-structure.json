@@ -1,0 +1,167 @@
+[
+  {
+    "id": "start-block",
+    "Type": "start",
+    "Nexts": [
+      "c74952ec-d6fa-4b3d-8bc3-a555f6aa9d92"
+    ],
+    "skip": true
+  },
+  {
+    "id": "c74952ec-d6fa-4b3d-8bc3-a555f6aa9d92",
+    "Type": "api",
+    "Nexts": [
+      "0d79d1b3-00a0-408b-be4a-bea2e086c76f"
+    ],
+    "ApiUrl": "http://localhost:3003/api/doctors",
+    "ApiMethod": "GET",
+    "ApiResponseVariable": "d",
+    "ApiAnswersPath": "doctors",
+    "ApiAnswersVariable": "doctors"
+  },
+  {
+    "id": "0d79d1b3-00a0-408b-be4a-bea2e086c76f",
+    "Type": "output",
+    "Nexts": [
+      "f3fbf6bd-b84a-4f4d-8a82-710f962d9d13"
+    ],
+    "Text": "Здравствуйте, этот бот для записи к врачу.\nВыберите врача для записи",
+    "VarName": "choosedDoctor",
+    "VarType": "string",
+    "AnswersFromVariable": "doctors"
+  },
+  {
+    "id": "4123e84a-8d29-42dc-a5ed-e1a6e62f0ad3",
+    "Type": "api",
+    "Nexts": [
+      "efd1c76a-2512-4f57-9843-e14c5fc90325"
+    ],
+    "ApiUrl": "http://localhost:3003/api/slots?doctor={{choosedDoctor}}&date={{choosedDate}}",
+    "ApiMethod": "GET",
+    "ApiResponseVariable": "date",
+    "ApiAnswersPath": "times",
+    "ApiAnswersVariable": "times"
+  },
+  {
+    "id": "6ce4ab86-900a-4311-8e98-d4fb594c96a5",
+    "Type": "output",
+    "Nexts": [
+      "4123e84a-8d29-42dc-a5ed-e1a6e62f0ad3"
+    ],
+    "Text": "Укажите дату для записи",
+    "VarName": "choosedDate",
+    "VarType": "string",
+    "AnswersFromVariable": "dates"
+  },
+  {
+    "id": "efd1c76a-2512-4f57-9843-e14c5fc90325",
+    "Type": "condition",
+    "Nexts": [
+      "c104b129-6bcd-4a59-83a4-75f59a6586b0",
+      "1e08f84a-1cf7-406e-b889-1b729a70d0ef"
+    ],
+    "Cond": [
+      "times.length >0"
+    ]
+  },
+  {
+    "id": "1e08f84a-1cf7-406e-b889-1b729a70d0ef",
+    "Type": "output",
+    "Nexts": [
+      "4123e84a-8d29-42dc-a5ed-e1a6e62f0ad3"
+    ],
+    "Text": "На указанную дату нет времени на запись, выберите другую дату ",
+    "VarName": "choosedDate",
+    "VarType": "string",
+    "AnswersFromVariable": "times"
+  },
+  {
+    "id": "c104b129-6bcd-4a59-83a4-75f59a6586b0",
+    "Type": "output",
+    "Nexts": [
+      "9ac05a05-b6c2-427d-8348-e5327447a4f9"
+    ],
+    "Text": "Выберите время для записи",
+    "VarName": "time",
+    "VarType": "string",
+    "AnswersFromVariable": "times"
+  },
+  {
+    "id": "d3f5be7c-81f2-4dcf-916f-d548549ac4c3",
+    "Type": "output",
+    "Nexts": [
+      "24823b08-07a5-4af9-83a1-9def7dbcdf16"
+    ],
+    "Text": "Прикрепите фото документов удостоверяющих личность"
+  },
+  {
+    "id": "24823b08-07a5-4af9-83a1-9def7dbcdf16",
+    "Type": "FILE",
+    "Nexts": [
+      "5eada83a-019f-4e8c-8cf3-80645ad7abc7"
+    ],
+    "FILEAct": "Upload",
+    "FileName": "",
+    "PathToFile": "/patients/",
+    "PathToSave": "/patients/"
+  },
+  {
+    "id": "9ac05a05-b6c2-427d-8348-e5327447a4f9",
+    "Type": "output",
+    "Nexts": [
+      "4ad70f37-6b1f-4000-b776-f6e50f6593e1"
+    ],
+    "Text": "Введите ФИО",
+    "VarName": "fio",
+    "VarType": "string"
+  },
+  {
+    "id": "4ad70f37-6b1f-4000-b776-f6e50f6593e1",
+    "Type": "output",
+    "Nexts": [
+      "d3f5be7c-81f2-4dcf-916f-d548549ac4c3"
+    ],
+    "Text": "Укажите номер телефона",
+    "VarName": "phone",
+    "VarType": "string"
+  },
+  {
+    "id": "5eada83a-019f-4e8c-8cf3-80645ad7abc7",
+    "Type": "api",
+    "Nexts": [
+      "8b213c83-2ec1-4ab1-b3b0-55ec914d1cf5"
+    ],
+    "ApiUrl": "http://localhost:3003/api/appointments",
+    "ApiMethod": "POST",
+    "ApiBody": "{\n  \"doctor\": {{choosedDoctor}}, \n  \"date\": {{choosedDate}}, \n  \"time\": {{time}}, \n  \"patient\": {\n    \"name\": {{fio}}, \n    \"phone\": {{phone}} \n  }\n}",
+    "ApiResponseVariable": "api"
+  },
+  {
+    "id": "f3fbf6bd-b84a-4f4d-8a82-710f962d9d13",
+    "Type": "api",
+    "Nexts": [
+      "6ce4ab86-900a-4311-8e98-d4fb594c96a5"
+    ],
+    "ApiUrl": "http://localhost:3003/api/dates?doctor={{choosedDoctor}}",
+    "ApiMethod": "GET",
+    "ApiBody": "{\n  \"doctor\": {{choosedDoctor}}, \n  \"date\": {{choosedDate}}, \n  \"time\": {{time}}, \n  \"patient\": {\n    \"name\": {{fio}}, \n    \"phone\": {{phone}} \n  }\n}",
+    "ApiResponseVariable": "selectedDates",
+    "ApiAnswersPath": "dates",
+    "ApiAnswersVariable": "dates"
+  },
+  {
+    "id": "379dadb8-4cf9-4640-9883-0dd6be407676",
+    "Type": "output",
+    "Nexts": [],
+    "Text": "{{api}}"
+  },
+  {
+    "id": "8b213c83-2ec1-4ab1-b3b0-55ec914d1cf5",
+    "Type": "script",
+    "Nexts": [
+      "379dadb8-4cf9-4640-9883-0dd6be407676"
+    ],
+    "ScriptCode": "let doctor = variables.api.doctor;\nlet date = variables.api.date;\nlet time = variables.api.time;\nlet patient = variables.api.patient.name;\nlet status = variables.api.status;\n\nvariables.api = `Пациент ${patient} сделал запись к ${doctor} ${date} в ${time}. Статус: ${status}`",
+    "ScriptReturnVariable": ""
+  }
+]

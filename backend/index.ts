@@ -22,7 +22,7 @@ bot.start(async (ctx) => {
     if (!ctx.chat) return;
     const chatId = ctx.chat.id;
 
-    const raw = readFileSync("./test/test1.json", "utf-8");
+    const raw = readFileSync("./test/test.json", "utf-8");
     const data = JSON.parse(raw);
 
     const ui = new TelegramUI(ctx);
@@ -31,15 +31,24 @@ bot.start(async (ctx) => {
     userStates.set(chatId, { eng, ui });
 
     await ctx.reply('Bot started!');
+    
+    
+    (async () => {
+        try {
+            await eng.execute(true);
+        } catch (error) {
+            console.error('Ошибка выполнения бота:', error);
+        }
+    })();
 });
 
-bot.on('text', (ctx) => {
+bot.on('text', async (ctx) => {
     if (!ctx.chat) return;
     const chatId = ctx.chat.id;
     const state = userStates.get(chatId);
 
     if (!state) {
-        ctx.reply('Press /start.');
+        await ctx.reply('Press /start.');
         return;
     }
 
@@ -47,7 +56,20 @@ bot.on('text', (ctx) => {
         return;
     }
 
-    state.eng.execute();
+    
+    
+    const isWaitingForInput = state.ui.isWaitingForInput();
+    if (!isWaitingForInput) {
+        
+        (async () => {
+            try {
+                await state.eng.execute();
+            } catch (error) {
+                console.error('Ошибка выполнения бота:', error);
+            }
+        })();
+    }
+    
     state.ui.handleUserMessage(ctx.message.text);
 });
 
@@ -60,13 +82,53 @@ bot.on('callback_query', async (ctx) => {
     if ('data' in ctx.callbackQuery) {
         const data = ctx.callbackQuery.data;
         await ctx.answerCbQuery();
-        state.eng.execute();
+        
+        
         state.ui.handleUserMessage(data);
     } else {
         await ctx.answerCbQuery('Unsupported query type');
     }
 });
 
+
+bot.on('document', async (ctx) => {
+    if (!ctx.chat) return;
+    const chatId = ctx.chat.id;
+    const state = userStates.get(chatId);
+    
+    if (!state) {
+        await ctx.reply('Пожалуйста, начните с команды /start');
+        return;
+    }
+
+    const document = ctx.message.document;
+    if (document && document.file_id) {
+        const fileName = document.file_name || `file_${Date.now()}`;
+        await state.ui.handleUserFile(document.file_id, fileName, false);
+    }
+});
+
+
+bot.on('photo', async (ctx) => {
+    if (!ctx.chat) return;
+    const chatId = ctx.chat.id;
+    const state = userStates.get(chatId);
+    
+    if (!state) {
+        await ctx.reply('Пожалуйста, начните с команды /start');
+        return;
+    }
+
+    const photos = ctx.message.photo;
+    if (photos && photos.length > 0) {
+        
+        const largestPhoto = photos[photos.length - ];
+        if (largestPhoto && largestPhoto.file_id) {
+            const fileName = `photo_${Date.now()}.jpg`;
+            await state.ui.handleUserFile(largestPhoto.file_id, fileName, true);
+        }
+    }
+});
 
 bot.launch();
 console.log('Telegram bot started...');

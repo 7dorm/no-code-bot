@@ -1,6 +1,6 @@
-// This file is kept in backend for compatibility, but the actual implementation
-// should be in the client since it depends on client types.
-// This is a placeholder that exports the EngineNode interface.
+
+
+
 
 export interface EngineNode {
   id: string;

@@ -1,6 +1,6 @@
 import { BlockNode, BlockExecutionResult, ExecutionContext, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData } from '../types';
 
-// Функция выполнения блока по типу
+
 export function executeBlock(
   block: BlockNode,
   context: ExecutionContext,
@@ -29,7 +29,7 @@ export function executeBlock(
   }
 }
 
-// START блок - точка входа, просто перенаправляет к следующему блоку
+
 function executeStart(
   block: BlockNode,
   context: ExecutionContext,
@@ -44,7 +44,7 @@ function executeStart(
   };
 }
 
-// MESSAGE блок - отправка сообщения пользователю
+
 function executeMessage(
   block: BlockNode,
   context: ExecutionContext,
@@ -53,11 +53,11 @@ function executeMessage(
   const messageData = block.data as MessageBlockData;
   const message = messageData.text || block.data.label || 'Сообщение без текста';
 
-  // Заменяем переменные в сообщении
+  
   const processedMessage = replaceVariables(message, context.variables, context.globalConstants);
 
-  // Если указана переменная для сохранения ответа, она будет сохранена в Preview компоненте
-  // после получения ответа пользователя
+  
+  
 
   const nextConnection = connections.find(c => c.source === block.id);
 
@@ -65,12 +65,12 @@ function executeMessage(
     success: true,
     nextNodeId: nextConnection?.target || null,
     output: processedMessage,
-    // Сохраняем информацию о том, нужно ли сохранять ответ пользователя
+    
     saveResponseToVariable: messageData.saveResponseToVariable,
   };
 }
 
-// CONDITION блок - проверка нескольких условий и ветвление
+
 function executeCondition(
   block: BlockNode,
   context: ExecutionContext,
@@ -87,13 +87,13 @@ function executeCondition(
     };
   }
 
-  // Проверяем каждое условие по порядку
+  
   for (let i = 0; i < conditions.length; i++) {
     const condition = conditions[i];
     const result = evaluateCondition(condition.condition, context);
     
     if (result) {
-      // Находим соединение для этого условия
+      
       const targetConnection = connections.find(
         c => c.source === block.id && c.sourceHandle === `output-${i}`
       );
@@ -101,12 +101,12 @@ function executeCondition(
       return {
         success: true,
         nextNodeId: targetConnection?.target || null,
-        output: `Condition ${i + 1}: TRUE`,
+        output: `Condition ${i + }: TRUE`,
       };
     }
   }
 
-  // Если ни одно условие не выполнилось, проверяем дефолтную ветку
+  
   if (hasDefault) {
     const defaultConnection = connections.find(
       c => c.source === block.id && c.sourceHandle === 'output-default'
@@ -126,7 +126,7 @@ function executeCondition(
   };
 }
 
-// Функция для оценки условия
+
 function evaluateCondition(condition: string, context: ExecutionContext): boolean {
   const userInput = context.userInput || '';
   const normalized = condition.replace(/\buserInput\b/g, userInput);
@@ -194,7 +194,7 @@ function evaluateBasicCondition(condition: string, context: ExecutionContext): b
   }
 }
 
-// VARIABLE блок - работа с переменными
+
 function executeVariable(
   block: BlockNode,
   context: ExecutionContext,
@@ -204,10 +204,10 @@ function executeVariable(
   const variableName = variableData.variableName || 'var';
   const value = variableData.value || '';
 
-  // Заменяем переменные в значении
+  
   const processedValue = replaceVariables(value, context.variables, context.globalConstants);
 
-  // Обновляем контекст
+  
   context.variables[variableName] = processedValue;
 
   const nextConnection = connections.find(c => c.source === block.id);
@@ -219,7 +219,7 @@ function executeVariable(
   };
 }
 
-// API блок - вызов внешнего API (имитация)
+
 function executeAPI(
   block: BlockNode,
   context: ExecutionContext,
@@ -230,12 +230,12 @@ function executeAPI(
   const method = apiData.method || 'GET';
   const processedUrl = replaceVariables(url, context.variables, context.globalConstants);
 
-  // Имитация ответа API с простым определением статуса
+  
   const isBadStatus = !processedUrl || processedUrl.toLowerCase().includes('error');
-  const status = isBadStatus ? 500 : 200;
+  const status = isBadStatus ? 00 : 00;
   const body = isBadStatus ? { error: 'Bad status' } : { ok: true, url: processedUrl };
 
-  // Для GET сохраняем ответ в переменную, если указано
+  
   if (!isBadStatus && method === 'GET' && apiData.responseVariable) {
     context.variables[apiData.responseVariable] = body;
   }
@@ -251,7 +251,7 @@ function executeAPI(
   };
 }
 
-// FILE блок - обработка файлов (имитация)
+
 function executeFile(
   block: BlockNode,
   context: ExecutionContext,
@@ -273,7 +273,7 @@ function executeFile(
   };
 }
 
-// SCRIPT блок - выполнение JavaScript кода
+
 function executeScript(
   block: BlockNode,
   context: ExecutionContext,
@@ -292,11 +292,11 @@ function executeScript(
   }
 
   try {
-    // Создаем безопасный контекст для выполнения скрипта
+    
     const scriptContext = {
       variables: context.variables,
       globalConstants: context.globalConstants,
-      // Предоставляем функции для работы с переменными
+      
       setVariable: (name: string, value: any) => {
         context.variables[name] = value;
       },
@@ -306,7 +306,7 @@ function executeScript(
       },
     };
 
-    // Выполняем скрипт в изолированном контексте
+    
     const scriptFunction = new Function(
       'variables',
       'globalConstants',
@@ -321,7 +321,7 @@ function executeScript(
       `
     );
 
-    // Выполняем скрипт
+    
     const result = scriptFunction.call(
       scriptContext,
       context.variables,
@@ -330,7 +330,7 @@ function executeScript(
       scriptContext.getVariable
     );
 
-    // Если указана переменная для результата и скрипт вернул значение
+    
     if (scriptData.returnVariable && result !== undefined) {
       context.variables[scriptData.returnVariable] = result;
     }
@@ -346,7 +346,7 @@ function executeScript(
     const errorMessage = error.message || String(error);
     const nextConnection = connections.find(c => c.source === block.id);
 
-    // В случае ошибки сохраняем информацию об ошибке в переменную
+    
     if (scriptData.returnVariable) {
       context.variables[scriptData.returnVariable] = { 
         error: errorMessage,
@@ -362,11 +362,11 @@ function executeScript(
   }
 }
 
-// Вспомогательные функции
+
 
 function replaceVariables(text: string, variables: Record<string, any>, globalConstants?: Record<string, any>): string {
   return text.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
-    // Сначала проверяем переменные, затем глобальные константы
+    
     if (variables[varName] !== undefined) {
       return String(variables[varName]);
     }
@@ -378,24 +378,24 @@ function replaceVariables(text: string, variables: Record<string, any>, globalCo
 }
 
 function getVariableValue(varRef: string, context: ExecutionContext): any {
-  // Если это ссылка на переменную
+  
   if (context.variables[varRef] !== undefined) {
     return context.variables[varRef];
   }
-  // Проверяем глобальные константы
+  
   if (context.globalConstants && context.globalConstants[varRef] !== undefined) {
     return context.globalConstants[varRef];
   }
-  // Если это строка в кавычках
+  
   if ((varRef.startsWith('"') && varRef.endsWith('"')) ||
       (varRef.startsWith("'") && varRef.endsWith("'"))) {
-    return varRef.slice(1, -1);
+    return varRef.slice(, -);
   }
-  // Попытка преобразовать в число
+  
   const num = Number(varRef);
   if (!isNaN(num)) {
     return num;
   }
-  // Возвращаем как есть
+  
   return varRef;
 }

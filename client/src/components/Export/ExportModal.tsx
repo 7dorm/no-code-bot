@@ -22,22 +22,22 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
     if (!currentProject) return;
 
     if (exportType === 'messenger') {
-      // Экспорт для мессенджера
+      
       try {
         const { files } = createTelegramExport(currentProject);
 
-        // Создаем ZIP архив
+        
         const zip = new JSZip();
 
-        // Добавляем все файлы в архив
+        
         files.forEach(file => {
           zip.file(file.name, file.content);
         });
 
-        // Генерируем ZIP файл
+        
         const zipBlob = await zip.generateAsync({ type: 'blob' });
 
-        // Скачиваем ZIP архив
+        
         const zipUrl = URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
         a.href = zipUrl;
@@ -51,22 +51,22 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
         alert('Ошибка экспорта кода. Проверьте настройки токена в проекте.');
       }
     } else if (exportType === 'webpage') {
-      // Экспорт веб-страницы
+      
       try {
         const { files } = createWebExport(currentProject);
 
-        // Создаем ZIP архив
+        
         const zip = new JSZip();
 
-        // Добавляем все файлы в архив
+        
         files.forEach(file => {
           zip.file(file.name, file.content);
         });
 
-        // Генерируем ZIP файл
+        
         const zipBlob = await zip.generateAsync({ type: 'blob' });
 
-        // Скачиваем ZIP архив
+        
         const zipUrl = URL.createObjectURL(zipBlob);
         const a = document.createElement('a');
         a.href = zipUrl;
@@ -80,8 +80,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
         alert('Ошибка экспорта веб-приложения.');
       }
     } else {
-      // Экспорт Node.js проекта
-      const json = JSON.stringify(adaptProjectToEngine(currentProject), null, 2);
+      
+      const json = JSON.stringify(adaptProjectToEngine(currentProject), null, );
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -97,7 +97,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
     <div className="export-overlay" onClick={onClose}>
       <div className="export-modal" onClick={e => e.stopPropagation()}>
         <div className="export-header">
-          <h2>📦 Экспорт проекта</h2>
+          <h>📦 Экспорт проекта</h>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
 

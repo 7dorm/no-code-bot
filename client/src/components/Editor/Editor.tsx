@@ -49,7 +49,7 @@ const EditorInner: React.FC = () => {
 
   const onNodeDrag = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      // Обновляем позицию без сохранения в историю (только для визуального отображения)
+      
       updateBlock(node.id, { position: node.position }, false);
     },
     [updateBlock]
@@ -57,7 +57,7 @@ const EditorInner: React.FC = () => {
 
   const onNodeDragStop = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      // Сохраняем финальную позицию в историю только при завершении перетаскивания
+      
       updateBlock(node.id, { position: node.position }, true);
     },
     [updateBlock]
@@ -137,7 +137,7 @@ const EditorInner: React.FC = () => {
           fitView
           attributionPosition="bottom-left"
         >
-          <Background color="#aaa" gap={16} />
+          <Background color="#aaa" gap={6} />
           <Controls />
           <MiniMap />
         </ReactFlow>

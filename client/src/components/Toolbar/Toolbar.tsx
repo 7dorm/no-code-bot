@@ -21,7 +21,7 @@ const Toolbar: React.FC = () => {
   const [editName, setEditName] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Эффект для фокуса на поле ввода
+  
   useEffect(() => {
     if (isEditingName && inputRef.current) {
       inputRef.current.focus();
@@ -29,7 +29,7 @@ const Toolbar: React.FC = () => {
     }
   }, [isEditingName]);
 
-  // Обновляем editName когда меняется currentProject
+  
   useEffect(() => {
     if (currentProject?.name) {
       setEditName(currentProject.name);
@@ -140,10 +140,10 @@ const Toolbar: React.FC = () => {
           ↷ Вернуть
         </button>
         <button className="toolbar-btn" onClick={toggleSettings}>
-          ⚙️ Настройки
+           Настройки
         </button>
         <button className="toolbar-btn preview-btn" onClick={togglePreview}>
-          👁️ Предпросмотр
+           Предпросмотр
         </button>
         <button className="toolbar-btn" onClick={() => setIsExportModalOpen(true)}>
           📦 Экспорт

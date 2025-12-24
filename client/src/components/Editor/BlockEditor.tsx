@@ -6,11 +6,11 @@ const BlockEditor: React.FC = () => {
   const { selectedNodeId } = useEditorStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Открываем модальное окно при выборе блока
+  
   React.useEffect(() => {
     if (selectedNodeId && !isModalOpen) {
-      // Можно добавить здесь логику для автоматического открытия
-      // setIsModalOpen(true);
+      
+      
     }
   }, [selectedNodeId]);
 

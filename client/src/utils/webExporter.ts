@@ -16,11 +16,60 @@ function generateGlobalConstants(constants: Record<string, any>): string {
   return out;
 }
 
-// Генерация кода Engine для веб-версии
+function convertEngineTsToJs(engineCode: string): string {
+  // Удаляем импорты
+  engineCode = engineCode.replace(/^import\s+.*?from\s+['"].*?['"];?\s*$/gm, '');
+  
+  // Удаляем declare global
+  engineCode = engineCode.replace(/declare\s+global\s*\{[^}]*\}/gs, '');
+  
+  // Удаляем export interface
+  engineCode = engineCode.replace(/export\s+interface\s+\w+\s*\{[^}]*\}/gs, '');
+  
+  // Удаляем export из class
+  engineCode = engineCode.replace(/export\s+class\s+/g, 'class ');
+  
+  // Удаляем типы TypeScript из параметров функций
+  engineCode = engineCode.replace(/:\s*string\s*/g, ' ');
+  engineCode = engineCode.replace(/:\s*Record<string,\s*any>\s*/g, ' ');
+  engineCode = engineCode.replace(/:\s*any\s*/g, ' ');
+  engineCode = engineCode.replace(/:\s*number\s*/g, ' ');
+  engineCode = engineCode.replace(/:\s*boolean\s*/g, ' ');
+  engineCode = engineCode.replace(/:\s*Promise<void>\s*/g, '');
+  engineCode = engineCode.replace(/:\s*Promise<string>\s*/g, '');
+  engineCode = engineCode.replace(/:\s*string\s*\[\]\s*/g, '');
+  engineCode = engineCode.replace(/:\s*'[^']*'\s*/g, '');
+  engineCode = engineCode.replace(/:\s*"[^"]*"\s*/g, '');
+  engineCode = engineCode.replace(/:\s*\{\s*[^}]*\s*\}\s*/g, '');
+  engineCode = engineCode.replace(/:\s*\[\s*[^\]]*\s*\]\s*/g, '');
+  
+  // Удаляем private/public модификаторы
+  engineCode = engineCode.replace(/\b(private|public|protected)\s+/g, '');
+  
+  // Удаляем типы из переменных
+  engineCode = engineCode.replace(/:\s*string\s*\|?\s*null\s*/g, '');
+  engineCode = engineCode.replace(/:\s*number\s*/g, '');
+  engineCode = engineCode.replace(/:\s*boolean\s*/g, '');
+  engineCode = engineCode.replace(/:\s*Record<string,\s*any>\s*/g, '');
+  engineCode = engineCode.replace(/:\s*any\s*/g, '');
+  
+  // Удаляем необязательные параметры с типами
+  engineCode = engineCode.replace(/\?\s*:\s*[^,)]+/g, '');
+  
+  // Удаляем this.index! (non-null assertion)
+  engineCode = engineCode.replace(/this\.index!/g, 'this.index');
+  
+  // Очищаем пустые строки
+  engineCode = engineCode.replace(/\n\s*\n\s*\n/g, '\n\n');
+  
+  return engineCode.trim();
+}
+
+
 function generateWebEngineCode(): string {
   return `
-// ===== ENGINE CODE FOR WEB =====
-// Этот код скопирован из движка No-Code Bot
+
+
 
 class UI {
   async sendMessage(message, answers = []) {}
@@ -54,7 +103,7 @@ class WebUI extends UI {
       messageDiv.appendChild(bubble);
 
       if (answers && answers.length > 0) {
-        // Скрываем текстовое поле ввода, если есть кнопки выбора
+        
         this.hideTextInput();
 
         const buttonsDiv = document.createElement('div');
@@ -65,7 +114,7 @@ class WebUI extends UI {
           button.className = 'quick-reply-btn';
           button.textContent = answer;
           button.onclick = () => {
-            // Добавляем выбор пользователя в чат
+            
             const userMessageDiv = document.createElement('div');
             userMessageDiv.className = 'message user-message';
 
@@ -76,13 +125,13 @@ class WebUI extends UI {
             userMessageDiv.appendChild(userBubble);
             this.chatContainer.appendChild(userMessageDiv);
 
-            // Прокручиваем вниз
+            
             this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
 
-            // Убираем кнопки
+            
             buttonsDiv.remove();
 
-            // Разрешаем промис
+            
             if (this.inputResolver) {
               this.inputResolver(answer);
               this.inputResolver = null;
@@ -105,40 +154,40 @@ class WebUI extends UI {
     return new Promise((resolve) => {
       this.inputResolver = resolve;
 
-      // Показываем поле ввода текста
+      
       this.showTextInput();
     });
   }
 
   showTextInput() {
-    // Убираем существующее поле ввода, если есть
+    
     const existingInput = document.querySelector('.text-input-area');
     if (existingInput) {
       existingInput.remove();
     }
 
-    // Создаем контейнер для ввода
+    
     const inputContainer = document.createElement('div');
     inputContainer.className = 'text-input-area';
 
-    // Создаем поле ввода
+    
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'text-input';
-    input.placeholder = 'Введите сообщение...';
-    input.maxLength = 1000;
+      input.placeholder = 'Введите сообщение...';
+      input.maxLength = 1000;
 
-    // Создаем кнопку отправки
+    
     const sendButton = document.createElement('button');
     sendButton.className = 'send-btn';
-    sendButton.innerHTML = '📤';
+    sendButton.innerHTML = '➤';
     sendButton.title = 'Отправить';
 
-    // Обработчик ввода
+    
     const handleSend = () => {
       const text = input.value.trim();
       if (text) {
-        // Добавляем сообщение пользователя в чат
+        
         const userMessageDiv = document.createElement('div');
         userMessageDiv.className = 'message user-message';
 
@@ -149,13 +198,13 @@ class WebUI extends UI {
         userMessageDiv.appendChild(userBubble);
         this.chatContainer.appendChild(userMessageDiv);
 
-        // Прокручиваем вниз
+        
         this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
 
-        // Очищаем и скрываем поле ввода
+        
         inputContainer.remove();
 
-        // Разрешаем промис
+        
         if (this.inputResolver) {
           this.inputResolver(text);
           this.inputResolver = null;
@@ -163,7 +212,7 @@ class WebUI extends UI {
       }
     };
 
-    // Обработчики событий
+    
     sendButton.onclick = handleSend;
     input.onkeypress = (e) => {
       if (e.key === 'Enter') {
@@ -171,15 +220,15 @@ class WebUI extends UI {
       }
     };
 
-    // Добавляем элементы в контейнер
+    
     inputContainer.appendChild(input);
     inputContainer.appendChild(sendButton);
 
-    // Добавляем в чат-контейнер
+    
     const chatContainer = this.chatContainer.parentElement;
     chatContainer.appendChild(inputContainer);
 
-    // Фокус на поле ввода
+    
     setTimeout(() => input.focus(), 100);
   }
 
@@ -192,15 +241,15 @@ class WebUI extends UI {
 
   finish() {
     this.stop = true;
-    // Скрываем поле ввода
+    
     this.hideTextInput();
-    // Показываем сообщение о завершении
+    
     const finishDiv = document.createElement('div');
     finishDiv.className = 'message bot-message';
 
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
-    bubble.innerHTML = '👋 <strong>Диалог завершен!</strong><br><button onclick="restartBot()" class="restart-btn">🔄 Начать заново</button>';
+    bubble.innerHTML = ' <strong>Диалог завершен!</strong><br><button onclick="restartBot()" class="restart-btn"> Начать заново</button>';
 
     finishDiv.appendChild(bubble);
     this.chatContainer.appendChild(finishDiv);
@@ -213,7 +262,7 @@ class WebUI extends UI {
 
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
-    bubble.innerHTML = \`📎 Файл: <code>\${path}</code>\`;
+    bubble.innerHTML = \` Файл: <code>\${path}</code>\`;
 
     messageDiv.appendChild(bubble);
     this.chatContainer.appendChild(messageDiv);
@@ -226,28 +275,28 @@ class WebUI extends UI {
 
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
-    bubble.innerHTML = \`📎 Пожалуйста, загрузите файл: <strong>\${name}</strong>\`;
+    bubble.innerHTML = \` Пожалуйста, загрузите файл: <strong>\${name}</strong>\`;
 
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
-    fileInput.style.marginTop = '10px';
+    fileInput.style.marginTop = '0px';
 
     fileInput.onchange = (e) => {
       const file = e.target.files[0];
       if (file) {
-        // Добавляем сообщение о загрузке файла
+        
         const userMessageDiv = document.createElement('div');
         userMessageDiv.className = 'message user-message';
 
         const userBubble = document.createElement('div');
         userBubble.className = 'message-bubble';
-        userBubble.textContent = \`📎 Файл загружен: \${file.name}\`;
+        userBubble.textContent = \` Файл загружен: \${file.name}\`;
 
         userMessageDiv.appendChild(userBubble);
         this.chatContainer.appendChild(userMessageDiv);
         this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
 
-        // Разрешаем промис с именем файла
+        
         if (this.fileResolver) {
           const uniqueName = \`\${file.name}_\${Date.now()}\`;
           this.fileResolver(uniqueName);
@@ -274,7 +323,7 @@ class WebUI extends UI {
   }
 
   deleteFile(path) {
-    // Удаление файла
+    
   }
 
   isDone() {
@@ -461,12 +510,14 @@ class Engine {
     this.lastExecutedBlock = null;
     this.consecutiveEmptyAnswers = 0;
     this.lastEmptyAnswersBlock = null;
+    this.maxExecutionCount = 0;
 
     botStructure.forEach((ele) => {
       this.nodeStructure[ele.id] = ele;
       if (ele.Type === 'start' && !this.index) {
         this.index = ele.id;
       }
+      this.maxExecutionCount += 1;
     });
 
     Object.assign(this.variables, globalConstants);
@@ -495,7 +546,7 @@ class Engine {
 
       this.executionCount[this.index] = (this.executionCount[this.index] || 0) + 1;
 
-      if (this.executionCount[this.index] > 50) {
+      if (this.executionCount[this.index] > this.maxExecutionCount) {
         this.ui.finish();
         this.isFinished = true;
         return;
@@ -520,7 +571,7 @@ class Engine {
 
       switch (this.saveType) {
         case "int":
-          this.variables[this.saveName] = parseInt(userInput, 10);
+          this.variables[this.saveName] = parseInt(userInput, 0);
           break;
         default:
           this.variables[this.saveName] = userInput;
@@ -533,6 +584,8 @@ class Engine {
 
     switch (block.Type) {
       case "output":
+        const outputBlockId = this.index;
+        const outputExecutionId = \`exec_\${Date.now()}_\${Math.random().toString(6).substr(1, 9)}\`;
         await this.executeMessage();
         break;
       case "condition":
@@ -620,8 +673,8 @@ class Engine {
 
         if (isEmpty && this.lastEmptyAnswersBlock === this.index) {
           this.consecutiveEmptyAnswers++;
-          if (this.consecutiveEmptyAnswers >= 3) {
-            await this.ui.sendMessage('⚠️ Произошла ошибка: нет доступных вариантов для выбора. Пожалуйста, попробуйте позже.', []);
+          if (this.consecutiveEmptyAnswers >= 1) {
+            await this.ui.sendMessage(' Произошла ошибка: нет доступных вариантов для выбора. Пожалуйста, попробуйте позже.', []);
             this.ui.finish();
             this.isFinished = true;
             return;
@@ -682,7 +735,7 @@ class Engine {
     if (messageToSend !== '') {
       await this.ui.sendMessage(messageToSend, []);
     } else {
-      // Пустое сообщение пропускается
+      
     }
 
     if (block.VarName != null) {
@@ -700,7 +753,7 @@ class Engine {
         this.variables['userInput'] = userInput;
         switch (this.saveType) {
           case "int":
-            this.variables[this.saveName] = parseInt(userInput, 10);
+            this.variables[this.saveName] = parseInt(userInput, 0);
             break;
           default:
             this.variables[this.saveName] = userInput;
@@ -964,7 +1017,7 @@ class Engine {
           const bodyObj = JSON.parse(body);
           body = JSON.stringify(bodyObj);
         } catch (e) {
-          // Body не является JSON, оставляем как есть
+          
         }
       }
 
@@ -1007,7 +1060,7 @@ class Engine {
             const nodeFetch = require('node-fetch');
             fetchFn = nodeFetch.default || nodeFetch;
           } catch (e) {
-            throw new Error('fetch is not available. Please install node-fetch (npm install node-fetch) or use Node.js 18+');
+            throw new Error('fetch is not available. Please install node-fetch (npm install node-fetch) or use Node.js 8+');
           }
         }
       }
@@ -1018,7 +1071,7 @@ class Engine {
       } catch (fetchError) {
         const errorMessage = fetchError.message || String(fetchError);
         if (errorMessage.includes('CORS') || errorMessage.includes('access control')) {
-          const isLocalhost = url.includes('localhost') || url.includes('127.0.0.1');
+          const isLocalhost = url.includes('localhost') || url.includes('7.0.0.');
           const errorMsg = isLocalhost
             ? \`CORS error: The API server at \${url} does not allow requests from this origin. This is a browser security restriction. Please configure CORS on the server (add Access-Control-Allow-Origin header) or use an external API endpoint.\`
             : \`CORS error: The API server at \${url} does not allow requests from this origin. Please configure CORS on the server or contact the API provider.\`;
@@ -1067,7 +1120,7 @@ class Engine {
             this.variables[answersVarName] = answersArray.map(item => String(item));
           }
         } catch (error) {
-          // Не удалось извлечь массив ответов
+          
         }
       }
 
@@ -1215,15 +1268,17 @@ class Engine {
     this.saveNext = false;
     this.executionCount = {};
     this.lastExecutedBlock = null;
+    this.consecutiveEmptyAnswers = 0;
+    this.lastEmptyAnswersBlock = null;
   }
 }
 
-// ===== END ENGINE CODE =====
+
 `}
 
-// Экспорт проекта в веб-приложение
+
 export function exportToWeb(project: Project): WebAppCode {
-  // Конвертируем проект в формат Engine
+  
   const engineNodes = adaptProjectToEngine(project);
   const projectJson = JSON.stringify(engineNodes, null, 2);
 
@@ -1236,7 +1291,6 @@ export function exportToWeb(project: Project): WebAppCode {
     <style>
 `;
   const globals = project.globalConstants ? generateGlobalConstants(project.globalConstants) + '\n' : '';
-  const engineCode = generateWebEngineCode();
 
   const htmlContent = `
     </style>
@@ -1244,14 +1298,14 @@ export function exportToWeb(project: Project): WebAppCode {
 <body>
     <div class="chatbot-container">
         <div class="chatbot-header">
-            <h2>🤖 ${project.name}</h2>
+            <h1> ${project.name}</h1>
             <p>Создано в No-Code Bot</p>
         </div>
 
         <div class="chat-messages" id="chatMessages">
             <div class="message bot-message">
                 <div class="message-bubble">
-                    👋 Привет! Нажмите "Начать чат" для начала разговора.
+                     Привет! Нажмите "Начать чат" для начала разговора.
                 </div>
             </div>
         </div>
@@ -1261,18 +1315,16 @@ export function exportToWeb(project: Project): WebAppCode {
         </div>
     </div>
 
+    <script src="Engine.js"></script>
     <script>
-        // ===== GLOBAL CONSTANTS =====
+        
         ${globals}
 
-        // ===== BOT STRUCTURE =====
+        
         const BOT_STRUCTURE = ${projectJson};
         const GLOBAL_CONSTANTS = ${JSON.stringify(project.globalConstants || {})};
 
-        // ===== ENGINE CODE =====
-        ${engineCode}
-
-        // ===== WEB APP LOGIC =====
+        
         let currentEngine = null;
         let currentUI = null;
 
@@ -1280,33 +1332,33 @@ export function exportToWeb(project: Project): WebAppCode {
         const startButton = document.getElementById('startButton');
 
         function restartBot() {
-            // Очищаем чат, оставляя только приветственное сообщение
+            
             chatMessages.innerHTML = \`
                 <div class="message bot-message">
                     <div class="message-bubble">
-                        👋 Привет! Нажмите "Начать чат" для начала разговора.
+                         Привет! Нажмите "Начать чат" для начала разговора.
                     </div>
                 </div>
             \`;
 
-            // Показываем кнопку старта
+            
             startButton.style.display = 'block';
 
-            // Сбрасываем движок
+            
             currentEngine = null;
             currentUI = null;
         }
 
         async function startBot() {
             try {
-                // Скрываем кнопку старта
+                
                 startButton.style.display = 'none';
 
-                // Создаем UI и Engine
+                
                 currentUI = new WebUI(chatMessages);
                 currentEngine = new Engine(currentUI, BOT_STRUCTURE, GLOBAL_CONSTANTS);
 
-                // Запускаем бота
+                
                 await currentEngine.execute(true);
 
             } catch (error) {
@@ -1314,7 +1366,7 @@ export function exportToWeb(project: Project): WebAppCode {
                 errorDiv.className = 'message bot-message';
                 errorDiv.innerHTML = \`
                     <div class="message-bubble">
-                        ⚠️ Произошла ошибка: \${error.message}
+                         Произошла ошибка: \${error.message}
                     </div>
                 \`;
                 chatMessages.appendChild(errorDiv);
@@ -1322,19 +1374,19 @@ export function exportToWeb(project: Project): WebAppCode {
             }
         }
 
-        // Обработчик нажатия кнопки старта
+        
         startButton.addEventListener('click', startBot);
 
-        // Функция для перезапуска (экспортируется глобально)
+        
         window.restartBot = restartBot;
 
 
-        // ===== END WEB APP LOGIC =====
+        
     </script>
 </body>
 </html>`;
 
-  // Создаем CSS для веб-приложения
+  
   const cssContent = `
         * {
             margin: 0;
@@ -1354,7 +1406,7 @@ export function exportToWeb(project: Project): WebAppCode {
 
         .chatbot-container {
             background: white;
-            border-radius: 20px;
+            border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             width: 100%;
             max-width: 500px;
@@ -1371,8 +1423,8 @@ export function exportToWeb(project: Project): WebAppCode {
             text-align: center;
         }
 
-        .chatbot-header h2 {
-            margin-bottom: 5px;
+        .chatbot-header h1 {
+            margin-bottom: 8px;
             font-size: 24px;
         }
 
@@ -1387,42 +1439,42 @@ export function exportToWeb(project: Project): WebAppCode {
             padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
             background: #f8f9fa;
         }
 
         .message {
             display: flex;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
-        .message.user {
+        .user-message {
             justify-content: flex-end;
         }
 
-        .message.bot {
+        .bot-message {
             justify-content: flex-start;
         }
 
         .message-bubble {
             max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 18px;
+            padding: 10px 14px;
+            border-radius: 12px;
             font-size: 14px;
-            line-height: 1.4;
+            line-height: 1.5;
             word-wrap: break-word;
         }
 
-        .user .message-bubble {
+        .user-message .message-bubble {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border-bottom-right-radius: 5px;
+            border-bottom-right-radius: 4px;
         }
 
-        .bot .message-bubble {
+        .bot-message .message-bubble {
             background: white;
             color: #333;
-            border-bottom-left-radius: 5px;
+            border-bottom-left-radius: 4px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
@@ -1430,7 +1482,7 @@ export function exportToWeb(project: Project): WebAppCode {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-top: 12px;
+            margin-top: 10px;
         }
 
         .quick-reply-btn {
@@ -1446,7 +1498,7 @@ export function exportToWeb(project: Project): WebAppCode {
         }
 
         .quick-reply-btn:hover {
-            background: #5a67d8;
+            background: #5568d3;
             transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
@@ -1457,7 +1509,7 @@ export function exportToWeb(project: Project): WebAppCode {
         }
 
         .chat-input-area {
-            padding: 20px;
+            padding: 16px;
             border-top: 1px solid #e0e0e0;
             display: flex;
             justify-content: center;
@@ -1468,18 +1520,18 @@ export function exportToWeb(project: Project): WebAppCode {
             color: white;
             border: none;
             padding: 12px 24px;
-            border-radius: 25px;
+            border-radius: 24px;
             font-size: 16px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
         }
 
         .start-btn:hover {
             background: linear-gradient(135deg, #45a049 0%, #4caf50 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 12px rgba(76, 175, 80, 0.4);
         }
 
         .restart-btn {
@@ -1500,20 +1552,20 @@ export function exportToWeb(project: Project): WebAppCode {
         }
 
         .text-input-area {
-            padding: 20px;
+            padding: 16px;
             border-top: 1px solid #e0e0e0;
             display: flex;
-            gap: 10px;
+            gap: 8px;
             align-items: center;
             background: #f8f9fa;
         }
 
         .text-input {
             flex: 1;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 25px;
-            font-size: 16px;
+            padding: 10px 14px;
+            border: 1px solid #e0e0e0;
+            border-radius: 24px;
+            font-size: 14px;
             outline: none;
             transition: border-color 0.2s ease;
         }
@@ -1526,8 +1578,8 @@ export function exportToWeb(project: Project): WebAppCode {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
@@ -1535,20 +1587,20 @@ export function exportToWeb(project: Project): WebAppCode {
             justify-content: center;
             font-size: 18px;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
         }
 
         .send-btn:hover {
-            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+            background: linear-gradient(135deg, #5568d3 0%, #6b5b95 100%);
             transform: scale(1.05);
-            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
         }
 
         .send-btn:active {
-            transform: scale(0.95);
+            transform: scale(0.9);
         }
 
-        /* Responsive */
+        
         @media (max-width: 600px) {
             .chatbot-container {
                 height: 80vh;
@@ -1560,35 +1612,35 @@ export function exportToWeb(project: Project): WebAppCode {
             }
 
             .text-input-area {
-                padding: 15px;
+                padding: 12px;
                 gap: 8px;
             }
 
             .text-input {
-                padding: 10px 14px;
-                font-size: 16px; /* Предотвращает зум на iOS */
+                padding: 8px 12px;
+                font-size: 14px; 
             }
 
             .send-btn {
-                width: 44px;
-                height: 44px;
+                width: 36px;
+                height: 36px;
                 font-size: 16px;
             }
         }
 
-        /* Scrollbar styling */
+        
         .chat-messages::-webkit-scrollbar {
             width: 6px;
         }
 
         .chat-messages::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 3px;
+            background: #fff;
+            border-radius: 10px;
         }
 
         .chat-messages::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 3px;
+            background: #ccc;
+            border-radius: 10px;
         }
 
         .chat-messages::-webkit-scrollbar-thumb:hover {
@@ -1597,36 +1649,33 @@ export function exportToWeb(project: Project): WebAppCode {
 `;
 
   const jsContent = `
-        // ===== GLOBAL CONSTANTS =====
+        
         ${globals}
 
-        // ===== BOT STRUCTURE =====
+        
         const BOT_STRUCTURE = ${projectJson};
         const GLOBAL_CONSTANTS = ${JSON.stringify(project.globalConstants || {})};
 
-        // ===== ENGINE CODE =====
-        ${engineCode}
-
-        // ===== WEB APP LOGIC =====
+        
         let currentEngine = null;
         let currentUI = null;
 
         function restartBot() {
-            // Очищаем чат, оставляя только приветственное сообщение
+            
             const chatMessages = document.getElementById('chatMessages');
             chatMessages.innerHTML = \`
                 <div class="message bot-message">
                     <div class="message-bubble">
-                        👋 Привет! Нажмите "Начать чат" для начала разговора.
+                         Привет! Нажмите "Начать чат" для начала разговора.
                     </div>
                 </div>
             \`;
 
-            // Показываем кнопку старта
+            
             const startButton = document.getElementById('startButton');
             startButton.style.display = 'block';
 
-            // Сбрасываем движок
+            
             currentEngine = null;
             currentUI = null;
         }
@@ -1636,14 +1685,14 @@ export function exportToWeb(project: Project): WebAppCode {
                 const chatMessages = document.getElementById('chatMessages');
                 const startButton = document.getElementById('startButton');
 
-                // Скрываем кнопку старта
+                
                 startButton.style.display = 'none';
 
-                // Создаем UI и Engine
+                
                 currentUI = new WebUI(chatMessages);
                 currentEngine = new Engine(currentUI, BOT_STRUCTURE, GLOBAL_CONSTANTS);
 
-                // Запускаем бота
+                
                 await currentEngine.execute(true);
 
             } catch (error) {
@@ -1652,7 +1701,7 @@ export function exportToWeb(project: Project): WebAppCode {
                 errorDiv.className = 'message bot-message';
                 errorDiv.innerHTML = \`
                     <div class="message-bubble">
-                        ⚠️ Произошла ошибка: \${error.message}
+                         Произошла ошибка: \${error.message}
                     </div>
                 \`;
                 chatMessages.appendChild(errorDiv);
@@ -1660,11 +1709,17 @@ export function exportToWeb(project: Project): WebAppCode {
             }
         }
 
-        // Функция для перезапуска (экспортируется глобально)
+        
         window.restartBot = restartBot;
+        window.startBot = startBot;
 
-
-        // ===== END WEB APP LOGIC =====
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const startButton = document.getElementById('startButton');
+            if (startButton) {
+                startButton.addEventListener('click', startBot);
+            }
+        });
 `;
 
   return {
@@ -1675,36 +1730,40 @@ export function exportToWeb(project: Project): WebAppCode {
   };
 }
 
-// Создание архива для веб-экспорта
+
 export function createWebExport(project: Project): { code: string; instructions: string; files: { name: string; content: string }[] } {
   const { html, css, js, projectJson } = exportToWeb(project);
+  
+  // Используем уже сгенерированный JavaScript код Engine
+  // Код Engine уже встроен в generateWebEngineCode() и готов к использованию
+  const engineJsContent = generateWebEngineCode();
 
   const instructions = `# 🚀 Инструкция по запуску веб-бота
 
 ## 📋 Описание
 Это автономное веб-приложение с чат-ботом, созданное из проекта "${project.name}" в No-Code Bot.
 
-## 🛠️ Запуск
+## 🛠 Запуск
 
 ### Вариант 1: Открыть в браузере
-1. **Распакуйте архив**
-2. **Откройте файл \`index.html\` в браузере**
-3. **Нажмите "🚀 Начать чат"**
+. **Распакуйте архив**
+. **Откройте файл \`index.html\` в браузере**
+. **Нажмите "🚀 Начать чат"**
 
 ### Вариант 2: Запустить локальный сервер
-1. **Установите Node.js** (если нет)
-2. **Установите http-server:**
+. **Установите Node.js** (если нет)
+. **Установите http-server:**
    \`\`\`bash
    npm install -g http-server
    \`\`\`
 
-3. **Запустите сервер:**
+. **Запустите сервер:**
    \`\`\`bash
    cd папка_с_архивом
    http-server -p 8080
    \`\`\`
 
-4. **Откройте в браузере:** \`http://localhost:8080\`
+. **Откройте в браузере:** \`http://localhost:8080\`
 
 ### Вариант 3: Разместить на хостинге
 Загрузите файлы на любой веб-хостинг:
@@ -1713,7 +1772,7 @@ export function createWebExport(project: Project): { code: string; instructions:
 - GitHub Pages
 - Хостинг-провайдер
 
-## ⚙️ Функциональность
+##  Функциональность
 
 ### Чат-интерфейс
 - **Красивый дизайн** с градиентами и анимациями
@@ -1766,11 +1825,11 @@ export function createWebExport(project: Project): { code: string; instructions:
 ## 📞 Поддержка
 
 Если возникли проблемы:
-1. Откройте консоль браузера (F12)
-2. Проверьте сообщения об ошибках
-3. Убедитесь, что все файлы в одной папке
+. Откройте консоль браузера (F)
+. Проверьте сообщения об ошибках
+. Убедитесь, что все файлы в одной папке
 
-Приятного использования! 🤖✨
+Приятного использования! 
 
 ---
 *Создано с помощью No-Code Bot*
@@ -1781,6 +1840,10 @@ export function createWebExport(project: Project): { code: string; instructions:
     {
       name: 'index.html',
       content: html
+    },
+    {
+      name: 'Engine.js',
+      content: engineJsContent
     },
     {
       name: 'app.js',

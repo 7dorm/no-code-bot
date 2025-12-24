@@ -5,8 +5,8 @@ export class WebUI implements UI {
   private fileResolver: ((value: string) => void) | null = null;
   private onMessageCallback: ((message: string, answers?: string[]) => void) | undefined = undefined;
   private onFinishCallback: (() => void) | undefined = undefined;
-  private onInputRequestedCallback: (() => void) | undefined = undefined; // Колбэк когда запрошен ввод
-  private onFileRequestedCallback: ((fileName: string) => void) | undefined = undefined; // Колбэк когда запрошен файл
+  private onInputRequestedCallback: (() => void) | undefined = undefined; 
+  private onFileRequestedCallback: ((fileName: string) => void) | undefined = undefined; 
 
   constructor(
     onMessage?: (message: string, answers?: string[]) => void, 
@@ -27,7 +27,7 @@ export class WebUI implements UI {
   }
 
   async getInput(): Promise<string> {
-    // Сообщаем, что запрошен ввод
+    
     if (this.onInputRequestedCallback) {
       this.onInputRequestedCallback();
     }
@@ -51,19 +51,19 @@ export class WebUI implements UI {
   }
 
   sendFile(path: string): void {
-    // Для WebUI отправка файла - это просто сообщение
+    
     if (this.onMessageCallback) {
-      this.onMessageCallback(`📎 Файл отправлен: ${path}`, []);
+      this.onMessageCallback(` Файл отправлен: ${path}`, []);
     }
   }
 
   async getFile(pathToSave: string, name: string): Promise<string> {
-    // Сообщаем, что запрошен файл
+    
     if (this.onFileRequestedCallback) {
       this.onFileRequestedCallback(name);
     }
     
-    // Ожидаем загрузку файла от пользователя
+    
     return new Promise((resolve) => {
       this.fileResolver = resolve;
     });
@@ -78,9 +78,13 @@ export class WebUI implements UI {
   }
 
   deleteFile(path: string): void {
-    // Для WebUI удаление файла - это просто сообщение
+    
     if (this.onMessageCallback) {
-      this.onMessageCallback(`🗑️ Файл удален: ${path}`, []);
+      this.onMessageCallback(` Файл удален: ${path}`, []);
     }
+  }
+
+  isWaitingForInput(): boolean {
+    return this.inputResolver !== null;
   }
 }
