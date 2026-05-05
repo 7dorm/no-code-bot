@@ -18,6 +18,16 @@ npm start
 
 ## API Endpoints
 
+### AI-блоки
+
+**POST** `/api/ai/complete`
+
+Mock endpoint для preview AI Router и AI Extractor. Если в настройках проекта указан этот endpoint, AI-блоки смогут получать структурированный результат через сервер. Сейчас endpoint использует локальные эвристики без внешнего LLM.
+
+Поддерживаемые режимы:
+- `router` - выбирает route из списка `routes`;
+- `extractor` - извлекает сущности из списка `entities`.
+
 ### Загрузка файлов
 
 **POST** `/api/upload?path=/patients/`
@@ -40,4 +50,3 @@ npm start
 ```
 
 Файлы сохраняются в папку проекта (или указанную подпапку) с уникальным именем.
-

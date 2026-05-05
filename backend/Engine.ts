@@ -1,14 +1,11 @@
 import { UI } from "./UI";
 
-
-declare global {
-  var fetch: typeof import('node-fetch').default | undefined;
-}
+declare const require: any;
 
 
 export interface EngineNode {
   id: string;
-  Type: 'output' | 'condition' | 'start' | 'variable' | 'FILE' | 'api' | 'skip' | 'script';
+  Type: 'output' | 'condition' | 'start' | 'variable' | 'FILE' | 'api' | 'skip' | 'script' | 'aiRouter' | 'aiExtractor';
   Text?: string;
   VarName?: string;
   VarType?: string;
@@ -39,6 +36,71 @@ export interface EngineNode {
   
   ScriptCode?: string; 
   ScriptReturnVariable?: string; 
+  AiSettings?: AiSettings;
+  AiInputVariable?: string;
+  AiInstruction?: string;
+  AiContextMode?: AiContextMode;
+  AiRoutes?: AiRoute[];
+  AiFallbackRoute?: string;
+  AiConfidenceThreshold?: number;
+  AiConfidenceVariable?: string;
+  AiReasonVariable?: string;
+  AiIntentVariable?: string;
+  AiEntities?: AiEntity[];
+  AiAskMissing?: boolean;
+  AiRawResultVariable?: string;
+}
+
+export type AiContextMode = 'none' | 'last_message' | 'last_n_messages';
+
+export interface AiSettings {
+  provider?: 'mock' | 'custom' | 'openai';
+  endpoint?: string;
+  model?: string;
+  systemPrompt?: string;
+  safetyPrompt?: string;
+  temperature?: number;
+  maxTokens?: number;
+  language?: string;
+  contextWindowMode?: AiContextMode;
+  confidenceThreshold?: number;
+}
+
+export interface AiRoute {
+  id: string;
+  title: string;
+  description?: string;
+  examples?: string[];
+}
+
+export type AiEntityType = 'string' | 'number' | 'phone' | 'email' | 'date' | 'time' | 'enum' | 'boolean';
+
+export interface AiEntity {
+  name: string;
+  variableName: string;
+  type: AiEntityType;
+  description?: string;
+  required?: boolean;
+  enumValues?: string[];
+  validationRegex?: string;
+  askPrompt?: string;
+}
+
+interface AiRouterResult {
+  route: string;
+  confidence: number;
+  reason?: string;
+}
+
+interface AiExtractedEntity {
+  value: any;
+  confidence: number;
+  found: boolean;
+}
+
+interface AiExtractorResult {
+  entities: Record<string, AiExtractedEntity>;
+  missing: string[];
 }
 
 
@@ -241,6 +303,7 @@ export class Engine {
   private consecutiveEmptyAnswers: number = 0; 
   private lastEmptyAnswersBlock: string | null = null; 
   private maxExecutionCount: number = 0;
+  private dialogHistory: Array<{ role: 'bot' | 'user'; content: string }> = [];
 
   constructor(ui: UI, botStructure: EngineNode[], globalConstants?: Record<string, any>) {
     botStructure.forEach((ele: EngineNode) => {
@@ -315,6 +378,7 @@ export class Engine {
       userInput = await this.ui.getInput();
       this.variables['lastMessage'] = userInput;
       this.variables['userInput'] = userInput;
+      this.recordUserMessage(userInput);
 
       switch (this.saveType) {
         case "int":
@@ -332,8 +396,6 @@ export class Engine {
     
     switch (block.Type) {
       case "output":
-        const outputBlockId = this.index;
-        const outputExecutionId = `exec_${Date.now()}_${Math.random().toString(6).substr(1, 9)}`;
         await this.executeMessage();
         
         
@@ -344,6 +406,7 @@ export class Engine {
           userInput = await this.ui.getInput();
           this.variables['lastMessage'] = userInput;
           this.variables['userInput'] = userInput;
+          this.recordUserMessage(userInput);
         } else {
           userInput = this.variables['lastMessage'] || '';
           this.skipInput = false;
@@ -367,6 +430,12 @@ export class Engine {
         break;
       case "script":
         await this.executeScript();
+        break;
+      case "aiRouter":
+        await this.executeAiRouter();
+        break;
+      case "aiExtractor":
+        await this.executeAiExtractor();
         break;
       default:
         break;
@@ -478,8 +547,8 @@ export class Engine {
     if (answers && answers.length > 0) {
       
       const messageToSend = processedText.trim() !== '' ? processedText : 'Выберите вариант:';
-      const messageId = `${this.index}_${Date.now()}_${Math.random().toString(6).substr(1, 9)}`;
       await this.ui.sendMessage(messageToSend, answers);
+      this.recordBotMessage(messageToSend);
       const userAnswer = await this.ui.getInput();
       const answerIndex = answers.indexOf(userAnswer);
       
@@ -494,11 +563,11 @@ export class Engine {
       
       this.variables['lastMessage'] = userAnswer;
       this.variables['userInput'] = userAnswer;
+      this.recordUserMessage(userAnswer);
       
       
       
       
-      const currentBlockId = this.index; 
       if (block.Nexts.length === 1) {
         const nextBlockId = block.Nexts[0];
         this.index = nextBlockId;
@@ -524,8 +593,8 @@ export class Engine {
                           (block.AnswersFromVariable ? 'Нет доступных вариантов для выбора.' : '');
     
     if (messageToSend !== '') {
-      const messageId = `${this.index}_${Date.now()}_${Math.random().toString(6).substr(1, 9)}`;
       await this.ui.sendMessage(messageToSend, []);
+      this.recordBotMessage(messageToSend);
     } else {
       
     }
@@ -548,6 +617,7 @@ export class Engine {
         const userInput = await this.ui.getInput();
         this.variables['lastMessage'] = userInput;
         this.variables['userInput'] = userInput;
+        this.recordUserMessage(userInput);
         switch (this.saveType) {
           case "int":
             this.variables[this.saveName] = parseInt(userInput, 0);
@@ -638,6 +708,7 @@ export class Engine {
         const userInput = await this.ui.getInput();
         this.variables['lastMessage'] = userInput;
         this.variables['userInput'] = userInput;
+        this.recordUserMessage(userInput);
         this.variables[block.SaveNextToVariable] = userInput;
         this.saveNext = false;
         this.saveName = "";
@@ -789,7 +860,6 @@ export class Engine {
     }
 
     const startTime = Date.now();
-    const timestamp = new Date().toISOString();
 
     try {
       
@@ -805,7 +875,7 @@ export class Engine {
       
       let url = block.ApiUrl;
       const urlVariables: Record<string, string> = {};
-      url = url.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
+      url = url.replace(/\{\{(\w+)\}\}/g, (_match, varName) => {
         const value = replaceVariable(varName);
         urlVariables[varName] = value;
         return value;
@@ -884,7 +954,7 @@ export class Engine {
       
       Object.keys(headers).forEach(key => {
         if (headers[key]) {
-          headers[key] = headers[key].replace(/\{\{(\w+)\}\}/g, (match, varName) => replaceVariable(varName));
+          headers[key] = headers[key].replace(/\{\{(\w+)\}\}/g, (_match, varName) => replaceVariable(varName));
         }
       });
 
@@ -946,7 +1016,6 @@ export class Engine {
       }
       
       
-      const duration = Date.now() - startTime;
       let responseData: any;
       const contentType = response.headers.get('content-type') || '';
       
@@ -1013,6 +1082,7 @@ export class Engine {
       }
     } catch (error: any) {
       const duration = Date.now() - startTime;
+      this.variables['lastApiDurationMs'] = duration;
       
       
       if (block.ApiResponseVariable && block.ApiResponseVariable.trim() !== '') {
@@ -1143,6 +1213,412 @@ export class Engine {
     }
   }
 
+  async executeAiRouter(): Promise<void> {
+    const block = this.nodeStructure[this.index!];
+    if (!block) return;
+
+    const routes = block.AiRoutes || [];
+    const input = await this.getAiInput(block);
+    const result = await this.runAiRouter(block, input);
+    const threshold = block.AiConfidenceThreshold ?? block.AiSettings?.confidenceThreshold ?? 0.6;
+
+    if (block.AiIntentVariable) {
+      this.variables[block.AiIntentVariable] = result.route;
+    }
+    if (block.AiConfidenceVariable) {
+      this.variables[block.AiConfidenceVariable] = result.confidence;
+    }
+    if (block.AiReasonVariable) {
+      this.variables[block.AiReasonVariable] = result.reason || '';
+    }
+
+    let routeIndex = routes.findIndex(route => route.id === result.route);
+    if (result.confidence < threshold || routeIndex === -1) {
+      const fallbackRouteIndex = block.AiFallbackRoute
+        ? routes.findIndex(route => route.id === block.AiFallbackRoute)
+        : -1;
+      routeIndex = fallbackRouteIndex >= 0 ? fallbackRouteIndex : routes.length;
+    }
+
+    const nextId = block.Nexts[routeIndex];
+    if (nextId) {
+      this.index = nextId;
+      this.skipInput = true;
+      await this.execute();
+    } else {
+      this.ui.finish();
+      this.isFinished = true;
+    }
+  }
+
+  async executeAiExtractor(): Promise<void> {
+    const block = this.nodeStructure[this.index!];
+    if (!block) return;
+
+    const input = await this.getAiInput(block);
+    let result = await this.runAiExtractor(block, input);
+    this.applyAiExtractorResult(block, result);
+
+    let missing = this.getMissingRequiredEntities(block, result);
+    if (missing.length > 0 && block.AiAskMissing !== false) {
+      const entity = missing[0];
+      const prompt = entity.askPrompt || `Уточните значение для "${entity.name}".`;
+      await this.ui.sendMessage(prompt, []);
+      this.recordBotMessage(prompt);
+
+      const userInput = await this.ui.getInput();
+      this.variables['lastMessage'] = userInput;
+      this.variables['userInput'] = userInput;
+      this.recordUserMessage(userInput);
+
+      result = await this.runAiExtractor(block, `${input}\n${userInput}`);
+      this.applyAiExtractorResult(block, result);
+      missing = this.getMissingRequiredEntities(block, result);
+    }
+
+    if (block.AiRawResultVariable) {
+      this.variables[block.AiRawResultVariable] = result;
+    }
+
+    const nextId = missing.length === 0 ? block.Nexts[0] : block.Nexts[1];
+    if (nextId) {
+      this.index = nextId;
+      this.skipInput = true;
+      await this.execute();
+    } else {
+      this.ui.finish();
+      this.isFinished = true;
+    }
+  }
+
+  private async getAiInput(block: EngineNode): Promise<string> {
+    const inputVariable = block.AiInputVariable?.trim();
+    if (inputVariable && this.variables[inputVariable] !== undefined && this.variables[inputVariable] !== null) {
+      return this.stringifyForAi(this.variables[inputVariable]);
+    }
+
+    const lastMessage = this.variables['lastMessage'] ?? this.variables['userInput'];
+    if (lastMessage !== undefined && lastMessage !== null && String(lastMessage).trim() !== '') {
+      return String(lastMessage);
+    }
+
+    const userInput = await this.ui.getInput();
+    this.variables['lastMessage'] = userInput;
+    this.variables['userInput'] = userInput;
+    this.recordUserMessage(userInput);
+    return userInput;
+  }
+
+  private async runAiRouter(block: EngineNode, input: string): Promise<AiRouterResult> {
+    const remoteResult = await this.callAiEndpoint<AiRouterResult>('router', block, {
+      input,
+      routes: block.AiRoutes || [],
+      expectedResponse: {
+        route: 'route id from routes',
+        confidence: 'number from 0 to 1',
+        reason: 'short explanation',
+      },
+    });
+
+    if (remoteResult && typeof remoteResult.route === 'string') {
+      return {
+        route: remoteResult.route,
+        confidence: this.clampConfidence(remoteResult.confidence),
+        reason: remoteResult.reason,
+      };
+    }
+
+    return this.localRoute(input, block.AiRoutes || []);
+  }
+
+  private async runAiExtractor(block: EngineNode, input: string): Promise<AiExtractorResult> {
+    const remoteResult = await this.callAiEndpoint<AiExtractorResult>('extractor', block, {
+      input,
+      entities: block.AiEntities || [],
+      expectedResponse: {
+        entities: {
+          entityName: {
+            value: 'extracted value or null',
+            confidence: 'number from 0 to 1',
+            found: 'boolean',
+          },
+        },
+        missing: ['missing required entity names'],
+      },
+    });
+
+    if (remoteResult && remoteResult.entities && typeof remoteResult.entities === 'object') {
+      return {
+        entities: remoteResult.entities,
+        missing: Array.isArray(remoteResult.missing) ? remoteResult.missing : [],
+      };
+    }
+
+    return this.localExtract(input, block.AiEntities || []);
+  }
+
+  private async callAiEndpoint<T>(mode: 'router' | 'extractor', block: EngineNode, extraPayload: Record<string, any>): Promise<T | null> {
+    const endpoint = block.AiSettings?.endpoint?.trim();
+    if (!endpoint) {
+      return null;
+    }
+
+    try {
+      const fetchFn = this.getFetchFunction();
+      const response = await fetchFn(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode,
+          provider: block.AiSettings?.provider || 'custom',
+          model: block.AiSettings?.model,
+          temperature: block.AiSettings?.temperature ?? 0.2,
+          maxTokens: block.AiSettings?.maxTokens ?? 800,
+          language: block.AiSettings?.language || 'ru',
+          systemPrompt: block.AiSettings?.systemPrompt || '',
+          safetyPrompt: block.AiSettings?.safetyPrompt || '',
+          instruction: block.AiInstruction || '',
+          variables: this.variables,
+          globalConstants: this.globalConstants,
+          context: this.getAiContext(block.AiContextMode || block.AiSettings?.contextWindowMode || 'last_message'),
+          ...extraPayload,
+        }),
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      return (data.result || data) as T;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  private getFetchFunction(): any {
+    if (typeof globalThis.fetch !== 'undefined') {
+      return globalThis.fetch.bind(globalThis);
+    }
+    if (typeof fetch !== 'undefined') {
+      return fetch;
+    }
+    const nodeFetch = require('node-fetch');
+    return nodeFetch.default || nodeFetch;
+  }
+
+  private localRoute(input: string, routes: AiRoute[]): AiRouterResult {
+    if (routes.length === 0) {
+      return { route: 'fallback', confidence: 0, reason: 'Нет настроенных веток' };
+    }
+
+    const normalizedInput = this.normalizeAiText(input);
+    let bestRoute = routes[0];
+    let bestScore = 0;
+
+    routes.forEach(route => {
+      const text = [
+        route.id,
+        route.title,
+        route.description || '',
+        ...(route.examples || []),
+      ].join(' ');
+      const tokens = this.normalizeAiText(text).split(' ').filter(token => token.length > 2);
+      const uniqueTokens = Array.from(new Set(tokens));
+      const score = uniqueTokens.reduce((sum, token) => (
+        normalizedInput.includes(token) ? sum + 1 : sum
+      ), 0);
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestRoute = route;
+      }
+    });
+
+    if (bestScore === 0) {
+      return {
+        route: bestRoute.id,
+        confidence: 0.25,
+        reason: 'Локальная эвристика не нашла явных совпадений',
+      };
+    }
+
+    return {
+      route: bestRoute.id,
+      confidence: Math.min(0.95, 0.55 + bestScore * 0.1),
+      reason: 'Ветка выбрана локальной эвристикой по совпадениям в описании и примерах',
+    };
+  }
+
+  private localExtract(input: string, entities: AiEntity[]): AiExtractorResult {
+    const result: AiExtractorResult = { entities: {}, missing: [] };
+
+    entities.forEach(entity => {
+      const extracted = this.extractEntityValue(input, entity);
+      result.entities[entity.name] = {
+        value: extracted.value,
+        confidence: extracted.found ? extracted.confidence : 0,
+        found: extracted.found,
+      };
+      if (entity.required && !extracted.found) {
+        result.missing.push(entity.name);
+      }
+    });
+
+    return result;
+  }
+
+  private extractEntityValue(input: string, entity: AiEntity): { value: any; confidence: number; found: boolean } {
+    const normalized = input.trim();
+    let value: any = null;
+
+    if (entity.validationRegex) {
+      try {
+        const match = normalized.match(new RegExp(entity.validationRegex, 'i'));
+        if (match?.[0]) {
+          value = match[0];
+        }
+      } catch (error) {
+        
+      }
+    }
+
+    if (value === null) {
+      switch (entity.type) {
+        case 'phone': {
+          const match = normalized.match(/(?:\+?\d[\d\s().-]{7,}\d)/);
+          value = match?.[0]?.replace(/[^\d+]/g, '') || null;
+          break;
+        }
+        case 'email': {
+          const match = normalized.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+          value = match?.[0] || null;
+          break;
+        }
+        case 'date': {
+          const match = normalized.match(/\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b/i);
+          value = match?.[0] || null;
+          break;
+        }
+        case 'time': {
+          const match = normalized.match(/\b\d{1,2}:\d{2}\b/);
+          value = match?.[0] || null;
+          break;
+        }
+        case 'number': {
+          const match = normalized.match(/-?\d+(?:[.,]\d+)?/);
+          value = match?.[0] ? Number(match[0].replace(',', '.')) : null;
+          break;
+        }
+        case 'enum': {
+          const lowerInput = normalized.toLowerCase();
+          value = (entity.enumValues || []).find(option => lowerInput.includes(option.toLowerCase())) || null;
+          break;
+        }
+        case 'boolean': {
+          const lowerInput = normalized.toLowerCase();
+          if (/\b(да|yes|true|ок|согласен|согласна)\b/i.test(lowerInput)) {
+            value = true;
+          } else if (/\b(нет|no|false|не согласен|не согласна)\b/i.test(lowerInput)) {
+            value = false;
+          }
+          break;
+        }
+        case 'string':
+        default:
+          value = null;
+          break;
+      }
+    }
+
+    const found = value !== null && value !== undefined && value !== '';
+    return { value, confidence: found ? 0.75 : 0, found };
+  }
+
+  private applyAiExtractorResult(block: EngineNode, result: AiExtractorResult): void {
+    const entities = block.AiEntities || [];
+
+    entities.forEach(entity => {
+      const extracted = result.entities?.[entity.name];
+      const variableName = entity.variableName || entity.name;
+
+      if (extracted?.found) {
+        this.variables[variableName] = extracted.value;
+        this.variables[`${variableName}_status`] = 'filled';
+        this.variables[`${variableName}_confidence`] = this.clampConfidence(extracted.confidence);
+      } else if (!(variableName in this.variables)) {
+        this.variables[variableName] = undefined;
+        this.variables[`${variableName}_status`] = 'undefined';
+      }
+    });
+  }
+
+  private getMissingRequiredEntities(block: EngineNode, result: AiExtractorResult): AiEntity[] {
+    const entities = block.AiEntities || [];
+    const missingNames = new Set(result.missing || []);
+    return entities.filter(entity => {
+      const variableName = entity.variableName || entity.name;
+      const extracted = result.entities?.[entity.name];
+      const isMissing = missingNames.has(entity.name) || !extracted?.found || this.variables[variableName] === undefined;
+      return !!entity.required && isMissing;
+    });
+  }
+
+  private getAiContext(mode: AiContextMode): Array<{ role: 'bot' | 'user'; content: string }> {
+    switch (mode) {
+      case 'none':
+        return [];
+      case 'last_n_messages':
+        return this.dialogHistory.slice(-8);
+      case 'last_message':
+      default:
+        return this.dialogHistory.slice(-1);
+    }
+  }
+
+  private recordBotMessage(content: string): void {
+    this.recordDialogMessage('bot', content);
+  }
+
+  private recordUserMessage(content: string): void {
+    this.recordDialogMessage('user', content);
+  }
+
+  private recordDialogMessage(role: 'bot' | 'user', content: string): void {
+    if (!content) return;
+    this.dialogHistory.push({ role, content });
+    if (this.dialogHistory.length > 20) {
+      this.dialogHistory = this.dialogHistory.slice(-20);
+    }
+  }
+
+  private stringifyForAi(value: any): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+    try {
+      return JSON.stringify(value);
+    } catch (error) {
+      return String(value);
+    }
+  }
+
+  private normalizeAiText(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/[^a-zа-яё0-9_]+/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private clampConfidence(value: any): number {
+    const numberValue = Number(value);
+    if (Number.isNaN(numberValue)) {
+      return 0;
+    }
+    return Math.max(0, Math.min(1, numberValue));
+  }
+
   
   getVariables(): Record<string, any> {
     return { ...this.variables };
@@ -1170,5 +1646,6 @@ export class Engine {
     this.saveNext = false;
     this.executionCount = {}; 
     this.lastExecutedBlock = null; 
+    this.dialogHistory = [];
   }
 }

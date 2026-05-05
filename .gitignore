@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 
+**/node_modules/
+
 # Build output
 dist/
 build/
@@ -9,7 +11,9 @@ build/
 .env
 .env.local
 .env.production
-
+**/.env
+**/.env.local
+**/.env.production
 # Editor
 .vscode/
 *.swp

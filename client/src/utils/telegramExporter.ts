@@ -1,5 +1,6 @@
 import { Project } from '../types';
 import { adaptProjectToEngine } from './backend/projectAdapter';
+import engineTsContent from '@backend/Engine.ts?raw';
 
 export interface TelegramExportFile {
   name: string;
@@ -12,6 +13,7 @@ export interface TelegramExportResult {
 
 // Функция для получения содержимого Engine.ts
 function getEngineTsContent(): string {
+  return engineTsContent;
   // Импортируем Engine.ts из backend - в реальности это будет встроено
   // Для упрощения, мы будем использовать fetch или встроим содержимое
   // Но так как это браузерный код, лучше встроить содержимое Engine.ts
@@ -1352,4 +1354,3 @@ export function createTelegramExport(project: Project): TelegramExportResult {
 
   return { files };
 }
-

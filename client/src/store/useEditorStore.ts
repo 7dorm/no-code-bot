@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { BlockNode, Connection, Project, ConditionBlockData } from '../types';
+import { BlockNode, Connection, Project, ConditionBlockData, AiSettings, ExportPlatform } from '../types';
 
 interface EditorState {
   
@@ -39,10 +39,11 @@ interface EditorState {
   
   toggleSettings: () => void;
   updateSettings: (settings: {
-    exportPlatform?: string;
+    exportPlatform?: ExportPlatform;
     botToken?: string;
     telegramToken?: string;
-    globalConstants?: Record<string, any>
+    globalConstants?: Record<string, any>;
+    aiSettings?: AiSettings;
   }) => void;
 
   
@@ -258,10 +259,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push(JSON.parse(JSON.stringify(currentProject)));
+    const limitedHistory = newHistory.slice(-50);
 
     set({
-      history: newHistory.slice(-50),
-      historyIndex: newHistory.length - 1,
+      history: limitedHistory,
+      historyIndex: limitedHistory.length - 1,
     });
   },
 
@@ -269,7 +271,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   exportProject: () => {
     const current = get().currentProject;
     if (!current) return '';
-    return JSON.stringify(current, null, );
+    return JSON.stringify(current, null, 2);
   },
 
   
@@ -354,6 +356,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           label: block.data.label,
           code: oldParams.code || '',
           returnVariable: oldParams.returnVariable || '',
+        };
+        break;
+      case 'aiRouter':
+        newData = {
+          type: 'aiRouter',
+          label: block.data.label,
+          inputVariable: oldParams.inputVariable || (block.data as any).inputVariable || 'lastMessage',
+          instruction: oldParams.instruction || (block.data as any).instruction || '',
+          routes: (block.data as any).routes || oldParams.routes || [],
+          fallbackRoute: oldParams.fallbackRoute || (block.data as any).fallbackRoute,
+          confidenceThreshold: oldParams.confidenceThreshold ?? (block.data as any).confidenceThreshold ?? 0.6,
+          confidenceVariable: oldParams.confidenceVariable || (block.data as any).confidenceVariable,
+          reasonVariable: oldParams.reasonVariable || (block.data as any).reasonVariable,
+          saveNormalizedIntentTo: oldParams.saveNormalizedIntentTo || (block.data as any).saveNormalizedIntentTo || 'intent',
+          contextMode: oldParams.contextMode || (block.data as any).contextMode || 'last_message',
+        };
+        break;
+      case 'aiExtractor':
+        newData = {
+          type: 'aiExtractor',
+          label: block.data.label,
+          inputVariable: oldParams.inputVariable || (block.data as any).inputVariable || 'lastMessage',
+          instruction: oldParams.instruction || (block.data as any).instruction || '',
+          entities: (block.data as any).entities || oldParams.entities || [],
+          askMissing: oldParams.askMissing ?? (block.data as any).askMissing ?? true,
+          rawResultVariable: oldParams.rawResultVariable || (block.data as any).rawResultVariable,
+          contextMode: oldParams.contextMode || (block.data as any).contextMode || 'last_message',
         };
         break;
       case 'start':

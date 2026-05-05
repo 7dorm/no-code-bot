@@ -65,6 +65,8 @@ function convertEngineTsToJs(engineCode: string): string {
   return engineCode.trim();
 }
 
+void convertEngineTsToJs;
+
 
 function generateWebEngineCode(): string {
   return `
@@ -616,6 +618,12 @@ class Engine {
         break;
       case "script":
         await this.executeScript();
+        break;
+      case "aiRouter":
+        await this.executeAiRouter();
+        break;
+      case "aiExtractor":
+        await this.executeAiExtractor();
         break;
       default:
         break;
@@ -1237,16 +1245,276 @@ class Engine {
     }
   }
 
-  async executeSkip() {
+	  async executeSkip() {
+	    const block = this.nodeStructure[this.index];
+	    if (block && block.Nexts.length > 0) {
+	      this.index = block.Nexts[0];
+	      this.skipInput = true;
+	      await this.execute();
+	    }
+	  }
+
+  async executeAiRouter() {
     const block = this.nodeStructure[this.index];
-    if (block && block.Nexts.length > 0) {
-      this.index = block.Nexts[0];
+    if (!block) return;
+
+    const input = await this.getAiInput(block);
+    const result = await this.runAiRouter(block, input);
+    const routes = block.AiRoutes || [];
+    const threshold = block.AiConfidenceThreshold || (block.AiSettings && block.AiSettings.confidenceThreshold) || 0.6;
+
+    if (block.AiIntentVariable) this.variables[block.AiIntentVariable] = result.route;
+    if (block.AiConfidenceVariable) this.variables[block.AiConfidenceVariable] = result.confidence;
+    if (block.AiReasonVariable) this.variables[block.AiReasonVariable] = result.reason || '';
+
+    let routeIndex = routes.findIndex(route => route.id === result.route);
+    if (result.confidence < threshold || routeIndex === -1) {
+      const fallbackRouteIndex = block.AiFallbackRoute
+        ? routes.findIndex(route => route.id === block.AiFallbackRoute)
+        : -1;
+      routeIndex = fallbackRouteIndex >= 0 ? fallbackRouteIndex : routes.length;
+    }
+
+    const nextId = block.Nexts[routeIndex];
+    if (nextId) {
+      this.index = nextId;
       this.skipInput = true;
       await this.execute();
+    } else {
+      this.ui.finish();
+      this.isFinished = true;
     }
   }
 
-  getVariables() {
+  async executeAiExtractor() {
+    const block = this.nodeStructure[this.index];
+    if (!block) return;
+
+    const input = await this.getAiInput(block);
+    let result = await this.runAiExtractor(block, input);
+    this.applyAiExtractorResult(block, result);
+    let missing = this.getMissingRequiredEntities(block, result);
+
+    if (missing.length > 0 && block.AiAskMissing !== false) {
+      const entity = missing[0];
+      await this.ui.sendMessage(entity.askPrompt || ('Уточните значение для "' + entity.name + '".'), []);
+      const userInput = await this.ui.getInput();
+      this.variables.lastMessage = userInput;
+      this.variables.userInput = userInput;
+      result = await this.runAiExtractor(block, input + '\\n' + userInput);
+      this.applyAiExtractorResult(block, result);
+      missing = this.getMissingRequiredEntities(block, result);
+    }
+
+    if (block.AiRawResultVariable) {
+      this.variables[block.AiRawResultVariable] = result;
+    }
+
+    const nextId = missing.length === 0 ? block.Nexts[0] : block.Nexts[1];
+    if (nextId) {
+      this.index = nextId;
+      this.skipInput = true;
+      await this.execute();
+    } else {
+      this.ui.finish();
+      this.isFinished = true;
+    }
+  }
+
+  async getAiInput(block) {
+    const inputVariable = block.AiInputVariable && block.AiInputVariable.trim();
+    if (inputVariable && this.variables[inputVariable] !== undefined && this.variables[inputVariable] !== null) {
+      return typeof this.variables[inputVariable] === 'string'
+        ? this.variables[inputVariable]
+        : JSON.stringify(this.variables[inputVariable]);
+    }
+
+    if (this.variables.lastMessage || this.variables.userInput) {
+      return String(this.variables.lastMessage || this.variables.userInput);
+    }
+
+    const userInput = await this.ui.getInput();
+    this.variables.lastMessage = userInput;
+    this.variables.userInput = userInput;
+    return userInput;
+  }
+
+  async runAiRouter(block, input) {
+    const remoteResult = await this.callAiEndpoint('router', block, {
+      input,
+      routes: block.AiRoutes || []
+    });
+
+    if (remoteResult && typeof remoteResult.route === 'string') {
+      return {
+        route: remoteResult.route,
+        confidence: this.clampConfidence(remoteResult.confidence),
+        reason: remoteResult.reason
+      };
+    }
+
+    return this.localRoute(input, block.AiRoutes || []);
+  }
+
+  async runAiExtractor(block, input) {
+    const remoteResult = await this.callAiEndpoint('extractor', block, {
+      input,
+      entities: block.AiEntities || []
+    });
+
+    if (remoteResult && remoteResult.entities) {
+      return {
+        entities: remoteResult.entities,
+        missing: Array.isArray(remoteResult.missing) ? remoteResult.missing : []
+      };
+    }
+
+    return this.localExtract(input, block.AiEntities || []);
+  }
+
+  async callAiEndpoint(mode, block, extraPayload) {
+    const endpoint = block.AiSettings && block.AiSettings.endpoint && block.AiSettings.endpoint.trim();
+    if (!endpoint) return null;
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode,
+          provider: (block.AiSettings && block.AiSettings.provider) || 'custom',
+          model: block.AiSettings && block.AiSettings.model,
+          systemPrompt: (block.AiSettings && block.AiSettings.systemPrompt) || '',
+          safetyPrompt: (block.AiSettings && block.AiSettings.safetyPrompt) || '',
+          instruction: block.AiInstruction || '',
+          variables: this.variables,
+          globalConstants: this.globalConstants,
+          ...extraPayload
+        })
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.result || data;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  localRoute(input, routes) {
+    if (!routes.length) {
+      return { route: 'fallback', confidence: 0, reason: 'Нет настроенных веток' };
+    }
+
+    const normalizedInput = this.normalizeAiText(input);
+    let bestRoute = routes[0];
+    let bestScore = 0;
+
+    routes.forEach(route => {
+      const text = [route.id, route.title, route.description || '', ...(route.examples || [])].join(' ');
+      const tokens = Array.from(new Set(this.normalizeAiText(text).split(' ').filter(token => token.length > 2)));
+      const score = tokens.reduce((sum, token) => normalizedInput.includes(token) ? sum + 1 : sum, 0);
+      if (score > bestScore) {
+        bestScore = score;
+        bestRoute = route;
+      }
+    });
+
+    return {
+      route: bestRoute.id,
+      confidence: bestScore ? Math.min(0.95, 0.55 + bestScore * 0.1) : 0.25,
+      reason: bestScore ? 'Ветка выбрана локальной эвристикой' : 'Нет уверенного совпадения'
+    };
+  }
+
+  localExtract(input, entities) {
+    const result = { entities: {}, missing: [] };
+    entities.forEach(entity => {
+      const extracted = this.extractEntityValue(input, entity);
+      result.entities[entity.name] = extracted;
+      if (entity.required && !extracted.found) result.missing.push(entity.name);
+    });
+    return result;
+  }
+
+  extractEntityValue(input, entity) {
+    const text = String(input || '').trim();
+    let value = null;
+
+    if (entity.validationRegex) {
+      try {
+        const match = text.match(new RegExp(entity.validationRegex, 'i'));
+        if (match && match[0]) value = match[0];
+      } catch (error) {}
+    }
+
+    if (value === null) {
+      switch (entity.type) {
+        case 'phone':
+          value = (text.match(/(?:\\+?\\d[\\d\\s().-]{7,}\\d)/) || [null])[0];
+          value = value ? value.replace(/[^\\d+]/g, '') : null;
+          break;
+        case 'email':
+          value = (text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i) || [null])[0];
+          break;
+        case 'date':
+          value = (text.match(/\\b\\d{1,2}[./-]\\d{1,2}(?:[./-]\\d{2,4})?\\b/i) || [null])[0];
+          break;
+        case 'time':
+          value = (text.match(/\\b\\d{1,2}:\\d{2}\\b/) || [null])[0];
+          break;
+        case 'number': {
+          const match = (text.match(/-?\\d+(?:[.,]\\d+)?/) || [null])[0];
+          value = match ? Number(match.replace(',', '.')) : null;
+          if (Number.isNaN(value)) value = null;
+          break;
+        }
+        case 'enum':
+          value = (entity.enumValues || []).find(option => text.toLowerCase().includes(String(option).toLowerCase())) || null;
+          break;
+        default:
+          value = null;
+          break;
+      }
+    }
+
+    return { value, confidence: value !== null ? 0.75 : 0, found: value !== null && value !== undefined && value !== '' };
+  }
+
+  applyAiExtractorResult(block, result) {
+    (block.AiEntities || []).forEach(entity => {
+      const variableName = entity.variableName || entity.name;
+      const extracted = result.entities && result.entities[entity.name];
+      if (extracted && extracted.found) {
+        this.variables[variableName] = extracted.value;
+        this.variables[variableName + '_status'] = 'filled';
+        this.variables[variableName + '_confidence'] = this.clampConfidence(extracted.confidence);
+      } else if (!(variableName in this.variables)) {
+        this.variables[variableName] = undefined;
+        this.variables[variableName + '_status'] = 'undefined';
+      }
+    });
+  }
+
+  getMissingRequiredEntities(block, result) {
+    const missingNames = new Set(result.missing || []);
+    return (block.AiEntities || []).filter(entity => {
+      const variableName = entity.variableName || entity.name;
+      const extracted = result.entities && result.entities[entity.name];
+      return !!entity.required && (missingNames.has(entity.name) || !extracted || !extracted.found || this.variables[variableName] === undefined);
+    });
+  }
+
+  normalizeAiText(text) {
+    return String(text || '').toLowerCase().replace(/[^a-zа-яё0-9_]+/gi, ' ').replace(/\\s+/g, ' ').trim();
+  }
+
+  clampConfidence(value) {
+    const numberValue = Number(value);
+    if (Number.isNaN(numberValue)) return 0;
+    return Math.max(0, Math.min(1, numberValue));
+  }
+
+	  getVariables() {
     return { ...this.variables };
   }
 

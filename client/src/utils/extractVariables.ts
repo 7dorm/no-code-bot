@@ -1,5 +1,5 @@
 import { Project } from '../types';
-import { MessageBlockData, VariableBlockData, ApiBlockData } from '../types';
+import { MessageBlockData, VariableBlockData, ApiBlockData, AiRouterBlockData, AiExtractorBlockData } from '../types';
 
 export interface VariableInfo {
   name: string;
@@ -133,6 +133,77 @@ export function extractVariables(project: Project): VariableInfo[] {
         break;
       }
 
+      case 'aiRouter': {
+        const aiData = block.data as AiRouterBlockData;
+
+        if (aiData.inputVariable) {
+          variablesMap.set(aiData.inputVariable, {
+            name: aiData.inputVariable,
+            type: 'used',
+            blockId: block.id,
+            blockType: 'aiRouter',
+            description: 'Текст для классификации AI Router',
+          });
+        }
+
+        [
+          aiData.saveNormalizedIntentTo,
+          aiData.confidenceVariable,
+          aiData.reasonVariable,
+        ].filter(Boolean).forEach(varName => {
+          if (varName && !variablesMap.has(varName)) {
+            variablesMap.set(varName, {
+              name: varName,
+              type: 'saved',
+              blockId: block.id,
+              blockType: 'aiRouter',
+              description: 'Сохраняется результат AI Router',
+            });
+          }
+        });
+        break;
+      }
+
+      case 'aiExtractor': {
+        const aiData = block.data as AiExtractorBlockData;
+
+        if (aiData.inputVariable) {
+          variablesMap.set(aiData.inputVariable, {
+            name: aiData.inputVariable,
+            type: 'used',
+            blockId: block.id,
+            blockType: 'aiExtractor',
+            description: 'Текст для извлечения сущностей',
+          });
+        }
+
+        (aiData.entities || []).forEach(entity => {
+          const varName = entity.variableName || entity.name;
+          if (varName && !variablesMap.has(varName)) {
+            variablesMap.set(varName, {
+              name: varName,
+              type: 'saved',
+              blockId: block.id,
+              blockType: 'aiExtractor',
+              description: entity.required
+                ? `Обязательная сущность: ${entity.type}`
+                : `Сущность: ${entity.type}`,
+            });
+          }
+        });
+
+        if (aiData.rawResultVariable && !variablesMap.has(aiData.rawResultVariable)) {
+          variablesMap.set(aiData.rawResultVariable, {
+            name: aiData.rawResultVariable,
+            type: 'saved',
+            blockId: block.id,
+            blockType: 'aiExtractor',
+            description: 'Сырой JSON-результат извлечения',
+          });
+        }
+        break;
+      }
+
       case 'condition': {
         
         const condData = block.data;
@@ -169,4 +240,3 @@ export function extractVariables(project: Project): VariableInfo[] {
 
   return Array.from(variablesMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
-

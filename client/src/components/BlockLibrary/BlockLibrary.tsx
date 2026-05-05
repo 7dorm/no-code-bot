@@ -8,6 +8,8 @@ import {
   ApiBlockMeta,
   FileBlockMeta,
   ScriptBlockMeta,
+  AiRouterBlockMeta,
+  AiExtractorBlockMeta,
 } from '../../types';
 import BlockEditorModal from '../BlockEditor/BlockEditorModal';
 import './BlockLibrary.css';
@@ -19,13 +21,15 @@ const BLOCK_TYPES = [
   ApiBlockMeta,
   FileBlockMeta,
   ScriptBlockMeta,
+  AiRouterBlockMeta,
+  AiExtractorBlockMeta,
 ];
 
 const BlockLibrary: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   
-  const { currentProject, addBlock, selectNode, selectedNodeId } = useEditorStore();
+  const { currentProject, addBlock, selectNode } = useEditorStore();
 
   const handleAddBlock = (type: BlockType) => {
     
@@ -51,8 +55,48 @@ const BlockLibrary: React.FC = () => {
       case 'script':
         blockData = { ...blockData, code: '', returnVariable: '' };
         break;
+      case 'aiRouter':
+        blockData = {
+          ...blockData,
+          instruction: 'Определи намерение пользователя и выбери один из маршрутов.',
+          inputVariable: 'lastMessage',
+          routes: [
+            {
+              id: 'route_1',
+              title: 'Ветка 1',
+              description: 'Пользователь подходит под первый сценарий',
+              examples: [],
+            },
+          ],
+          confidenceThreshold: 0.6,
+          confidenceVariable: '',
+          reasonVariable: '',
+          saveNormalizedIntentTo: 'intent',
+          contextMode: 'last_message' as const,
+        };
+        break;
+      case 'aiExtractor':
+        blockData = {
+          ...blockData,
+          instruction: 'Извлеки полезные сущности из сообщения пользователя.',
+          inputVariable: 'lastMessage',
+          entities: [
+            {
+              name: 'phone',
+              variableName: 'phone',
+              type: 'phone' as const,
+              description: 'Номер телефона пользователя',
+              required: false,
+              askPrompt: 'Укажите, пожалуйста, номер телефона.',
+            },
+          ],
+          askMissing: true,
+          rawResultVariable: '',
+          contextMode: 'last_message' as const,
+        };
+        break;
       case 'start':
-        blockData = { ...blockData, skip: true };
+        blockData = { ...blockData};
         break;
     }
     
@@ -92,7 +136,7 @@ const BlockLibrary: React.FC = () => {
   return (
     <div className="block-library">
       <div className="library-header">
-        <h>📚 Библиотека блоков</h>
+        <h3>📚 Библиотека блоков</h3>
       </div>
       
       <div className="library-content">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useEditorStore } from '../../store/useEditorStore';
-import { BlockData, MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData } from '../../types';
+import { BlockData, MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, AiRoute, AiEntity, AiEntityType } from '../../types';
 import './BlockEditorModal.css';
 
 interface BlockEditorModalProps {
@@ -457,7 +457,7 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
               <label className="editor-label">Заголовки (JSON, опционально)</label>
               <textarea
                 className="editor-textarea"
-                value={apiData.headers ? JSON.stringify(apiData.headers, null, ) : ''}
+                value={apiData.headers ? JSON.stringify(apiData.headers, null, 2) : ''}
                 onChange={(e) => {
                   try {
                     const headers = e.target.value.trim() ? JSON.parse(e.target.value) : undefined;
@@ -536,9 +536,9 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
                 className="editor-textarea"
                 value={scriptData.code || ''}
                 onChange={(e) => updateBlockData<ScriptBlockData>({ code: e.target.value })}
-                placeholder="
-                rows={0}
-                style={{ fontFamily: 'monospace', fontSize: 'px' }}"
+                placeholder="return variables.userName || 'Гость';"
+                rows={8}
+                style={{ fontFamily: 'monospace' }}
               />
               <small className="editor-hint">
                 Выполняется JavaScript код. Доступны объекты: <code>variables</code> (все переменные), <code>globalConstants</code> (глобальные константы).
@@ -565,6 +565,358 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
           </>
         );
 
+      case 'aiRouter': {
+        const routerData = blockData as AiRouterBlockData;
+        const routes = routerData.routes || [];
+
+        const addRoute = () => {
+          const nextIndex = routes.length + 1;
+          updateBlockData<AiRouterBlockData>({
+            routes: [
+              ...routes,
+              {
+                id: `route_${nextIndex}`,
+                title: `Ветка ${nextIndex}`,
+                description: '',
+                examples: [],
+              },
+            ],
+          });
+        };
+
+        const removeRoute = (index: number) => {
+          updateBlockData<AiRouterBlockData>({
+            routes: routes.filter((_, i) => i !== index),
+          });
+        };
+
+        const updateRoute = (index: number, updates: Partial<AiRoute>) => {
+          const updatedRoutes = [...routes];
+          updatedRoutes[index] = { ...updatedRoutes[index], ...updates };
+          updateBlockData<AiRouterBlockData>({ routes: updatedRoutes });
+        };
+
+        return (
+          <>
+            <div className="editor-info">
+              <p>AI Router классифицирует сообщение пользователя и выбирает одну из веток. Пользовательский текст передается как данные, а не как инструкция.</p>
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Переменная с текстом пользователя</label>
+              <input
+                type="text"
+                className="editor-input"
+                value={routerData.inputVariable || ''}
+                onChange={(e) => updateBlockData<AiRouterBlockData>({ inputVariable: e.target.value.trim() || undefined })}
+                placeholder="lastMessage"
+              />
+              <small className="editor-hint">Если пусто, блок возьмет lastMessage или запросит ввод.</small>
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Инструкция для классификации</label>
+              <textarea
+                className="editor-textarea"
+                value={routerData.instruction || ''}
+                onChange={(e) => updateBlockData<AiRouterBlockData>({ instruction: e.target.value })}
+                placeholder="Определи намерение пользователя и выбери самый подходящий route."
+                rows={4}
+              />
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Контекст диалога</label>
+              <select
+                className="editor-select"
+                value={routerData.contextMode || 'last_message'}
+                onChange={(e) => updateBlockData<AiRouterBlockData>({ contextMode: e.target.value as AiRouterBlockData['contextMode'] })}
+              >
+                <option value="none">Не передавать</option>
+                <option value="last_message">Последнее сообщение</option>
+                <option value="last_n_messages">Последние сообщения</option>
+              </select>
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Порог уверенности</label>
+              <input
+                type="number"
+                className="editor-input"
+                min={0}
+                max={1}
+                step={0.05}
+                value={routerData.confidenceThreshold ?? 0.6}
+                onChange={(e) => updateBlockData<AiRouterBlockData>({ confidenceThreshold: Number(e.target.value) })}
+              />
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Переменные результата</label>
+              <input
+                type="text"
+                className="editor-input"
+                value={routerData.saveNormalizedIntentTo || ''}
+                onChange={(e) => updateBlockData<AiRouterBlockData>({ saveNormalizedIntentTo: e.target.value.trim() || undefined })}
+                placeholder="intent"
+                style={{ marginBottom: '8px' }}
+              />
+              <input
+                type="text"
+                className="editor-input"
+                value={routerData.confidenceVariable || ''}
+                onChange={(e) => updateBlockData<AiRouterBlockData>({ confidenceVariable: e.target.value.trim() || undefined })}
+                placeholder="intent_confidence"
+                style={{ marginBottom: '8px' }}
+              />
+              <input
+                type="text"
+                className="editor-input"
+                value={routerData.reasonVariable || ''}
+                onChange={(e) => updateBlockData<AiRouterBlockData>({ reasonVariable: e.target.value.trim() || undefined })}
+                placeholder="intent_reason"
+              />
+              <small className="editor-hint">Сюда можно сохранить route, confidence и короткое объяснение выбора.</small>
+            </div>
+            <div className="editor-group">
+              <div className="editor-group-header">
+                <label className="editor-label">Ветки</label>
+                <button type="button" className="add-param-btn" onClick={addRoute}>
+                  + Добавить ветку
+                </button>
+              </div>
+              {routes.length === 0 && (
+                <div className="empty-params">Добавьте хотя бы одну ветку.</div>
+              )}
+              {routes.map((route, index) => (
+                <div key={index} className="ai-item">
+                  <div className="ai-item-header">
+                    <span>Ветка {index + 1}</span>
+                    <button type="button" className="remove-param-btn" onClick={() => removeRoute(index)}>
+                      Удалить
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    className="editor-input"
+                    value={route.id}
+                    onChange={(e) => updateRoute(index, { id: e.target.value.trim() })}
+                    placeholder="route_id"
+                    style={{ marginBottom: '8px' }}
+                  />
+                  <input
+                    type="text"
+                    className="editor-input"
+                    value={route.title}
+                    onChange={(e) => updateRoute(index, { title: e.target.value })}
+                    placeholder="Название ветки"
+                    style={{ marginBottom: '8px' }}
+                  />
+                  <textarea
+                    className="editor-textarea"
+                    value={route.description || ''}
+                    onChange={(e) => updateRoute(index, { description: e.target.value })}
+                    placeholder="Когда выбирать эту ветку"
+                    rows={3}
+                    style={{ marginBottom: '8px' }}
+                  />
+                  <textarea
+                    className="editor-textarea"
+                    value={(route.examples || []).join('\n')}
+                    onChange={(e) => updateRoute(index, {
+                      examples: e.target.value.split('\n').map(line => line.trim()).filter(Boolean),
+                    })}
+                    placeholder="Примеры фраз, каждая с новой строки"
+                    rows={3}
+                  />
+                </div>
+              ))}
+            </div>
+          </>
+        );
+      }
+
+      case 'aiExtractor': {
+        const extractorData = blockData as AiExtractorBlockData;
+        const entities = extractorData.entities || [];
+        const entityTypes: AiEntityType[] = ['string', 'number', 'phone', 'email', 'date', 'time', 'enum', 'boolean'];
+
+        const addEntity = () => {
+          const nextIndex = entities.length + 1;
+          updateBlockData<AiExtractorBlockData>({
+            entities: [
+              ...entities,
+              {
+                name: `entity_${nextIndex}`,
+                variableName: `entity_${nextIndex}`,
+                type: 'string',
+                description: '',
+                required: false,
+                askPrompt: '',
+              },
+            ],
+          });
+        };
+
+        const removeEntity = (index: number) => {
+          updateBlockData<AiExtractorBlockData>({
+            entities: entities.filter((_, i) => i !== index),
+          });
+        };
+
+        const updateEntity = (index: number, updates: Partial<AiEntity>) => {
+          const updatedEntities = [...entities];
+          updatedEntities[index] = { ...updatedEntities[index], ...updates };
+          updateBlockData<AiExtractorBlockData>({ entities: updatedEntities });
+        };
+
+        return (
+          <>
+            <div className="editor-info">
+              <p>AI Extractor достает сущности из свободного текста и сохраняет их в переменные. Недостающие обязательные поля можно запросить у пользователя.</p>
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Переменная с текстом пользователя</label>
+              <input
+                type="text"
+                className="editor-input"
+                value={extractorData.inputVariable || ''}
+                onChange={(e) => updateBlockData<AiExtractorBlockData>({ inputVariable: e.target.value.trim() || undefined })}
+                placeholder="lastMessage"
+              />
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Инструкция для извлечения</label>
+              <textarea
+                className="editor-textarea"
+                value={extractorData.instruction || ''}
+                onChange={(e) => updateBlockData<AiExtractorBlockData>({ instruction: e.target.value })}
+                placeholder="Извлеки только явно упомянутые данные. Не придумывай значения."
+                rows={4}
+              />
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Контекст диалога</label>
+              <select
+                className="editor-select"
+                value={extractorData.contextMode || 'last_message'}
+                onChange={(e) => updateBlockData<AiExtractorBlockData>({ contextMode: e.target.value as AiExtractorBlockData['contextMode'] })}
+              >
+                <option value="none">Не передавать</option>
+                <option value="last_message">Последнее сообщение</option>
+                <option value="last_n_messages">Последние сообщения</option>
+              </select>
+            </div>
+            <div className="editor-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={extractorData.askMissing ?? true}
+                  onChange={(e) => updateBlockData<AiExtractorBlockData>({ askMissing: e.target.checked })}
+                />
+                <span>Запрашивать недостающие обязательные сущности</span>
+              </label>
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Сохранить сырой JSON-результат (опционально)</label>
+              <input
+                type="text"
+                className="editor-input"
+                value={extractorData.rawResultVariable || ''}
+                onChange={(e) => updateBlockData<AiExtractorBlockData>({ rawResultVariable: e.target.value.trim() || undefined })}
+                placeholder="ai_extract_raw"
+              />
+            </div>
+            <div className="editor-group">
+              <div className="editor-group-header">
+                <label className="editor-label">Сущности</label>
+                <button type="button" className="add-param-btn" onClick={addEntity}>
+                  + Добавить сущность
+                </button>
+              </div>
+              {entities.length === 0 && (
+                <div className="empty-params">Добавьте сущности, которые нужно искать в тексте.</div>
+              )}
+              {entities.map((entity, index) => (
+                <div key={index} className="ai-item">
+                  <div className="ai-item-header">
+                    <span>Сущность {index + 1}</span>
+                    <button type="button" className="remove-param-btn" onClick={() => removeEntity(index)}>
+                      Удалить
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    className="editor-input"
+                    value={entity.name}
+                    onChange={(e) => updateEntity(index, { name: e.target.value.trim() })}
+                    placeholder="phone"
+                    style={{ marginBottom: '8px' }}
+                  />
+                  <input
+                    type="text"
+                    className="editor-input"
+                    value={entity.variableName}
+                    onChange={(e) => updateEntity(index, { variableName: e.target.value.trim() })}
+                    placeholder="phone"
+                    style={{ marginBottom: '8px' }}
+                  />
+                  <select
+                    className="editor-select"
+                    value={entity.type}
+                    onChange={(e) => updateEntity(index, { type: e.target.value as AiEntityType })}
+                    style={{ marginBottom: '8px' }}
+                  >
+                    {entityTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                  <textarea
+                    className="editor-textarea"
+                    value={entity.description || ''}
+                    onChange={(e) => updateEntity(index, { description: e.target.value })}
+                    placeholder="Что искать в сообщении"
+                    rows={3}
+                    style={{ marginBottom: '8px' }}
+                  />
+                  {entity.type === 'enum' && (
+                    <textarea
+                      className="editor-textarea"
+                      value={(entity.enumValues || []).join('\n')}
+                      onChange={(e) => updateEntity(index, {
+                        enumValues: e.target.value.split('\n').map(line => line.trim()).filter(Boolean),
+                      })}
+                      placeholder="Допустимые значения, каждое с новой строки"
+                      rows={3}
+                      style={{ marginBottom: '8px' }}
+                    />
+                  )}
+                  <input
+                    type="text"
+                    className="editor-input"
+                    value={entity.validationRegex || ''}
+                    onChange={(e) => updateEntity(index, { validationRegex: e.target.value || undefined })}
+                    placeholder="Regex валидации (опционально)"
+                    style={{ marginBottom: '8px' }}
+                  />
+                  <input
+                    type="text"
+                    className="editor-input"
+                    value={entity.askPrompt || ''}
+                    onChange={(e) => updateEntity(index, { askPrompt: e.target.value })}
+                    placeholder="Вопрос, если значение не найдено"
+                    style={{ marginBottom: '8px' }}
+                  />
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!entity.required}
+                      onChange={(e) => updateEntity(index, { required: e.target.checked })}
+                    />
+                    <span>Обязательная сущность</span>
+                  </label>
+                </div>
+              ))}
+            </div>
+          </>
+        );
+      }
+
       default:
         return null;
     }
@@ -574,7 +926,7 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
     <div className="block-editor-overlay" onClick={onClose}>
       <div className="block-editor-modal" onClick={e => e.stopPropagation()} onKeyDown={handleModalKeyDown}>
         <div className="editor-header">
-          <h> Редактирование блока</h>
+          <h3>Редактирование блока</h3>
           <div style={{ display: 'flex', gap: '8px' }}>
             {node.data.type !== 'start' && (
               <button 

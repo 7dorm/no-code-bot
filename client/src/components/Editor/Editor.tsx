@@ -6,7 +6,6 @@ import ReactFlow, {
   Controls,
   MiniMap,
   ReactFlowProvider,
-  useReactFlow,
   Connection,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -32,7 +31,6 @@ const EditorInner: React.FC = () => {
   } = useEditorStore();
   
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const { project } = useReactFlow();
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -64,14 +62,14 @@ const EditorInner: React.FC = () => {
   );
 
   const onNodeClick = useCallback(
-    (event: React.MouseEvent, node: Node) => {
+    (_event: React.MouseEvent, node: Node) => {
       selectNode(node.id);
     },
     [selectNode]
   );
 
   const onNodeDoubleClick = useCallback(
-    (event: React.MouseEvent, node: Node) => {
+    (_event: React.MouseEvent, node: Node) => {
       selectNode(node.id);
       const openEvent = new CustomEvent('open-block-editor', { detail: { nodeId: node.id } });
       window.dispatchEvent(openEvent);

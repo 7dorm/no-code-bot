@@ -57,7 +57,7 @@ export class WebUI implements UI {
     }
   }
 
-  async getFile(pathToSave: string, name: string): Promise<string> {
+  async getFile(_pathToSave: string, name: string): Promise<string> {
     
     if (this.onFileRequestedCallback) {
       this.onFileRequestedCallback(name);

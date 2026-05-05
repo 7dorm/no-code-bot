@@ -15,6 +15,15 @@ export type { FileBlockData } from './FileBlock';
 export { FileBlockMeta } from './FileBlock';
 export type { ScriptBlockData } from './ScriptBlock';
 export { ScriptBlockMeta } from './ScriptBlock';
+export type {
+  AiContextMode,
+  AiEntity,
+  AiEntityType,
+  AiExtractorBlockData,
+  AiRoute,
+  AiRouterBlockData,
+} from './AiBlock';
+export { AiRouterBlockMeta, AiExtractorBlockMeta } from './AiBlock';
 
 
 export type { BlockType, BlockMeta } from './blockRegistry';
@@ -33,4 +42,6 @@ export type BlockData =
   | import('./VariableBlock').VariableBlockData
   | import('./ApiBlock').ApiBlockData
   | import('./FileBlock').FileBlockData
-  | import('./ScriptBlock').ScriptBlockData;
+  | import('./ScriptBlock').ScriptBlockData
+  | import('./AiBlock').AiRouterBlockData
+  | import('./AiBlock').AiExtractorBlockData;

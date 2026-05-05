@@ -61,6 +61,26 @@
   margin-bottom: 24px;
 }
 
+.setting-section-title {
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.setting-textarea {
+  min-height: 90px;
+  resize: vertical;
+  font-family: var(--editor-mono, 'SFMono-Regular', 'Menlo', 'Consolas', 'Liberation Mono', monospace);
+}
+
 .setting-group-header {
   display: flex;
   justify-content: space-between;

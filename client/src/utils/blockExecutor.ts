@@ -1,4 +1,4 @@
-import { BlockNode, BlockExecutionResult, ExecutionContext, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData } from '../types';
+import { BlockNode, BlockExecutionResult, ExecutionContext, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData } from '../types';
 
 
 export function executeBlock(
@@ -21,6 +21,10 @@ export function executeBlock(
       return executeFile(block, context, connections);
     case 'script':
       return executeScript(block, context, connections);
+    case 'aiRouter':
+      return executeAiRouter(block, context, connections);
+    case 'aiExtractor':
+      return executeAiExtractor(block, context, connections);
     default:
       return {
         success: false,
@@ -32,7 +36,7 @@ export function executeBlock(
 
 function executeStart(
   block: BlockNode,
-  context: ExecutionContext,
+  _context: ExecutionContext,
   connections: Array<{ source: string; target: string }>
 ): BlockExecutionResult {
   const nextConnection = connections.find(c => c.source === block.id);
@@ -101,7 +105,7 @@ function executeCondition(
       return {
         success: true,
         nextNodeId: targetConnection?.target || null,
-        output: `Condition ${i + }: TRUE`,
+        output: `Condition ${i + 1}: TRUE`,
       };
     }
   }
@@ -232,7 +236,7 @@ function executeAPI(
 
   
   const isBadStatus = !processedUrl || processedUrl.toLowerCase().includes('error');
-  const status = isBadStatus ? 00 : 00;
+  const status = isBadStatus ? 500 : 200;
   const body = isBadStatus ? { error: 'Bad status' } : { ok: true, url: processedUrl };
 
   
@@ -389,7 +393,7 @@ function getVariableValue(varRef: string, context: ExecutionContext): any {
   
   if ((varRef.startsWith('"') && varRef.endsWith('"')) ||
       (varRef.startsWith("'") && varRef.endsWith("'"))) {
-    return varRef.slice(, -);
+    return varRef.slice(1, -1);
   }
   
   const num = Number(varRef);
@@ -398,4 +402,133 @@ function getVariableValue(varRef: string, context: ExecutionContext): any {
   }
   
   return varRef;
+}
+
+function executeAiRouter(
+  block: BlockNode,
+  context: ExecutionContext,
+  connections: Array<{ source: string; target: string; sourceHandle?: string }>
+): BlockExecutionResult {
+  const aiData = block.data as AiRouterBlockData;
+  const input = getAiInput(aiData.inputVariable, context);
+  const routes = aiData.routes || [];
+  const normalizedInput = input.toLowerCase();
+  let bestIndex = -1;
+  let bestScore = 0;
+
+  routes.forEach((route, index) => {
+    const text = [route.id, route.title, route.description || '', ...(route.examples || [])].join(' ').toLowerCase();
+    const tokens = Array.from(new Set(text.split(/[^a-zа-яё0-9_]+/gi).filter(token => token.length > 2)));
+    const score = tokens.reduce((sum, token) => normalizedInput.includes(token) ? sum + 1 : sum, 0);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+
+  const confidence = bestScore ? Math.min(0.95, 0.55 + bestScore * 0.1) : 0.25;
+  const threshold = aiData.confidenceThreshold ?? 0.6;
+  const route = bestIndex >= 0 ? routes[bestIndex] : null;
+
+  if (aiData.saveNormalizedIntentTo) {
+    context.variables[aiData.saveNormalizedIntentTo] = route?.id || 'fallback';
+  }
+  if (aiData.confidenceVariable) {
+    context.variables[aiData.confidenceVariable] = confidence;
+  }
+  if (aiData.reasonVariable) {
+    context.variables[aiData.reasonVariable] = bestScore ? 'Выбрано локальной эвристикой' : 'Нет уверенного совпадения';
+  }
+
+  const handle = route && confidence >= threshold ? `route-${bestIndex}` : 'fallback';
+  const targetConnection = connections.find(c => c.source === block.id && c.sourceHandle === handle);
+
+  return {
+    success: true,
+    nextNodeId: targetConnection?.target || null,
+    output: `AI Router: ${route?.id || 'fallback'} (${confidence})`,
+  };
+}
+
+function executeAiExtractor(
+  block: BlockNode,
+  context: ExecutionContext,
+  connections: Array<{ source: string; target: string; sourceHandle?: string }>
+): BlockExecutionResult {
+  const aiData = block.data as AiExtractorBlockData;
+  const input = getAiInput(aiData.inputVariable, context);
+  const missing: string[] = [];
+
+  (aiData.entities || []).forEach(entity => {
+    const extracted = extractEntityLocally(input, entity.type, entity.enumValues, entity.validationRegex);
+    if (extracted.found) {
+      context.variables[entity.variableName || entity.name] = extracted.value;
+      context.variables[`${entity.variableName || entity.name}_status`] = 'filled';
+    } else if (entity.required) {
+      missing.push(entity.name);
+      context.variables[`${entity.variableName || entity.name}_status`] = 'undefined';
+    }
+  });
+
+  const handle = missing.length === 0 ? 'complete' : 'missing';
+  const targetConnection = connections.find(c => c.source === block.id && c.sourceHandle === handle);
+
+  return {
+    success: true,
+    nextNodeId: targetConnection?.target || null,
+    output: missing.length === 0 ? 'AI Extractor: complete' : `AI Extractor: missing ${missing.join(', ')}`,
+  };
+}
+
+function getAiInput(inputVariable: string | undefined, context: ExecutionContext): string {
+  if (inputVariable && context.variables[inputVariable] !== undefined && context.variables[inputVariable] !== null) {
+    return String(context.variables[inputVariable]);
+  }
+  return String(context.variables.lastMessage || context.variables.userInput || context.userInput || '');
+}
+
+function extractEntityLocally(
+  input: string,
+  type: string,
+  enumValues?: string[],
+  validationRegex?: string
+): { value: any; found: boolean } {
+  let value: any = null;
+
+  if (validationRegex) {
+    try {
+      value = input.match(new RegExp(validationRegex, 'i'))?.[0] || null;
+    } catch (e) {
+      
+    }
+  }
+
+  if (value === null) {
+    switch (type) {
+      case 'phone':
+        value = input.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.replace(/[^\d+]/g, '') || null;
+        break;
+      case 'email':
+        value = input.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || null;
+        break;
+      case 'date':
+        value = input.match(/\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b/)?.[0] || null;
+        break;
+      case 'time':
+        value = input.match(/\b\d{1,2}:\d{2}\b/)?.[0] || null;
+        break;
+      case 'number':
+        value = Number(input.match(/-?\d+(?:[.,]\d+)?/)?.[0]?.replace(',', '.'));
+        if (Number.isNaN(value)) value = null;
+        break;
+      case 'enum':
+        value = (enumValues || []).find(option => input.toLowerCase().includes(option.toLowerCase())) || null;
+        break;
+      default:
+        value = null;
+        break;
+    }
+  }
+
+  return { value, found: value !== null && value !== undefined && value !== '' };
 }

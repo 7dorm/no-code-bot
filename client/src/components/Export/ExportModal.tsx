@@ -81,7 +81,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
       }
     } else {
       
-      const json = JSON.stringify(adaptProjectToEngine(currentProject), null, );
+      const json = JSON.stringify(adaptProjectToEngine(currentProject), null, 2);
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -97,7 +97,7 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
     <div className="export-overlay" onClick={onClose}>
       <div className="export-modal" onClick={e => e.stopPropagation()}>
         <div className="export-header">
-          <h>📦 Экспорт проекта</h>
+          <h2>📦 Экспорт проекта</h2>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
 
@@ -167,4 +167,3 @@ const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
 };
 
 export default ExportModal;
-

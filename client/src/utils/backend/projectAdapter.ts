@@ -1,5 +1,5 @@
 import { Project, BlockNode } from '../../types';
-import { MessageBlockData, ConditionBlockData, VariableBlockData, ScriptBlockData } from '../../types';
+import { MessageBlockData, ConditionBlockData, VariableBlockData, ScriptBlockData, ApiBlockData, FileBlockData, AiRouterBlockData, AiExtractorBlockData } from '../../types';
 import { EngineNode } from '@backend/Engine';
 
 
@@ -168,6 +168,42 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         break;
       }
 
+      case 'aiRouter': {
+        const aiData = block.data as AiRouterBlockData;
+        engineNode.Type = 'aiRouter';
+        engineNode.AiSettings = project.aiSettings;
+        engineNode.AiInputVariable = aiData.inputVariable;
+        engineNode.AiInstruction = aiData.instruction;
+        engineNode.AiContextMode = aiData.contextMode || project.aiSettings?.contextWindowMode || 'last_message';
+        engineNode.AiRoutes = aiData.routes || [];
+        engineNode.AiFallbackRoute = aiData.fallbackRoute;
+        engineNode.AiConfidenceThreshold = aiData.confidenceThreshold ?? project.aiSettings?.confidenceThreshold ?? 0.6;
+        engineNode.AiConfidenceVariable = aiData.confidenceVariable;
+        engineNode.AiReasonVariable = aiData.reasonVariable;
+        engineNode.AiIntentVariable = aiData.saveNormalizedIntentTo;
+
+        (aiData.routes || []).forEach((_, index) => {
+          engineNode.Nexts.push(blockConnections?.get(`route-${index}`) || '');
+        });
+        engineNode.Nexts.push(blockConnections?.get('fallback') || '');
+        break;
+      }
+
+      case 'aiExtractor': {
+        const aiData = block.data as AiExtractorBlockData;
+        engineNode.Type = 'aiExtractor';
+        engineNode.AiSettings = project.aiSettings;
+        engineNode.AiInputVariable = aiData.inputVariable;
+        engineNode.AiInstruction = aiData.instruction;
+        engineNode.AiContextMode = aiData.contextMode || project.aiSettings?.contextWindowMode || 'last_message';
+        engineNode.AiEntities = aiData.entities || [];
+        engineNode.AiAskMissing = aiData.askMissing ?? true;
+        engineNode.AiRawResultVariable = aiData.rawResultVariable;
+        engineNode.Nexts.push(blockConnections?.get('complete') || '');
+        engineNode.Nexts.push(blockConnections?.get('missing') || '');
+        break;
+      }
+
       case 'api': {
         const apiData = block.data as ApiBlockData;
         engineNode.Type = 'api';
@@ -220,7 +256,7 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
 }
 
 
-function mapBlockTypeToEngine(blockType: string): 'output' | 'condition' | 'start' | 'variable' | 'api' | 'FILE' | 'skip' | 'end' {
+function mapBlockTypeToEngine(blockType: string): 'output' | 'condition' | 'start' | 'variable' | 'api' | 'FILE' | 'skip' | 'script' | 'aiRouter' | 'aiExtractor' {
   switch (blockType) {
     case 'message':
       return 'output';
@@ -234,6 +270,12 @@ function mapBlockTypeToEngine(blockType: string): 'output' | 'condition' | 'star
       return 'api';
     case 'file':
       return 'FILE';
+    case 'script':
+      return 'script';
+    case 'aiRouter':
+      return 'aiRouter';
+    case 'aiExtractor':
+      return 'aiExtractor';
     default:
       return 'skip';
   }

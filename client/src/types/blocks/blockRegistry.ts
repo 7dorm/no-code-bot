@@ -7,6 +7,7 @@ import { VariableBlockMeta } from './VariableBlock';
 import { ApiBlockMeta } from './ApiBlock';
 import { FileBlockMeta } from './FileBlock';
 import { ScriptBlockMeta } from './ScriptBlock';
+import { AiRouterBlockMeta, AiExtractorBlockMeta } from './AiBlock';
 
 export type BlockType = 
   | 'start'
@@ -15,7 +16,9 @@ export type BlockType =
   | 'variable'
   | 'api'
   | 'file'
-  | 'script';
+  | 'script'
+  | 'aiRouter'
+  | 'aiExtractor';
 
 
 export type BlockMeta = {
@@ -38,6 +41,8 @@ export const BLOCK_METADATA: Record<BlockType, BlockMeta> = {
   api: ApiBlockMeta,
   file: FileBlockMeta,
   script: ScriptBlockMeta,
+  aiRouter: AiRouterBlockMeta,
+  aiExtractor: AiExtractorBlockMeta,
 };
 
 

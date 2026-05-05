@@ -1,6 +1,6 @@
 
 
-import { BlockData } from './blocks';
+import { BlockData, AiContextMode } from './blocks';
 
 
 export type { BlockInterface } from './BlockInterface';
@@ -16,6 +16,8 @@ export {
   ApiBlockMeta,
   FileBlockMeta,
   ScriptBlockMeta,
+  AiRouterBlockMeta,
+  AiExtractorBlockMeta,
   
   getBlockMeta,
   getBlockIcon,
@@ -32,9 +34,28 @@ export type {
   ApiBlockData,
   FileBlockData,
   ScriptBlockData,
+  AiContextMode,
+  AiEntity,
+  AiEntityType,
+  AiExtractorBlockData,
+  AiRoute,
+  AiRouterBlockData,
   BlockData,
   BlockType
 } from './blocks';
+
+export interface AiSettings {
+  provider?: 'mock' | 'custom' | 'openai';
+  endpoint?: string;
+  model?: string;
+  systemPrompt?: string;
+  safetyPrompt?: string;
+  temperature?: number;
+  maxTokens?: number;
+  language?: string;
+  contextWindowMode?: AiContextMode;
+  confidenceThreshold?: number;
+}
 
 
 export interface BlockExecutionResult {
@@ -82,6 +103,7 @@ export interface Project {
   botToken?: string; 
   telegramToken?: string; 
   globalConstants?: Record<string, any>;
+  aiSettings?: AiSettings;
   blocks: BlockNode[];
   connections: Connection[];
   createdAt: Date;

@@ -68,24 +68,6 @@ const EditorWithEditor: React.FC = () => {
     };
   }, []);
 
-  
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
-    const unsubscribe = useEditorStore.subscribe(
-      (state) => state.selectedNodeId,
-      (nodeId) => {
-        
-        clearTimeout(timeoutId);
-      }
-    );
-
-    return () => {
-      unsubscribe();
-      clearTimeout(timeoutId);
-    };
-  }, []);
-
   return (
     <div className="editor-with-panel">
       <div className="editor-container">

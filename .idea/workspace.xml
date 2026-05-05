@@ -5,8 +5,33 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0280a05d-6831-4375-b197-f173055bf21d" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/shelf/Uncommitted_changes_before_Checkout_at_12_3_25,_2_12 PM_[Changes]1/shelved.patch" beforeDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/types/blocks/AiBlock.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/client/src/vite-env.d.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/Engine.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/Engine.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/WebUI.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/WebUI.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/App.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/components/BlockEditor/BlockEditorModal.css" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/BlockEditor/BlockEditorModal.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/components/BlockEditor/BlockEditorModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/BlockEditor/BlockEditorModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/components/BlockLibrary/BlockLibrary.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/BlockLibrary/BlockLibrary.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/components/Editor/BlockNode.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Editor/BlockNode.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/components/Editor/Editor.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Editor/Editor.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/components/Editor/EditorWithEditor.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Editor/EditorWithEditor.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/components/Export/ExportModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Export/ExportModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/components/Settings/SettingsModal.css" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Settings/SettingsModal.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/components/Settings/SettingsModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Settings/SettingsModal.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/store/useEditorStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/store/useEditorStore.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/types/blocks/blockRegistry.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/types/blocks/blockRegistry.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/types/blocks/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/types/blocks/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/types/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/types/index.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/utils/backend/projectAdapter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/utils/backend/projectAdapter.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/utils/blockExecutor.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/utils/blockExecutor.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/utils/extractVariables.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/utils/extractVariables.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/utils/telegramExporter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/utils/telegramExporter.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/client/src/utils/webExporter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/utils/webExporter.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/server/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/server/server.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -61,35 +86,35 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ASKED_MARK_IGNORED_FILES_AS_EXCLUDED": "true",
-    "Jest.Engine test with mock UI (1).executor": "Run",
-    "Jest.Engine test with mock UI (2).executor": "Run",
-    "Jest.Engine test with mock UI.executor": "Run",
-    "Jest.Engine test with mock UI.should traverse the flow correctly choosing first answers.executor": "Debug",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "frontend",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/Users/deu/Projects/no-code-bot",
-    "list.type.of.created.stylesheet": "CSS",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs.jest.jest_package": "/Users/deu/Projects/no-code-bot/backend/node_modules/jest",
-    "nodejs_package_manager_path": "npm",
-    "npm.start.executor": "Run",
-    "npm.test.executor": "Run",
-    "project.structure.last.edited": "Modules",
-    "project.structure.proportion": "0.0",
-    "project.structure.side.proportion": "0.0",
-    "settings.editor.selected.configurable": "preferences.lookFeel",
-    "ts.external.directory.path": "/Users/deu/Projects/no-code-bot/client/node_modules/typescript/lib",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_MARK_IGNORED_FILES_AS_EXCLUDED&quot;: &quot;true&quot;,
+    &quot;Jest.Engine test with mock UI (1).executor&quot;: &quot;Run&quot;,
+    &quot;Jest.Engine test with mock UI (2).executor&quot;: &quot;Run&quot;,
+    &quot;Jest.Engine test with mock UI.executor&quot;: &quot;Run&quot;,
+    &quot;Jest.Engine test with mock UI.should traverse the flow correctly choosing first answers.executor&quot;: &quot;Debug&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;frontend&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/deu/Projects/no-code-bot&quot;,
+    &quot;list.type.of.created.stylesheet&quot;: &quot;CSS&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs.jest.jest_package&quot;: &quot;/Users/deu/Projects/no-code-bot/backend/node_modules/jest&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;npm.start.executor&quot;: &quot;Run&quot;,
+    &quot;npm.test.executor&quot;: &quot;Run&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;Modules&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.0&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.0&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.lookFeel&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;/Users/deu/Projects/no-code-bot/client/node_modules/typescript/lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/backend" />
@@ -199,6 +224,7 @@
       <workItem from="1764681930431" duration="52000" />
       <workItem from="1764746137953" duration="1957000" />
       <workItem from="1766037953924" duration="15000" />
+      <workItem from="1777972362938" duration="43000" />
     </task>
     <servers />
   </component>

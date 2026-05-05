@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useEditorStore } from './store/useEditorStore';
 import EditorWithEditor from './components/Editor/EditorWithEditor';
 import Toolbar from './components/Toolbar/Toolbar';
@@ -8,7 +8,6 @@ import './App.css';
 
 function App() {
   const {
-    currentProject,
     isSettingsOpen,
     isPreviewMode,
     loadFromLocalStorage,
@@ -20,12 +19,11 @@ function App() {
 
   useEffect(() => {
     loadFromLocalStorage();
-    
-    
-    if (!currentProject) {
+
+    if (!useEditorStore.getState().currentProject) {
       createProject('Новый проект');
     }
-  }, []);
+  }, [loadFromLocalStorage, createProject]);
 
   
   useEffect(() => {

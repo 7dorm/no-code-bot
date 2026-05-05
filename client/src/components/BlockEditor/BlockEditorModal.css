@@ -208,6 +208,25 @@
   font-size: 14px;
 }
 
+.ai-item {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fafafa;
+}
+
+.ai-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+}
+
 .param-row {
   display: flex;
   gap: 8px;

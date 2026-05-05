@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { BlockData, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, getBlockIcon, getBlockColor } from '../../types';
+import { BlockData, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, getBlockIcon, getBlockColor } from '../../types';
 import './BlockNode.css';
 
 
@@ -8,7 +8,7 @@ const getBlockPreview = (data: BlockData): string => {
   switch (data.type) {
     case 'message': {
       const msgData = data as MessageBlockData;
-      let preview = msgData.text ? msgData.text.substring(0, 0) : 'Текст сообщения...';
+      let preview = msgData.text ? msgData.text.substring(0, 60) : 'Текст сообщения...';
       if (msgData.saveResponseToVariable) {
         preview += ` [→${msgData.saveResponseToVariable}]`;
       }
@@ -23,7 +23,6 @@ const getBlockPreview = (data: BlockData): string => {
       const condData = data as ConditionBlockData;
       const conditions = condData.conditions || [];
       if (conditions.length > 0) {
-        const firstCondition = conditions[0].condition || '';
         return `Условий: ${conditions.length}${condData.hasDefault ? ' + else' : ''}`;
       }
       return 'Условие...';
@@ -31,13 +30,13 @@ const getBlockPreview = (data: BlockData): string => {
     case 'variable': {
       const varData = data as VariableBlockData;
       if (varData.variableName) {
-        return `${varData.variableName} = ${varData.value ? varData.value.substring(0, ) : '...'}`;
+        return `${varData.variableName} = ${varData.value ? varData.value.substring(0, 40) : 'undefined'}`;
       }
       return 'Переменная...';
     }
     case 'api': {
       const apiData = data as ApiBlockData;
-      return apiData.url ? `${apiData.method || 'GET'} ${apiData.url.substring(0, )}` : 'API запрос...';
+      return apiData.url ? `${apiData.method || 'GET'} ${apiData.url.substring(0, 48)}` : 'API запрос...';
     }
     case 'file': {
       const fileData = data as FileBlockData;
@@ -47,12 +46,21 @@ const getBlockPreview = (data: BlockData): string => {
         'delete': 'Удалить',
         'read': 'Прочитать',
       }[fileData.action || 'upload'];
-      return fileData.fileName ? `${actionLabel}: ${fileData.fileName.substring(0, 0)}` : `${actionLabel} файл...`;
+      return fileData.fileName ? `${actionLabel}: ${fileData.fileName.substring(0, 40)}` : `${actionLabel} файл...`;
     }
     case 'script': {
       const scriptData = data as ScriptBlockData;
-      const codePreview = scriptData.code ? scriptData.code.substring(0, 0).replace(/\n/g, ' ') : 'JavaScript код...';
+      const codePreview = scriptData.code ? scriptData.code.substring(0, 44).replace(/\n/g, ' ') : 'JavaScript код...';
       return scriptData.returnVariable ? `⚡ ${codePreview} → ${scriptData.returnVariable}` : `⚡ ${codePreview}`;
+    }
+    case 'aiRouter': {
+      const aiData = data as AiRouterBlockData;
+      return `${aiData.routes?.length || 0} веток${aiData.fallbackRoute ? `, fallback: ${aiData.fallbackRoute}` : ''}`;
+    }
+    case 'aiExtractor': {
+      const aiData = data as AiExtractorBlockData;
+      const requiredCount = (aiData.entities || []).filter(entity => entity.required).length;
+      return `${aiData.entities?.length || 0} сущностей${requiredCount ? `, ${requiredCount} обязательных` : ''}`;
     }
     case 'start':
     default:
@@ -152,6 +160,7 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
   const conditionData = data.type === 'condition' ? data as ConditionBlockData : null;
   const conditionCount = conditionData ? (conditionData.conditions?.length || 0) : 0;
   const hasDefault = conditionData ? true : false;
+  const aiRouterData = data.type === 'aiRouter' ? data as AiRouterBlockData : null;
 
   return (
     <div
@@ -176,7 +185,7 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
         )}
       </div>
 
-      {data.type !== 'condition' && (
+      {data.type !== 'condition' && data.type !== 'aiRouter' && data.type !== 'aiExtractor' && (
         <Handle
           type="source"
           position={Position.Bottom}
@@ -209,6 +218,49 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
               }}
             />
           )}
+        </>
+      )}
+
+      {data.type === 'aiRouter' && aiRouterData && (
+        <>
+          {(aiRouterData.routes || []).map((route, index) => (
+            <Handle
+              key={`route-${index}`}
+              type="source"
+              position={Position.Bottom}
+              id={`route-${index}`}
+              title={route.title || route.id}
+              style={{
+                left: `${(index + 1) * (100 / ((aiRouterData.routes?.length || 0) + 2))}%`,
+              }}
+            />
+          ))}
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="fallback"
+            title="Fallback"
+            style={{ left: `${100 - (100 / ((aiRouterData.routes?.length || 0) + 2))}%` }}
+          />
+        </>
+      )}
+
+      {data.type === 'aiExtractor' && (
+        <>
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="complete"
+            title="Все обязательные сущности найдены"
+            style={{ left: '33%' }}
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="missing"
+            title="Есть недостающие сущности"
+            style={{ left: '67%' }}
+          />
         </>
       )}
     </div>
