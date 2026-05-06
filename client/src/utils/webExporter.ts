@@ -1430,8 +1430,11 @@ class Engine {
     const result = { entities: {}, missing: [] };
     entities.forEach(entity => {
       const extracted = this.extractEntityValue(input, entity);
+      const variableName = entity.variableName || entity.name;
+      const existingValue = this.variables[variableName];
+      const alreadyFilled = existingValue !== undefined && existingValue !== null && existingValue !== '';
       result.entities[entity.name] = extracted;
-      if (entity.required && !extracted.found) result.missing.push(entity.name);
+      if (entity.required && !extracted.found && !alreadyFilled) result.missing.push(entity.name);
     });
     return result;
   }
@@ -1500,7 +1503,9 @@ class Engine {
     return (block.AiEntities || []).filter(entity => {
       const variableName = entity.variableName || entity.name;
       const extracted = result.entities && result.entities[entity.name];
-      return !!entity.required && (missingNames.has(entity.name) || !extracted || !extracted.found || this.variables[variableName] === undefined);
+      const existingValue = this.variables[variableName];
+      const alreadyFilled = existingValue !== undefined && existingValue !== null && existingValue !== '';
+      return !!entity.required && !alreadyFilled && (missingNames.has(entity.name) || !extracted || !extracted.found);
     });
   }
 

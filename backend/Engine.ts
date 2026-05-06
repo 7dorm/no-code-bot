@@ -1455,12 +1455,15 @@ export class Engine {
 
     entities.forEach(entity => {
       const extracted = this.extractEntityValue(input, entity);
+      const variableName = entity.variableName || entity.name;
+      const existingValue = this.variables[variableName];
+      const alreadyFilled = existingValue !== undefined && existingValue !== null && existingValue !== '';
       result.entities[entity.name] = {
         value: extracted.value,
         confidence: extracted.found ? extracted.confidence : 0,
         found: extracted.found,
       };
-      if (entity.required && !extracted.found) {
+      if (entity.required && !extracted.found && !alreadyFilled) {
         result.missing.push(entity.name);
       }
     });
@@ -1559,7 +1562,9 @@ export class Engine {
     return entities.filter(entity => {
       const variableName = entity.variableName || entity.name;
       const extracted = result.entities?.[entity.name];
-      const isMissing = missingNames.has(entity.name) || !extracted?.found || this.variables[variableName] === undefined;
+      const existingValue = this.variables[variableName];
+      const alreadyFilled = existingValue !== undefined && existingValue !== null && existingValue !== '';
+      const isMissing = !alreadyFilled && (missingNames.has(entity.name) || !extracted?.found);
       return !!entity.required && isMissing;
     });
   }

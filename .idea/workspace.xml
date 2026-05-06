@@ -4,35 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0280a05d-6831-4375-b197-f173055bf21d" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/client/src/types/blocks/AiBlock.ts" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/client/src/vite-env.d.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/Engine.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/Engine.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/WebUI.ts" beforeDir="false" afterPath="$PROJECT_DIR$/backend/WebUI.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/App.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/components/BlockEditor/BlockEditorModal.css" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/BlockEditor/BlockEditorModal.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/components/BlockEditor/BlockEditorModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/BlockEditor/BlockEditorModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/components/BlockLibrary/BlockLibrary.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/BlockLibrary/BlockLibrary.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/components/Editor/BlockNode.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Editor/BlockNode.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/components/Editor/Editor.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Editor/Editor.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/components/Editor/EditorWithEditor.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Editor/EditorWithEditor.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/components/Export/ExportModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Export/ExportModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/components/Settings/SettingsModal.css" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Settings/SettingsModal.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/components/Settings/SettingsModal.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/components/Settings/SettingsModal.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/store/useEditorStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/store/useEditorStore.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/types/blocks/blockRegistry.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/types/blocks/blockRegistry.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/types/blocks/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/types/blocks/index.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/types/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/types/index.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/utils/backend/projectAdapter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/utils/backend/projectAdapter.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/utils/blockExecutor.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/utils/blockExecutor.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/utils/extractVariables.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/utils/extractVariables.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/utils/telegramExporter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/utils/telegramExporter.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client/src/utils/webExporter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/client/src/utils/webExporter.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/server/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/server/server.js" afterDir="false" />
-    </list>
+    <list default="true" id="0280a05d-6831-4375-b197-f173055bf21d" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -224,7 +196,7 @@
       <workItem from="1764681930431" duration="52000" />
       <workItem from="1764746137953" duration="1957000" />
       <workItem from="1766037953924" duration="15000" />
-      <workItem from="1777972362938" duration="43000" />
+      <workItem from="1777972362938" duration="688000" />
     </task>
     <servers />
   </component>

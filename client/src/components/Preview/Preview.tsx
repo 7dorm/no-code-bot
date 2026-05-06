@@ -224,8 +224,8 @@ const Preview: React.FC<PreviewProps> = ({ onClose }) => {
         setActiveAnswersMessageIndex(null);
       },
       () => {
-        
-        
+        setWaitingForInput(true);
+        setWaitingForFile(false);
       },
       (fileName: string) => {
         setWaitingForFile(true);

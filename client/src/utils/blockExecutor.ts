@@ -460,13 +460,18 @@ function executeAiExtractor(
   const missing: string[] = [];
 
   (aiData.entities || []).forEach(entity => {
+    const variableName = entity.variableName || entity.name;
     const extracted = extractEntityLocally(input, entity.type, entity.enumValues, entity.validationRegex);
     if (extracted.found) {
-      context.variables[entity.variableName || entity.name] = extracted.value;
-      context.variables[`${entity.variableName || entity.name}_status`] = 'filled';
-    } else if (entity.required) {
+      context.variables[variableName] = extracted.value;
+      context.variables[`${variableName}_status`] = 'filled';
+    } else if (entity.required && (
+      context.variables[variableName] === undefined ||
+      context.variables[variableName] === null ||
+      context.variables[variableName] === ''
+    )) {
       missing.push(entity.name);
-      context.variables[`${entity.variableName || entity.name}_status`] = 'undefined';
+      context.variables[`${variableName}_status`] = 'undefined';
     }
   });
 
