@@ -1,6 +1,8 @@
 import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { BlockData, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, getBlockIcon, getBlockColor } from '../../types';
+import { useEditorStore } from '../../store/useEditorStore';
+import { validateProjectVariables, ValidationError } from '../../utils/graphValidation';
 import './BlockNode.css';
 
 
@@ -151,10 +153,15 @@ function getVariableValue(varRef: string, context: { variables: Record<string, a
   return varRef;
 }
 
-const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
+const BlockNode: React.FC<NodeProps<BlockData>> = ({ id, data, selected }) => {
+  const { currentProject } = useEditorStore();
   const backgroundColor = getBlockColor(data.type as any);
   const icon = getBlockIcon(data.type as any);
   const preview = getBlockPreview(data);
+
+  
+  const errors = currentProject ? validateProjectVariables(currentProject).filter(e => e.blockId === id) : [];
+  const hasError = errors.length > 0;
 
   
   const conditionData = data.type === 'condition' ? data as ConditionBlockData : null;
@@ -164,15 +171,19 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
 
   return (
     <div
-      className={`block-node ${selected ? 'selected' : ''}`}
-      style={{ borderColor: selected ? backgroundColor : undefined }}
+      className={`block-node ${selected ? 'selected' : ''} ${hasError ? 'has-error' : ''}`}
+      style={{ 
+        borderColor: hasError ? '#f44336' : (selected ? backgroundColor : undefined),
+        boxShadow: hasError ? '0 0 0 2px #f44336' : undefined
+      }}
+      title={errors.map(e => e.message).join('\n')}
     >
       {data.type !== 'start' && (
         <Handle type="target" position={Position.Top} />
       )}
       
-      <div className="block-header" style={{ background: backgroundColor }}>
-        <span className="block-icon">{icon}</span>
+      <div className="block-header" style={{ background: hasError ? '#f44336' : backgroundColor }}>
+        <span className="block-icon">{hasError ? '⚠️' : icon}</span>
         <span className="block-type">{data.type.toUpperCase()}</span>
       </div>
       
@@ -181,6 +192,11 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ data, selected }) => {
         {preview && (
           <div className="block-preview">
             {preview}
+          </div>
+        )}
+        {hasError && (
+          <div className="block-error-message">
+            {errors[0].message}
           </div>
         )}
       </div>

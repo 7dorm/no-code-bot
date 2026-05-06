@@ -77,3 +77,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.block-node.has-error {
+  border: 1px solid #f44336;
+}
+
+.block-error-message {
+  color: #f44336;
+  font-size: 11px;
+  margin-top: 8px;
+  font-weight: 500;
+  border-top: 1px dashed rgba(244, 67, 54, 0.3);
+  padding-top: 6px;
+}

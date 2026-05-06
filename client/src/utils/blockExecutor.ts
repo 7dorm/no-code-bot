@@ -212,6 +212,15 @@ function executeVariable(
   const processedValue = replaceVariables(value, context.variables, context.globalConstants);
 
   
+  const variableDataForCheck = block.data as any;
+  if (variableDataForCheck.isFinal && context.variables[variableName] !== undefined) {
+    return {
+      success: false,
+      error: `Ошибка: Переменная "${variableName}" помечена как final и не может быть изменена`,
+    };
+  }
+
+  
   context.variables[variableName] = processedValue;
 
   const nextConnection = connections.find(c => c.source === block.id);

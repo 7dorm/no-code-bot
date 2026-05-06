@@ -6,6 +6,7 @@ export interface VariableBlockData extends BlockInterface {
   variableName: string; 
   value: string; 
   saveNextInput?: boolean; 
+  isFinal?: boolean; 
 }
 
 

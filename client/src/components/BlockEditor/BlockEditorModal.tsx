@@ -367,6 +367,17 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) 
               </label>
               <small className="editor-hint">Если включено, следующий ответ пользователя будет автоматически сохранен в эту переменную</small>
             </div>
+            <div className="editor-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={variableData.isFinal || false}
+                  onChange={(e) => updateBlockData<VariableBlockData>({ isFinal: e.target.checked })}
+                />
+                <span>Final (нельзя изменять после первого заполнения)</span>
+              </label>
+              <small className="editor-hint">Если включено, переменная станет доступна только для чтения после первого присвоения значения</small>
+            </div>
             {!variableData.saveNextInput && (
               <div className="editor-group">
                 <label className="editor-label">Значение</label>
