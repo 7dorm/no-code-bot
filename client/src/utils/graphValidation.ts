@@ -74,6 +74,9 @@ export function validateProjectVariables(project: Project): ValidationError[] {
       
       if (['userInput', 'lastMessage', 'intent', 'confidence'].includes(varName)) return;
 
+      
+      if (project.globalConstants && project.globalConstants[varName] !== undefined) return;
+
       let isDefined = false;
       let hasAnyValue = false;
 
@@ -134,6 +137,13 @@ export function validateProjectVariables(project: Project): ValidationError[] {
         variableName: varName,
         type: 'final_violation',
         message: `Нельзя изменять переменную "${varName}", так как она помечена как final выше по графу`,
+      });
+    } else if (project.globalConstants && project.globalConstants[varName] !== undefined) {
+      errors.push({
+        blockId: block.id,
+        variableName: varName,
+        type: 'final_violation',
+        message: `Нельзя изменять переменную "${varName}", так как она определена в глобальных константах`,
       });
     }
   });
