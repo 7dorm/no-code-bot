@@ -132,10 +132,14 @@ export class ConfigRegistry {
     }
 
     const engineModulePath = pathToFileURL(
-      resolve(__dirname, '../../../backend/Engine.ts'),
+      resolve(__dirname, '../../../backend/Engine.js'),
     ).href;
     const engineModule = await import(engineModulePath);
-    const EngineCtor = engineModule.Engine as new (
+    const EngineCtor = (
+      (engineModule as { Engine?: unknown }).Engine ??
+      (engineModule as { default?: { Engine?: unknown } }).default?.Engine ??
+      (engineModule as { default?: unknown }).default
+    ) as new (
       ui: HeadlessUI,
       botStructure: EngineNode[],
       globalConstants?: Record<string, unknown>,

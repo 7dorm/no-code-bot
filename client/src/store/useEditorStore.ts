@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { BlockNode, Connection, Project, ConditionBlockData } from '../types';
 
-interface EditorState {
+export interface EditorState {
   
   currentProject: Project | null;
 
@@ -14,6 +14,13 @@ interface EditorState {
   isSettingsOpen: boolean;
   isPreviewMode: boolean;
 
+  
+  remoteClient: any;
+  isConnected: boolean;
+  
+  connectRemote: () => Promise<string>;
+  joinRemote: (token: string) => Promise<void>;
+  disconnectRemote: () => void;
   
   createProject: (name: string) => void;
   updateProject: (updates: Partial<Project>) => void;
@@ -57,6 +64,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedNodeId: null,
   isSettingsOpen: false,
   isPreviewMode: false,
+  
+  remoteClient: null,
+  isConnected: false,
+  
+  connectRemote: async () => {
+    throw new Error('Remote connection not available in local mode');
+  },
+  joinRemote: async (_token: string) => {
+    throw new Error('Remote connection not available in local mode');
+  },
+  disconnectRemote: () => {
+    // No-op in local mode
+  },
 
   
   createProject: (name: string) => {

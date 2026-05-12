@@ -1,11 +1,5 @@
 import { UI } from "./UI";
 
-
-declare global {
-  var fetch: typeof import('node-fetch').default | undefined;
-}
-
-
 export interface EngineNode {
   id: string;
   Type: 'output' | 'condition' | 'start' | 'variable' | 'FILE' | 'api' | 'skip' | 'script';
@@ -793,19 +787,20 @@ export class Engine {
 
     try {
       
-      const replaceVariable = (varName: string): string => {
+      const replaceVariable = (rawName: string): string => {
+        const varName = rawName.trim();
         if (this.variables[varName] !== undefined && this.variables[varName] !== null) {
           return String(this.variables[varName]);
         } else if (this.globalConstants && this.globalConstants[varName] !== undefined && this.globalConstants[varName] !== null) {
           return String(this.globalConstants[varName]);
         }
-        return `{{${varName}}}`; 
+        return `{{${varName}}}`;
       };
 
       
       let url = block.ApiUrl;
       const urlVariables: Record<string, string> = {};
-      url = url.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
+      url = url.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
         const value = replaceVariable(varName);
         urlVariables[varName] = value;
         return value;
@@ -818,11 +813,12 @@ export class Engine {
       if (body) {
         
         
-        body = body.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
+        body = body.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
+          const trimmedName = String(varName).trim();
           
-          const varValue = this.variables[varName] !== undefined ? this.variables[varName] : 
-                          (this.globalConstants && this.globalConstants[varName] !== undefined ? this.globalConstants[varName] : null);
-          bodyVariables[varName] = varValue;
+          const varValue = this.variables[trimmedName] !== undefined ? this.variables[trimmedName] : 
+                          (this.globalConstants && this.globalConstants[trimmedName] !== undefined ? this.globalConstants[trimmedName] : null);
+          bodyVariables[trimmedName] = varValue;
           
           
           if (varValue === null || varValue === undefined) {
@@ -884,7 +880,7 @@ export class Engine {
       
       Object.keys(headers).forEach(key => {
         if (headers[key]) {
-          headers[key] = headers[key].replace(/\{\{(\w+)\}\}/g, (match, varName) => replaceVariable(varName));
+          headers[key] = headers[key].replace(/\{\{([^}]+)\}\}/g, (match, varName) => replaceVariable(varName));
         }
       });
 

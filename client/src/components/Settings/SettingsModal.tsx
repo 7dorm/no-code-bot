@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useEditorStore } from '../../store/useEditorStore';
+import { EditorState } from '../../store/useEditorStore';
 import { ExportPlatform } from '../../types';
 import './SettingsModal.css';
 
 interface SettingsModalProps {
   onClose: () => void;
+  useStore: () => EditorState;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
-  const { currentProject, updateSettings } = useEditorStore();
+const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, useStore }) => {
+  const { currentProject, updateSettings } = useStore();
   
   const [exportPlatform, setExportPlatform] = useState<ExportPlatform>(
     currentProject?.exportPlatform || 'telegram'

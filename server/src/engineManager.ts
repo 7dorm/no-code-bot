@@ -35,6 +35,7 @@ app.get('/api/configs', (_req, res) => {
 
 app.post(['/api/NewConf', '/api/configs'], async (req, res, next) => {
   try {
+    console.log('Creating config', req.body);
     const snapshot = await registry.create(req.body);
     res.status(201).json(snapshot);
   } catch (error) {

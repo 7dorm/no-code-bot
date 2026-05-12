@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useEditorStore } from '../../store/useEditorStore';
+import { EditorState } from '../../store/useEditorStore';
 import { Engine } from '@backend/Engine';
 import { WebUI } from '@backend/WebUI';
 import { adaptProjectToEngine } from '../../utils/backend/projectAdapter';
@@ -7,6 +7,7 @@ import './Preview.css';
 
 interface PreviewProps {
   onClose: () => void;
+  useStore: () => EditorState;
 }
 
 interface ChatMessage {
@@ -15,8 +16,8 @@ interface ChatMessage {
   answers?: string[];
 }
 
-const Preview: React.FC<PreviewProps> = ({ onClose }) => {
-  const { currentProject } = useEditorStore();
+const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
+  const { currentProject } = useStore();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [userInput, setUserInput] = useState('');
   const engineRef = useRef<Engine | null>(null);

@@ -867,7 +867,7 @@ class Engine {
     if (!block) return;
 
     const replaceVariables = (text) => {
-      return text.replace(/\\{\\{(\\w+)\\}\\}/g, (match, varName) => {
+      return text.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
         if (this.files[varName] !== undefined && this.files[varName] !== null) {
           return String(this.files[varName]);
         } else if (this.variables[varName] !== undefined && this.variables[varName] !== null) {
@@ -954,18 +954,19 @@ class Engine {
     const timestamp = new Date().toISOString();
 
     try {
-      const replaceVariable = (varName) => {
+      const replaceVariable = (rawName) => {
+        const varName = String(rawName).trim();
         if (this.variables[varName] !== undefined && this.variables[varName] !== null) {
           return String(this.variables[varName]);
         } else if (this.globalConstants && this.globalConstants[varName] !== undefined && this.globalConstants[varName] !== null) {
           return String(this.globalConstants[varName]);
         }
-        return \`\\{\${varName}\\\}\`;
+        return '{{' + varName + '}}';
       };
 
       let url = block.ApiUrl;
       const urlVariables = {};
-      url = url.replace(/\\{\\{(\\w+)\\}\\}/g, (match, varName) => {
+      url = url.replace(/\\{\\{([^}]+)\\}\\}/g, (match, varName) => {
         const value = replaceVariable(varName);
         urlVariables[varName] = value;
         return value;
@@ -975,10 +976,11 @@ class Engine {
       let body = block.ApiBody || '';
       const bodyVariables = {};
       if (body) {
-        body = body.replace(/\\{\\{(\\w+)\\}\\}/g, (match, varName) => {
-          const varValue = this.variables[varName] !== undefined ? this.variables[varName] :
-                          (this.globalConstants && this.globalConstants[varName] !== undefined ? this.globalConstants[varName] : null);
-          bodyVariables[varName] = varValue;
+        body = body.replace(/\\{\\{([^}]+)\\}\\}/g, (match, varName) => {
+          const trimmedName = String(varName).trim();
+          const varValue = this.variables[trimmedName] !== undefined ? this.variables[trimmedName] :
+                          (this.globalConstants && this.globalConstants[trimmedName] !== undefined ? this.globalConstants[trimmedName] : null);
+          bodyVariables[trimmedName] = varValue;
 
           if (varValue === null || varValue === undefined) {
             return 'null';
@@ -1028,7 +1030,7 @@ class Engine {
 
       Object.keys(headers).forEach(key => {
         if (headers[key]) {
-          headers[key] = headers[key].replace(/\\{\\{(\\w+)\\}\\}/g, (match, varName) => replaceVariable(varName));
+          headers[key] = headers[key].replace(/\\{\\{([^}]+)\\}\\}/g, (match, varName) => replaceVariable(varName));
         }
       });
 
@@ -1869,3 +1871,5 @@ export function createWebExport(project: Project): { code: string; instructions:
     files
   };
 }
+
+

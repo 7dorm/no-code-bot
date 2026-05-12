@@ -9,7 +9,8 @@
     "types": ["node"],
     "lib": ["ES2022", "DOM"],
     "resolveJsonModule": true,
-    "noEmit": true
+    "rootDir": "./src",
+    "outDir": "./dist"
   },
   "include": ["src/**/*.ts"]
 }

@@ -11,7 +11,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
-import { useEditorStore } from '../../store/useEditorStore';
+import { EditorState } from '../../store/useEditorStore';
 import BlockNode from './BlockNode';
 import BlockLibrary from '../BlockLibrary/BlockLibrary';
 import './Editor.css';
@@ -20,7 +20,11 @@ const nodeTypes = {
   blockNode: BlockNode,
 };
 
-const EditorInner: React.FC = () => {
+interface EditorProps {
+  useStore: () => EditorState;
+}
+
+const EditorInner: React.FC<EditorProps> = ({ useStore }) => {
   const {
     currentProject,
     addConnection,
@@ -29,7 +33,7 @@ const EditorInner: React.FC = () => {
     selectedNodeId,
     updateBlock,
     deleteBlock,
-  } = useEditorStore();
+  } = useStore();
   
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { project } = useReactFlow();
@@ -120,7 +124,7 @@ const EditorInner: React.FC = () => {
 
   return (
     <>
-      <BlockLibrary />
+      <BlockLibrary useStore={useStore} />
       <div className="editor-wrapper" ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodes}
@@ -146,10 +150,10 @@ const EditorInner: React.FC = () => {
   );
 };
 
-const Editor: React.FC = () => {
+const Editor: React.FC<EditorProps> = ({ useStore }) => {
   return (
     <ReactFlowProvider>
-      <EditorInner />
+      <EditorInner useStore={useStore} />
     </ReactFlowProvider>
   );
 };
