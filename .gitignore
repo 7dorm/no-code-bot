@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
 
+
+test/
 **/node_modules/
 
 # Build output
