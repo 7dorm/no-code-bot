@@ -159,10 +159,12 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ id, data, selected }) => {
   const icon = getBlockIcon(data.type as any);
   const preview = getBlockPreview(data);
 
-  
-  const errors = currentProject ? validateProjectVariables(currentProject).filter(e => e.blockId === id) : [];
-  const hasError = errors.length > 0;
-
+  const blockValidations = currentProject ? validateProjectVariables(currentProject).filter(e => e.blockId === id) : [];
+  const hasError = blockValidations.some(v => v.severity === 'error');
+  const hasWarning = blockValidations.some(v => v.severity === 'warning') && !hasError;
+  const borderColor = hasError ? '#f44336' : (hasWarning ? '#ff9800' : (selected ? backgroundColor : undefined));
+  const boxShadow = hasError ? '0 0 0 2px #f44336' : (hasWarning ? '0 0 0 2px #ff9800' : undefined);
+  const headerBg = hasError ? '#f44336' : (hasWarning ? '#ff9800' : backgroundColor);
   
   const conditionData = data.type === 'condition' ? data as ConditionBlockData : null;
   const conditionCount = conditionData ? (conditionData.conditions?.length || 0) : 0;
@@ -171,19 +173,19 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ id, data, selected }) => {
 
   return (
     <div
-      className={`block-node ${selected ? 'selected' : ''} ${hasError ? 'has-error' : ''}`}
+      className={`block-node ${selected ? 'selected' : ''} ${hasError ? 'has-error' : ''} ${hasWarning ? 'has-warning' : ''}`}
       style={{ 
-        borderColor: hasError ? '#f44336' : (selected ? backgroundColor : undefined),
-        boxShadow: hasError ? '0 0 0 2px #f44336' : undefined
+        borderColor,
+        boxShadow
       }}
-      title={errors.map(e => e.message).join('\n')}
+      title={blockValidations.map(e => e.message).join('\n')}
     >
       {data.type !== 'start' && (
         <Handle type="target" position={Position.Top} />
       )}
       
-      <div className="block-header" style={{ background: hasError ? '#f44336' : backgroundColor }}>
-        <span className="block-icon">{hasError ? '⚠️' : icon}</span>
+      <div className="block-header" style={{ background: headerBg }}>
+        <span className="block-icon">{hasError || hasWarning ? '⚠️' : icon}</span>
         <span className="block-type">{data.type.toUpperCase()}</span>
       </div>
       
@@ -194,9 +196,9 @@ const BlockNode: React.FC<NodeProps<BlockData>> = ({ id, data, selected }) => {
             {preview}
           </div>
         )}
-        {hasError && (
-          <div className="block-error-message">
-            {errors[0].message}
+        {(hasError || hasWarning) && blockValidations.length > 0 && (
+          <div className="block-error-message" style={{ color: hasError ? '#f44336' : '#856404', backgroundColor: hasError ? '#fdeced' : '#fff3cd', padding: '4px', borderRadius: '4px', marginTop: '4px', fontSize: '11px' }}>
+            {blockValidations[0].message}
           </div>
         )}
       </div>

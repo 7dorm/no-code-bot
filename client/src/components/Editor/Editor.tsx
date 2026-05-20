@@ -13,6 +13,7 @@ import 'reactflow/dist/style.css';
 import { useEditorStore } from '../../store/useEditorStore';
 import BlockNode from './BlockNode';
 import BlockLibrary from '../BlockLibrary/BlockLibrary';
+import ErrorPanel from './ErrorPanel';
 import './Editor.css';
 
 const nodeTypes = {
@@ -139,6 +140,7 @@ const EditorInner: React.FC = () => {
           <Controls />
           <MiniMap />
         </ReactFlow>
+        <ErrorPanel />
       </div>
     </>
   );

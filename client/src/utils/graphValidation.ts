@@ -2,9 +2,10 @@ import { Project, BlockNode, Connection, VariableBlockData, MessageBlockData, Ap
 
 export interface ValidationError {
   blockId: string;
-  variableName: string;
-  type: 'undefined' | 'final_violation' | 'unassigned';
+  variableName?: string;
+  type: 'undefined' | 'final_violation' | 'unassigned' | 'unreachable';
   message: string;
+  severity: 'error' | 'warning';
 }
 
 export function validateProjectVariables(project: Project): ValidationError[] {
@@ -98,6 +99,7 @@ export function validateProjectVariables(project: Project): ValidationError[] {
           variableName: varName,
           type: 'undefined',
           message: `Переменная "${varName}" не определена выше в графе`,
+          severity: 'error',
         });
       } else if (!hasAnyValue) {
         errors.push({
@@ -105,6 +107,7 @@ export function validateProjectVariables(project: Project): ValidationError[] {
           variableName: varName,
           type: 'unassigned',
           message: `Переменная "${varName}" инициализирована, но ей не задано значение`,
+          severity: 'warning',
         });
       }
     });
@@ -137,6 +140,7 @@ export function validateProjectVariables(project: Project): ValidationError[] {
         variableName: varName,
         type: 'final_violation',
         message: `Нельзя изменять переменную "${varName}", так как она помечена как final выше по графу`,
+        severity: 'error',
       });
     } else if (project.globalConstants && project.globalConstants[varName] !== undefined) {
       errors.push({
@@ -144,11 +148,50 @@ export function validateProjectVariables(project: Project): ValidationError[] {
         variableName: varName,
         type: 'final_violation',
         message: `Нельзя изменять переменную "${varName}", так как она определена в глобальных константах`,
+        severity: 'error',
+      });
+    }
+  });
+
+  // Check reachability
+  const reachableFromStart = getReachableBlocksFromStart('start-block', adjacencyList);
+  blocks.forEach(block => {
+    if (block.id !== 'start-block' && !reachableFromStart.has(block.id)) {
+      errors.push({
+        blockId: block.id,
+        type: 'unreachable',
+        message: `Блок недостижим из стартового узла (нет связи)`,
+        severity: 'warning',
       });
     }
   });
 
   return errors;
+}
+
+function getReachableBlocksFromStart(startId: string, adjacencyList: Map<string, string[]>): Set<string> {
+  const reachable = new Set<string>();
+  const forwardAdjacencyList = new Map<string, string[]>();
+  
+  // Create forward adjacency list
+  for (const [target, sources] of adjacencyList.entries()) {
+    sources.forEach(source => {
+      if (!forwardAdjacencyList.has(source)) forwardAdjacencyList.set(source, []);
+      forwardAdjacencyList.get(source)!.push(target);
+    });
+  }
+
+  const queue = [startId];
+  while (queue.length > 0) {
+    const currentId = queue.shift()!;
+    if (reachable.has(currentId)) continue;
+    reachable.add(currentId);
+
+    const children = forwardAdjacencyList.get(currentId) || [];
+    children.forEach(child => queue.push(child));
+  }
+
+  return reachable;
 }
 
 function getDefinitionsInBlock(block: BlockNode): Set<{ name: string; isFinal: boolean; hasValue: boolean }> {
