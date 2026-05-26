@@ -1,11 +1,15 @@
 import React, { useMemo } from 'react';
-import { useEditorStore } from '../../store/useEditorStore';
+import { EditorState } from '../../store/useEditorStore';
 import { validateProjectVariables } from '../../utils/graphValidation';
 import { useReactFlow } from 'reactflow';
 import './ErrorPanel.css';
 
-const ErrorPanel: React.FC = () => {
-  const { currentProject, selectNode } = useEditorStore();
+interface ErrorPanelProps {
+  useStore: () => EditorState;
+}
+
+const ErrorPanel: React.FC<ErrorPanelProps> = ({ useStore }) => {
+  const { currentProject, selectNode } = useStore();
   const { setCenter, getNodes } = useReactFlow();
 
   const errors = useMemo(() => {

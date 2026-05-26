@@ -12,6 +12,7 @@ import {
   AiExtractorBlockMeta,
 } from '../../types';
 import BlockEditorModal from '../BlockEditor/BlockEditorModal';
+import { createId } from '../../utils/createId';
 import './BlockLibrary.css';
 
 const BLOCK_TYPES = [
@@ -104,7 +105,7 @@ const BlockLibrary: React.FC<BlockLibraryProps> = ({ useStore }) => {
     }
     
     const newBlock: BlockNode = {
-      id: crypto.randomUUID(),
+      id: createId(),
       type: 'blockNode',
       position: { x: Math.random() * 300, y: Math.random() * 300 },
       data: blockData,

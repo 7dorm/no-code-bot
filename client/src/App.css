@@ -26,93 +26,240 @@ html, body {
 
 .remote-controls {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 20px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 20px 16px;
   background-color: #fff;
   border-bottom: 1px solid #e0e0e0;
 }
 
-.remote-controls select {
+.remote-controls-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.remote-controls select,
+.remote-controls .participant-input,
+.remote-controls .token-input input {
   padding: 8px 12px;
   border: 1px solid #d0d0d0;
-  border-radius: 4px;
+  border-radius: 8px;
   background-color: #fff;
   font-size: 14px;
-  cursor: pointer;
 }
 
 .remote-controls button {
   padding: 8px 16px;
   border: 1px solid #d0d0d0;
-  border-radius: 4px;
+  border-radius: 8px;
   background-color: #fff;
   font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.2s, border-color 0.2s;
 }
 
 .remote-controls button:hover {
   background-color: #f0f0f0;
+  border-color: #bfc7d4;
+}
+
+.remote-lobby {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.remote-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .remote-controls .token-input {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.remote-controls .token-input input {
-  padding: 8px 12px;
-  border: 1px solid #d0d0d0;
-  border-radius: 4px;
-  font-size: 14px;
-  min-width: 200px;
+.remote-controls .token-input input,
+.remote-controls .participant-input {
+  min-width: 220px;
 }
 
-.remote-controls .status.connected {
-  color: #4caf50;
-  font-weight: 500;
-  font-size: 14px;
+.sessions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
 }
 
-.remote-controls .created-token {
+.session-card {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid #d7dee8;
+  border-radius: 14px;
+}
+
+.current-session {
+  background: #f5f8ff;
+  border-color: #c6d3ff;
+}
+
+.session-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.session-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.owner {
+  color: #0b5f38;
+  background: #dff7e8;
+}
+
+.status-badge.viewer {
+  color: #5b6472;
+  background: #edf1f6;
+}
+
+.status-badge.active {
+  color: #0f4f87;
+  background: #dfeeff;
+}
+
+.status-badge.idle {
+  color: #7a5a0a;
+  background: #fff1c4;
+}
+
+.session-token {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  background-color: #e8f5e9;
-  border: 1px solid #c8e6c9;
-  border-radius: 4px;
-}
-
-.remote-controls .token-label {
-  font-size: 14px;
-  color: #2e7d32;
-  font-weight: 500;
-}
-
-.remote-controls .token-value {
   font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #4a5565;
+  word-break: break-all;
+}
+
+.session-meta,
+.session-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: #4f5d6b;
   font-size: 13px;
-  color: #1b5e20;
-  background-color: #fff;
-  padding: 4px 8px;
-  border-radius: 3px;
-  border: 1px solid #a5d6a7;
+}
+
+.participants-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.participants-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #243040;
+}
+
+.participants-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.participant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #edf2f8;
+  color: #273445;
+  font-size: 13px;
+}
+
+.participant-role {
+  color: #0b5f38;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.sessions-empty {
+  padding: 18px;
+  border: 1px dashed #cdd6e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #627181;
+  font-size: 14px;
 }
 
 .remote-controls .copy-button {
   padding: 4px 8px;
   font-size: 12px;
-  background-color: #4caf50;
+  background-color: #4b7bec;
   color: white;
   border: none;
-  border-radius: 3px;
+  border-radius: 6px;
   cursor: pointer;
 }
 
 .remote-controls .copy-button:hover {
-  background-color: #45a049;
+  background-color: #3867d6;
+}
+
+.session-owner {
+  font-size: 13px;
+  color: #49586a;
+}
+
+@media (max-width: 860px) {
+  .remote-controls {
+    padding: 12px;
+  }
+
+  .remote-controls-top,
+  .remote-controls .token-input,
+  .session-card-header,
+  .session-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .remote-controls .participant-input,
+  .remote-controls .token-input input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .session-badges {
+    justify-content: flex-start;
+  }
 }
 
 .app-content {

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BlockData, MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, AiRoute, AiEntity, AiEntityType } from '../../types';
 import { EditorState } from '../../store/useEditorStore';
-import { BlockData, MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, AiRoute, AiEntity, AiEntityType } from '../../types';
 import './BlockEditorModal.css';
 
 interface BlockEditorModalProps {

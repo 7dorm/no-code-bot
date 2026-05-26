@@ -17,7 +17,12 @@ interface ChatMessage {
 }
 
 const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
-  const { currentProject } = useStore();
+  const {
+    currentProject,
+    isConnected,
+    remoteSessionState,
+    updateRemotePreviewState,
+  } = useStore();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [userInput, setUserInput] = useState('');
   const engineRef = useRef<Engine | null>(null);
@@ -30,9 +35,98 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
   const [userJustResponded, setUserJustResponded] = useState(false);
   const executionPromiseRef = useRef<Promise<void> | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isRemoteSession = isConnected && !!remoteSessionState;
+  const isPreviewOwner = !!remoteSessionState?.isCurrentParticipantOwner;
+  const canControlPreview = !isRemoteSession || isPreviewOwner;
+  const sharedPreview = remoteSessionState?.preview;
+
+  const buildSharedPreviewState = useCallback(() => ({
+    active: true,
+    ownerOnly: true,
+    isRunning,
+    waitingForInput,
+    waitingForFile,
+    requestedFileName,
+    activeAnswersMessageIndex,
+    messages,
+    controllerParticipantId: remoteSessionState?.currentParticipantId,
+    controllerName: remoteSessionState?.ownerName,
+    updatedAt: new Date().toISOString(),
+  }), [
+    activeAnswersMessageIndex,
+    isRunning,
+    messages,
+    remoteSessionState?.currentParticipantId,
+    remoteSessionState?.ownerName,
+    requestedFileName,
+    waitingForFile,
+    waitingForInput,
+  ]);
+
+  useEffect(() => {
+    if (!isRemoteSession || canControlPreview) {
+      return;
+    }
+
+    setMessages(sharedPreview?.messages || []);
+    setIsRunning(sharedPreview?.isRunning || false);
+    setWaitingForInput(sharedPreview?.waitingForInput || false);
+    setWaitingForFile(sharedPreview?.waitingForFile || false);
+    setRequestedFileName(sharedPreview?.requestedFileName || '');
+    setActiveAnswersMessageIndex(
+      typeof sharedPreview?.activeAnswersMessageIndex === 'number'
+        ? sharedPreview.activeAnswersMessageIndex
+        : null,
+    );
+  }, [canControlPreview, isRemoteSession, sharedPreview]);
+
+  useEffect(() => {
+    if (!isRemoteSession || !isPreviewOwner) {
+      return;
+    }
+
+    updateRemotePreviewState(buildSharedPreviewState());
+  }, [
+    buildSharedPreviewState,
+    isPreviewOwner,
+    isRemoteSession,
+    updateRemotePreviewState,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (!isRemoteSession || !isPreviewOwner) {
+        return;
+      }
+
+      updateRemotePreviewState({
+        active: false,
+        ownerOnly: true,
+        isRunning: false,
+        waitingForInput: false,
+        waitingForFile: false,
+        requestedFileName: '',
+        activeAnswersMessageIndex: null,
+        messages: [],
+        controllerParticipantId: remoteSessionState?.currentParticipantId,
+        controllerName: remoteSessionState?.ownerName,
+        updatedAt: new Date().toISOString(),
+      });
+    };
+  }, [
+    isPreviewOwner,
+    isRemoteSession,
+    remoteSessionState?.currentParticipantId,
+    remoteSessionState?.ownerName,
+    updateRemotePreviewState,
+  ]);
 
   
   useEffect(() => {
+    if (isRemoteSession && !isPreviewOwner) {
+      return;
+    }
+
     if (!currentProject) {
       setMessages([]);
       setIsRunning(false);
@@ -134,10 +228,10 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
       webUIRef.current = null;
       executionPromiseRef.current = null;
     };
-  }, [currentProject]);
+  }, [currentProject, isPreviewOwner, isRemoteSession]);
 
   const sendToEngine = useCallback((text: string) => {
-    if (!text || !webUIRef.current || !waitingForInput) {
+    if (!canControlPreview || !text || !webUIRef.current || !waitingForInput) {
       return;
     }
 
@@ -153,7 +247,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
     webUIRef.current.handleUserMessage(text);
 
     
-  }, [waitingForInput]);
+  }, [canControlPreview, waitingForInput]);
 
   const handleSendMessage = useCallback(() => {
     const inputText = userInput.trim();
@@ -166,7 +260,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
   }, [sendToEngine]);
 
   const handleRestart = useCallback(() => {
-    if (!currentProject) {
+    if (!canControlPreview || !currentProject) {
       return;
     }
     
@@ -261,9 +355,13 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
     };
 
     executeBot();
-  }, [currentProject]);
+  }, [canControlPreview, currentProject, userJustResponded]);
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canControlPreview) {
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file || !webUIRef.current) {
       return;
@@ -290,7 +388,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
     }
 
     
-  }, []);
+  }, [canControlPreview]);
 
   if (!currentProject) {
     return (
@@ -313,7 +411,14 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
 
         <div className="preview-chat">
           <div className="chat-messages">
-            {messages.length === 0 && (
+            {isRemoteSession && !canControlPreview && !sharedPreview?.active && (
+              <div className="chat-message bot">
+                <div className="message-bubble">
+                  Владелец сессии еще не запустил preview. Когда он откроет предпросмотр, диалог появится здесь.
+                </div>
+              </div>
+            )}
+            {messages.length === 0 && (!isRemoteSession || canControlPreview || sharedPreview?.active) && (
               <div className="chat-message bot">
                 <div className="message-bubble"> Загрузка бота...</div>
               </div>
@@ -336,7 +441,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
                           onClick={() => {
                             handleQuickReply(ans);
                           }}
-                          disabled={!waitingForInput || activeAnswersMessageIndex !== idx}
+                          disabled={!canControlPreview || !waitingForInput || activeAnswersMessageIndex !== idx}
                         >
                           {ans}
                         </button>
@@ -350,7 +455,16 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
           </div>
 
           <div className="chat-input-container">
-            {!isRunning && !waitingForInput ? (
+            {!canControlPreview ? (
+              <div className="restart-container">
+                <button
+                  className="restart-btn"
+                  disabled
+                >
+                  Preview управляется владельцем
+                </button>
+              </div>
+            ) : !isRunning && !waitingForInput ? (
               <div className="restart-container">
                 <button
                   className="restart-btn"
@@ -378,7 +492,9 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
                   type="text"
                   className="chat-input"
                   placeholder={
-                    waitingForInput && activeAnswersMessageIndex !== null
+                    !canControlPreview
+                      ? "Preview управляется владельцем сессии"
+                      : waitingForInput && activeAnswersMessageIndex !== null
                       ? "Выберите вариант выше или введите свой ответ..."
                       : waitingForInput
                       ? "Введите сообщение..."
@@ -389,16 +505,16 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter' && waitingForInput) {
+                    if (e.key === 'Enter' && canControlPreview && waitingForInput) {
                       handleSendMessage();
                     }
                   }}
-                  disabled={!waitingForInput}
+                  disabled={!canControlPreview || !waitingForInput}
                 />
                 <button
                   className="send-btn"
                   onClick={handleSendMessage}
-                  disabled={!waitingForInput}
+                  disabled={!canControlPreview || !waitingForInput}
                 >
                   ➤
                 </button>

@@ -1,4 +1,4 @@
-import { Project, BlockNode, Connection, VariableBlockData, MessageBlockData, ApiBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, ConditionBlockData } from '../types';
+import { Project, BlockNode, VariableBlockData, MessageBlockData, ApiBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, ConditionBlockData } from '../types';
 
 export interface ValidationError {
   blockId: string;

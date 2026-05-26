@@ -7,6 +7,7 @@ import ReactFlow, {
   MiniMap,
   ReactFlowProvider,
   Connection,
+  NodeProps,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -15,10 +16,6 @@ import BlockNode from './BlockNode';
 import BlockLibrary from '../BlockLibrary/BlockLibrary';
 import ErrorPanel from './ErrorPanel';
 import './Editor.css';
-
-const nodeTypes = {
-  blockNode: BlockNode,
-};
 
 interface EditorProps {
   useStore: () => EditorState;
@@ -36,6 +33,9 @@ const EditorInner: React.FC<EditorProps> = ({ useStore }) => {
   } = useStore();
   
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const nodeTypes = React.useMemo(() => ({
+    blockNode: (props: NodeProps<any>) => <BlockNode {...props} useStore={useStore} />,
+  }), [useStore]);
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -144,7 +144,7 @@ const EditorInner: React.FC<EditorProps> = ({ useStore }) => {
           <Controls />
           <MiniMap />
         </ReactFlow>
-        <ErrorPanel />
+        <ErrorPanel useStore={useStore} />
       </div>
     </>
   );

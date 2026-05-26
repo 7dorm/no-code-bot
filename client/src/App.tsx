@@ -21,23 +21,45 @@ function App() {
     joinRemote,
     disconnectRemote,
     isConnected,
+    remoteSessionToken,
+    remoteParticipantName,
+    remoteSessions,
+    remoteSessionState,
+    refreshRemoteSessions,
+    setRemoteParticipantName,
   } = useStore();
-
   const [sessionToken, setSessionToken] = useState('');
-  const [showTokenInput, setShowTokenInput] = useState(false);
-  const [createdSessionToken, setCreatedSessionToken] = useState<string | null>(null);
 
   useEffect(() => {
     loadFromLocalStorage();
   }, [loadFromLocalStorage]);
 
   useEffect(() => {
+    if (storeType === 'internal') {
+      return;
+    }
+
     if (!currentProject) {
       createProject('Новый проект');
     }
-  }, [currentProject, createProject]);
+  }, [currentProject, createProject, storeType]);
 
+  useEffect(() => {
+    if (storeType !== 'internal') {
+      return;
+    }
 
+    void refreshRemoteSessions();
+    const timer = window.setInterval(() => {
+      void refreshRemoteSessions();
+    }, 5000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [storeType, refreshRemoteSessions]);
+
+  
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
 
@@ -60,9 +82,8 @@ function App() {
 
   const handleConnectRemote = async () => {
     try {
-      const token = await connectRemote();
-      setCreatedSessionToken(token);
-      console.log('Connected to remote session:', token);
+      await connectRemote(remoteParticipantName);
+      await refreshRemoteSessions();
     } catch (error) {
       console.error('Failed to connect:', error);
     }
@@ -70,78 +91,177 @@ function App() {
 
   const handleDisconnect = () => {
     disconnectRemote();
-    setCreatedSessionToken(null);
   };
 
   const copyTokenToClipboard = () => {
-    if (createdSessionToken) {
-      navigator.clipboard.writeText(createdSessionToken);
+    if (remoteSessionToken) {
+      navigator.clipboard.writeText(remoteSessionToken);
     }
   };
 
   const handleJoinRemote = async () => {
     try {
-      await joinRemote(sessionToken);
-      console.log('Joined remote session');
+      await joinRemote(sessionToken, remoteParticipantName);
       setSessionToken('');
-      setShowTokenInput(false);
-      setCreatedSessionToken(null);
+      await refreshRemoteSessions();
     } catch (error) {
       console.error('Failed to join:', error);
     }
   };
 
+  const handleJoinListedSession = async (token: string) => {
+    try {
+      await joinRemote(token, remoteParticipantName);
+      setSessionToken(token);
+      await refreshRemoteSessions();
+    } catch (error) {
+      console.error('Failed to join listed session:', error);
+    }
+  };
+
+  const currentParticipants = remoteSessionState?.participants || [];
+
   return (
     <div className="app">
       <div className="remote-controls">
-        <select
-          value={storeType}
-          onChange={(e) => switchStore(e.target.value as 'default' | 'internal')}
-        >
-          <option value="default">Локальный режим</option>
-          <option value="internal">Удаленный режим</option>
-        </select>
+        <div className="remote-controls-top">
+          <select
+            value={storeType}
+            onChange={(e) => switchStore(e.target.value as 'default' | 'internal')}
+          >
+            <option value="default">Локальный режим</option>
+            <option value="internal">Совместный режим</option>
+          </select>
+
+          {storeType === 'internal' && (
+            <>
+              <input
+                type="text"
+                className="participant-input"
+                value={remoteParticipantName}
+                onChange={(e) => setRemoteParticipantName(e.target.value)}
+                placeholder="Ваше имя в сессии"
+                maxLength={64}
+              />
+              <button onClick={() => void refreshRemoteSessions()}>
+                Обновить сессии
+              </button>
+            </>
+          )}
+        </div>
 
         {storeType === 'internal' && (
-          <>
-            {!isConnected ? (
-              <>
-                <button onClick={handleConnectRemote}>Создать сессию</button>
-                <button onClick={() => setShowTokenInput(!showTokenInput)}>
-                  {showTokenInput ? 'Отмена' : 'Присоединиться'}
-                </button>
-                {showTokenInput && (
+          <div className="remote-lobby">
+            <div className="remote-actions">
+              {!isConnected && (
+                <>
+                  <button onClick={handleConnectRemote}>Создать сессию</button>
                   <div className="token-input">
                     <input
                       type="text"
-                      placeholder="Токен сессии"
+                      placeholder="Токен для ручного подключения"
                       value={sessionToken}
                       onChange={(e) => setSessionToken(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleJoinRemote();
+                        if (e.key === 'Enter') {
+                          void handleJoinRemote();
+                        }
                       }}
                     />
-                    <button onClick={handleJoinRemote}>Присоединиться</button>
+                    <button onClick={() => void handleJoinRemote()}>
+                      Подключиться по токену
+                    </button>
                   </div>
-                )}
-              </>
-            ) : (
-              <>
-                <span className="status connected">✓ Подключено</span>
-                <button onClick={handleDisconnect}>Отключиться</button>
-                {createdSessionToken && (
-                  <div className="created-token">
-                    <span className="token-label">Токен сессии:</span>
-                    <span className="token-value">{createdSessionToken}</span>
-                    <button onClick={copyTokenToClipboard} className="copy-button">Копировать</button>
+                </>
+              )}
+
+              {isConnected && remoteSessionState && (
+                <div className="session-card current-session">
+                  <div className="session-card-header">
+                    <div>
+                      <strong>{remoteSessionState.projectName || 'Совместная сессия'}</strong>
+                      <div className="session-token">
+                        <span>{remoteSessionState.token}</span>
+                        <button onClick={copyTokenToClipboard} className="copy-button">
+                          Копировать токен
+                        </button>
+                      </div>
+                    </div>
+                    <div className="session-badges">
+                      <span className={`status-badge ${remoteSessionState.isCurrentParticipantOwner ? 'owner' : 'viewer'}`}>
+                        {remoteSessionState.isCurrentParticipantOwner ? 'Owner preview' : 'Read only preview'}
+                      </span>
+                      <span className={`status-badge ${remoteSessionState.preview.active ? 'active' : 'idle'}`}>
+                        {remoteSessionState.preview.active ? 'Preview активен' : 'Preview не запущен'}
+                      </span>
+                    </div>
                   </div>
+
+                  <div className="participants-panel">
+                    <div className="participants-title">
+                      Участники ({currentParticipants.length})
+                    </div>
+                    <div className="participants-list">
+                      {currentParticipants.map((participant) => (
+                        <div key={participant.id} className="participant-chip">
+                          <span>{participant.name}</span>
+                          {participant.isOwner && <span className="participant-role">owner</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="session-footer">
+                    <span className="session-owner">
+                      Владелец preview: {remoteSessionState.ownerName || 'не назначен'}
+                    </span>
+                    <button onClick={handleDisconnect}>Отключиться</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {!isConnected && (
+              <div className="sessions-grid">
+                {remoteSessions.length === 0 ? (
+                  <div className="sessions-empty">
+                    Доступных сессий пока нет. Создай первую или обнови список.
+                  </div>
+                ) : (
+                  remoteSessions.map((session) => (
+                    <div key={session.token} className="session-card">
+                      <div className="session-card-header">
+                        <div>
+                          <strong>{session.projectName || 'Без названия'}</strong>
+                          <div className="session-token">{session.token}</div>
+                        </div>
+                        <span className={`status-badge ${session.previewActive ? 'active' : 'idle'}`}>
+                          {session.previewActive ? 'Preview активен' : 'Preview idle'}
+                        </span>
+                      </div>
+
+                      <div className="session-meta">
+                        <span>Owner: {session.ownerName || 'неизвестно'}</span>
+                        <span>Участников: {session.participantsCount}</span>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSessionToken(session.token);
+                          void handleJoinListedSession(session.token);
+                        }}
+                      >
+                        Подключиться
+                      </button>
+                    </div>
+                  ))
                 )}
-              </>
+              </div>
             )}
-          </>
+          </div>
         )}
       </div>
-
+      
       <Toolbar useStore={useStore} />
 
       <div className="app-content">

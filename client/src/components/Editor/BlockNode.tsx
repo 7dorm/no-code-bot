@@ -1,8 +1,8 @@
 import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { BlockData, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, getBlockIcon, getBlockColor } from '../../types';
-import { useEditorStore } from '../../store/useEditorStore';
-import { validateProjectVariables, ValidationError } from '../../utils/graphValidation';
+import { EditorState } from '../../store/useEditorStore';
+import { validateProjectVariables } from '../../utils/graphValidation';
 import './BlockNode.css';
 
 
@@ -153,8 +153,12 @@ function getVariableValue(varRef: string, context: { variables: Record<string, a
   return varRef;
 }
 
-const BlockNode: React.FC<NodeProps<BlockData>> = ({ id, data, selected }) => {
-  const { currentProject } = useEditorStore();
+interface BlockNodeProps extends NodeProps<BlockData> {
+  useStore: () => EditorState;
+}
+
+const BlockNode: React.FC<BlockNodeProps> = ({ id, data, selected, useStore }) => {
+  const { currentProject } = useStore();
   const backgroundColor = getBlockColor(data.type as any);
   const icon = getBlockIcon(data.type as any);
   const preview = getBlockPreview(data);

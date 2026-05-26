@@ -1,5 +1,23 @@
 import { create } from 'zustand';
 import { BlockNode, Connection, Project, ConditionBlockData, AiSettings, ExportPlatform } from '../types';
+import type {
+  RemoteEditorClient,
+  RemoteSessionState,
+  RemoteSessionSummary,
+  SharedPreviewState,
+} from '../client/RemoteEditorClient';
+import { createId } from '../utils/createId';
+
+const REMOTE_PARTICIPANT_STORAGE_KEY = 'visual-chatbot-editor-remote-name';
+
+function loadRemoteParticipantName(): string {
+  if (typeof window === 'undefined') {
+    return 'Участник';
+  }
+
+  const saved = window.localStorage.getItem(REMOTE_PARTICIPANT_STORAGE_KEY)?.trim();
+  return saved || 'Участник';
+}
 
 export interface EditorState {
 
@@ -14,13 +32,19 @@ export interface EditorState {
   isSettingsOpen: boolean;
   isPreviewMode: boolean;
 
-
-  remoteClient: any;
+  remoteClient: RemoteEditorClient | null;
   isConnected: boolean;
+  remoteSessionToken: string | null;
+  remoteParticipantName: string;
+  remoteSessions: RemoteSessionSummary[];
+  remoteSessionState: RemoteSessionState | null;
 
-  connectRemote: () => Promise<string>;
-  joinRemote: (token: string) => Promise<void>;
+  connectRemote: (participantName?: string) => Promise<string>;
+  joinRemote: (token: string, participantName?: string) => Promise<void>;
   disconnectRemote: () => void;
+  refreshRemoteSessions: () => Promise<void>;
+  setRemoteParticipantName: (name: string) => void;
+  updateRemotePreviewState: (state: SharedPreviewState) => void;
 
   createProject: (name: string) => void;
   updateProject: (updates: Partial<Project>) => void;
@@ -68,14 +92,31 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   remoteClient: null,
   isConnected: false,
+  remoteSessionToken: null,
+  remoteParticipantName: loadRemoteParticipantName(),
+  remoteSessions: [],
+  remoteSessionState: null,
 
-  connectRemote: async () => {
+  connectRemote: async (_participantName?: string) => {
     throw new Error('Remote connection not available in local mode');
   },
-  joinRemote: async (_token: string) => {
+  joinRemote: async (_token: string, _participantName?: string) => {
     throw new Error('Remote connection not available in local mode');
   },
   disconnectRemote: () => {
+    // No-op in local mode
+  },
+  refreshRemoteSessions: async () => {
+    // No-op in local mode
+  },
+  setRemoteParticipantName: (name: string) => {
+    const normalized = name.trim() || 'Участник';
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(REMOTE_PARTICIPANT_STORAGE_KEY, normalized);
+    }
+    set({ remoteParticipantName: normalized });
+  },
+  updateRemotePreviewState: (_state: SharedPreviewState) => {
     // No-op in local mode
   },
 
@@ -93,7 +134,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     };
 
     const newProject: Project = {
-      id: crypto.randomUUID(),
+      id: createId(),
       name,
       blocks: [startBlock],
       connections: [],
