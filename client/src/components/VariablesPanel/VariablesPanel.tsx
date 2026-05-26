@@ -1,10 +1,14 @@
 import React from 'react';
-import { useEditorStore } from '../../store/useEditorStore';
+import { EditorState } from '../../store/useEditorStore';
 import { extractVariables, VariableInfo } from '../../utils/extractVariables';
 import './VariablesPanel.css';
 
-const VariablesPanel: React.FC = () => {
-  const { currentProject } = useEditorStore();
+interface VariablesPanelProps {
+  useStore: () => EditorState;
+}
+
+const VariablesPanel: React.FC<VariablesPanelProps> = ({ useStore }) => {
+  const { currentProject } = useStore();
   
   const variables = currentProject ? extractVariables(currentProject) : [];
 
@@ -82,4 +86,3 @@ const VariablesPanel: React.FC = () => {
 };
 
 export default VariablesPanel;
-

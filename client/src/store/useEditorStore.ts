@@ -1,20 +1,27 @@
 import { create } from 'zustand';
 import { BlockNode, Connection, Project, ConditionBlockData, AiSettings, ExportPlatform } from '../types';
 
-interface EditorState {
-  
+export interface EditorState {
+
   currentProject: Project | null;
 
-  
+
   history: Project[];
   historyIndex: number;
 
-  
+
   selectedNodeId: string | null;
   isSettingsOpen: boolean;
   isPreviewMode: boolean;
 
-  
+
+  remoteClient: any;
+  isConnected: boolean;
+
+  connectRemote: () => Promise<string>;
+  joinRemote: (token: string) => Promise<void>;
+  disconnectRemote: () => void;
+
   createProject: (name: string) => void;
   updateProject: (updates: Partial<Project>) => void;
   addBlock: (block: BlockNode) => void;
@@ -24,19 +31,19 @@ interface EditorState {
   deleteConnection: (id: string) => void;
   selectNode: (id: string | null) => void;
 
-  
+
   undo: () => void;
   redo: () => void;
   saveToHistory: () => void;
 
-  
+
   exportProject: () => string;
   importProject: (json: string) => void;
   saveToLocalStorage: () => void;
   loadFromLocalStorage: () => void;
   migrateBlockData: (block: BlockNode) => BlockNode;
 
-  
+
   toggleSettings: () => void;
   updateSettings: (settings: {
     exportPlatform?: ExportPlatform;
@@ -46,12 +53,12 @@ interface EditorState {
     aiSettings?: AiSettings;
   }) => void;
 
-  
+
   togglePreview: () => void;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
-  
+
   currentProject: null,
   history: [],
   historyIndex: -1,
@@ -59,9 +66,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isSettingsOpen: false,
   isPreviewMode: false,
 
-  
+  remoteClient: null,
+  isConnected: false,
+
+  connectRemote: async () => {
+    throw new Error('Remote connection not available in local mode');
+  },
+  joinRemote: async (_token: string) => {
+    throw new Error('Remote connection not available in local mode');
+  },
+  disconnectRemote: () => {
+    // No-op in local mode
+  },
+
+
   createProject: (name: string) => {
-    
+
     const startBlock: BlockNode = {
       id: 'start-block',
       type: 'blockNode',
@@ -90,7 +110,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
-  
+
   updateProject: (updates: Partial<Project>) => {
     const current = get().currentProject;
     if (!current) return;
@@ -106,12 +126,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
-  
+
   addBlock: (block: BlockNode) => {
     const current = get().currentProject;
     if (!current) return;
 
-    
+
     if (current.blocks.length >= 100) {
       alert('Достигнут лимит блоков в проекте (макс. 100)');
       return;
@@ -128,7 +148,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
-  
+
   updateBlock: (id: string, updates: Partial<BlockNode>, saveToHistory: boolean = true) => {
     const current = get().currentProject;
     if (!current) return;
@@ -143,14 +163,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     set({ currentProject: updated });
 
-    
+
     if (saveToHistory) {
       get().saveToHistory();
     }
     get().saveToLocalStorage();
   },
 
-  
+
   deleteBlock: (id: string) => {
     const current = get().currentProject;
     if (!current) return;
@@ -171,14 +191,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
-  
+
   addConnection: (connection: Connection) => {
     const current = get().currentProject;
     if (!current) return;
 
     const existing = current.connections.find(c => c.source === connection.source);
 
-    
+
     const sourceBlock = current.blocks.find(b => b.id === connection.source);
     if (existing && sourceBlock?.data.type !== 'condition') {
       const filtered = current.connections.filter(c => c.id !== existing.id);
@@ -204,7 +224,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
-  
+
   deleteConnection: (id: string) => {
     const current = get().currentProject;
     if (!current) return;
@@ -220,12 +240,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     get().saveToLocalStorage();
   },
 
-  
+
   selectNode: (id: string | null) => {
     set({ selectedNodeId: id });
   },
 
-  
+
   undo: () => {
     const { history, historyIndex } = get();
     if (historyIndex > 0) {
@@ -238,7 +258,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
-  
+
   redo: () => {
     const { history, historyIndex } = get();
     if (historyIndex < history.length - 1) {
@@ -251,12 +271,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
-  
+
   saveToHistory: () => {
     const { currentProject, history, historyIndex } = get();
     if (!currentProject) return;
 
-    
+
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push(JSON.parse(JSON.stringify(currentProject)));
     const limitedHistory = newHistory.slice(-50);
@@ -267,16 +287,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 
-  
+
   exportProject: () => {
     const current = get().currentProject;
     if (!current) return '';
     return JSON.stringify(current, null, 2);
   },
 
-  
+
   migrateBlockData: (block: BlockNode): BlockNode => {
-    
+
     if (!(block.data as any).params || Object.keys((block.data as any).params || {}).length === 0) {
       return block;
     }
@@ -284,7 +304,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const oldParams = (block.data as any).params || {};
     const blockType = block.data.type;
 
-    
+
     let newData: any = { ...block.data };
 
     switch (blockType) {
@@ -296,9 +316,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         };
         break;
       case 'condition':
-        
+
         if ((block.data as any).condition) {
-          
+
           newData = {
             type: 'condition',
             label: block.data.label,
@@ -306,7 +326,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             hasDefault: false,
           };
         } else if (oldParams.condition) {
-          
+
           newData = {
             type: 'condition',
             label: block.data.label,
@@ -314,7 +334,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             hasDefault: false,
           };
         } else {
-          
+
           newData = {
             type: 'condition',
             label: block.data.label,
@@ -386,14 +406,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         };
         break;
       case 'start':
-        
+
         newData = {
           type: 'start',
           label: block.data.label,
         };
         break;
       default:
-        
+
         break;
     }
 
@@ -403,18 +423,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     };
   },
 
-  
+
   importProject: (json: string) => {
     try {
       const project: Project = JSON.parse(json);
 
-      
+
       if (!project.blocks || !project.connections) {
         alert('Неверный формат файла проекта');
         return;
       }
 
-      
+
       const migratedBlocks = project.blocks.map(block => get().migrateBlockData(block));
       const migratedProject = {
         ...project,
@@ -434,7 +454,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
-  
+
   saveToLocalStorage: () => {
     const current = get().currentProject;
     if (current) {
@@ -442,13 +462,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
-  
+
   loadFromLocalStorage: () => {
     const saved = localStorage.getItem('visual-chatbot-editor-current');
     if (saved) {
       try {
         const project: Project = JSON.parse(saved);
-        
+
         const migratedBlocks = project.blocks.map(block => get().migrateBlockData(block));
         const migratedProject = {
           ...project,
@@ -460,38 +480,38 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           historyIndex: 0,
         });
       } catch (e) {
-        
+
       }
     }
   },
 
-  
+
   toggleSettings: () => {
     set(state => ({ isSettingsOpen: !state.isSettingsOpen }));
   },
 
-  
+
   updateSettings: (settings) => {
     const current = get().currentProject;
     if (!current) return;
 
-    
+
     const updated = {
       ...current,
       ...settings,
-      
+
       ...(settings.botToken && !settings.exportPlatform && !current.exportPlatform
         ? { telegramToken: settings.botToken }
         : {}),
       updatedAt: new Date(),
     };
 
-    
+
     set({ currentProject: updated });
     get().saveToLocalStorage();
   },
 
-  
+
   togglePreview: () => {
     set(state => ({ isPreviewMode: !state.isPreviewMode }));
   },

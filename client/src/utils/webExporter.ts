@@ -19,16 +19,16 @@ function generateGlobalConstants(constants: Record<string, any>): string {
 function convertEngineTsToJs(engineCode: string): string {
   // Удаляем импорты
   engineCode = engineCode.replace(/^import\s+.*?from\s+['"].*?['"];?\s*$/gm, '');
-  
+
   // Удаляем declare global
   engineCode = engineCode.replace(/declare\s+global\s*\{[^}]*\}/gs, '');
-  
+
   // Удаляем export interface
   engineCode = engineCode.replace(/export\s+interface\s+\w+\s*\{[^}]*\}/gs, '');
-  
+
   // Удаляем export из class
   engineCode = engineCode.replace(/export\s+class\s+/g, 'class ');
-  
+
   // Удаляем типы TypeScript из параметров функций
   engineCode = engineCode.replace(/:\s*string\s*/g, ' ');
   engineCode = engineCode.replace(/:\s*Record<string,\s*any>\s*/g, ' ');
@@ -42,26 +42,26 @@ function convertEngineTsToJs(engineCode: string): string {
   engineCode = engineCode.replace(/:\s*"[^"]*"\s*/g, '');
   engineCode = engineCode.replace(/:\s*\{\s*[^}]*\s*\}\s*/g, '');
   engineCode = engineCode.replace(/:\s*\[\s*[^\]]*\s*\]\s*/g, '');
-  
+
   // Удаляем private/public модификаторы
   engineCode = engineCode.replace(/\b(private|public|protected)\s+/g, '');
-  
+
   // Удаляем типы из переменных
   engineCode = engineCode.replace(/:\s*string\s*\|?\s*null\s*/g, '');
   engineCode = engineCode.replace(/:\s*number\s*/g, '');
   engineCode = engineCode.replace(/:\s*boolean\s*/g, '');
   engineCode = engineCode.replace(/:\s*Record<string,\s*any>\s*/g, '');
   engineCode = engineCode.replace(/:\s*any\s*/g, '');
-  
+
   // Удаляем необязательные параметры с типами
   engineCode = engineCode.replace(/\?\s*:\s*[^,)]+/g, '');
-  
+
   // Удаляем this.index! (non-null assertion)
   engineCode = engineCode.replace(/this\.index!/g, 'this.index');
-  
+
   // Очищаем пустые строки
   engineCode = engineCode.replace(/\n\s*\n\s*\n/g, '\n\n');
-  
+
   return engineCode.trim();
 }
 
@@ -105,7 +105,7 @@ class WebUI extends UI {
       messageDiv.appendChild(bubble);
 
       if (answers && answers.length > 0) {
-        
+
         this.hideTextInput();
 
         const buttonsDiv = document.createElement('div');
@@ -116,7 +116,7 @@ class WebUI extends UI {
           button.className = 'quick-reply-btn';
           button.textContent = answer;
           button.onclick = () => {
-            
+
             const userMessageDiv = document.createElement('div');
             userMessageDiv.className = 'message user-message';
 
@@ -127,13 +127,13 @@ class WebUI extends UI {
             userMessageDiv.appendChild(userBubble);
             this.chatContainer.appendChild(userMessageDiv);
 
-            
+
             this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
 
-            
+
             buttonsDiv.remove();
 
-            
+
             if (this.inputResolver) {
               this.inputResolver(answer);
               this.inputResolver = null;
@@ -156,40 +156,40 @@ class WebUI extends UI {
     return new Promise((resolve) => {
       this.inputResolver = resolve;
 
-      
+
       this.showTextInput();
     });
   }
 
   showTextInput() {
-    
+
     const existingInput = document.querySelector('.text-input-area');
     if (existingInput) {
       existingInput.remove();
     }
 
-    
+
     const inputContainer = document.createElement('div');
     inputContainer.className = 'text-input-area';
 
-    
+
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'text-input';
       input.placeholder = 'Введите сообщение...';
       input.maxLength = 1000;
 
-    
+
     const sendButton = document.createElement('button');
     sendButton.className = 'send-btn';
     sendButton.innerHTML = '➤';
     sendButton.title = 'Отправить';
 
-    
+
     const handleSend = () => {
       const text = input.value.trim();
       if (text) {
-        
+
         const userMessageDiv = document.createElement('div');
         userMessageDiv.className = 'message user-message';
 
@@ -200,13 +200,13 @@ class WebUI extends UI {
         userMessageDiv.appendChild(userBubble);
         this.chatContainer.appendChild(userMessageDiv);
 
-        
+
         this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
 
-        
+
         inputContainer.remove();
 
-        
+
         if (this.inputResolver) {
           this.inputResolver(text);
           this.inputResolver = null;
@@ -214,7 +214,7 @@ class WebUI extends UI {
       }
     };
 
-    
+
     sendButton.onclick = handleSend;
     input.onkeypress = (e) => {
       if (e.key === 'Enter') {
@@ -222,15 +222,15 @@ class WebUI extends UI {
       }
     };
 
-    
+
     inputContainer.appendChild(input);
     inputContainer.appendChild(sendButton);
 
-    
+
     const chatContainer = this.chatContainer.parentElement;
     chatContainer.appendChild(inputContainer);
 
-    
+
     setTimeout(() => input.focus(), 100);
   }
 
@@ -243,9 +243,9 @@ class WebUI extends UI {
 
   finish() {
     this.stop = true;
-    
+
     this.hideTextInput();
-    
+
     const finishDiv = document.createElement('div');
     finishDiv.className = 'message bot-message';
 
@@ -286,7 +286,7 @@ class WebUI extends UI {
     fileInput.onchange = (e) => {
       const file = e.target.files[0];
       if (file) {
-        
+
         const userMessageDiv = document.createElement('div');
         userMessageDiv.className = 'message user-message';
 
@@ -298,7 +298,7 @@ class WebUI extends UI {
         this.chatContainer.appendChild(userMessageDiv);
         this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
 
-        
+
         if (this.fileResolver) {
           const uniqueName = \`\${file.name}_\${Date.now()}\`;
           this.fileResolver(uniqueName);
@@ -325,7 +325,7 @@ class WebUI extends UI {
   }
 
   deleteFile(path) {
-    
+
   }
 
   isDone() {
@@ -743,7 +743,7 @@ class Engine {
     if (messageToSend !== '') {
       await this.ui.sendMessage(messageToSend, []);
     } else {
-      
+
     }
 
     if (block.VarName != null) {
@@ -875,7 +875,7 @@ class Engine {
     if (!block) return;
 
     const replaceVariables = (text) => {
-      return text.replace(/\\{\\{(\\w+)\\}\\}/g, (match, varName) => {
+      return text.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
         if (this.files[varName] !== undefined && this.files[varName] !== null) {
           return String(this.files[varName]);
         } else if (this.variables[varName] !== undefined && this.variables[varName] !== null) {
@@ -962,18 +962,19 @@ class Engine {
     const timestamp = new Date().toISOString();
 
     try {
-      const replaceVariable = (varName) => {
+      const replaceVariable = (rawName) => {
+        const varName = String(rawName).trim();
         if (this.variables[varName] !== undefined && this.variables[varName] !== null) {
           return String(this.variables[varName]);
         } else if (this.globalConstants && this.globalConstants[varName] !== undefined && this.globalConstants[varName] !== null) {
           return String(this.globalConstants[varName]);
         }
-        return \`\\{\${varName}\\\}\`;
+        return '{{' + varName + '}}';
       };
 
       let url = block.ApiUrl;
       const urlVariables = {};
-      url = url.replace(/\\{\\{(\\w+)\\}\\}/g, (match, varName) => {
+      url = url.replace(/\\{\\{([^}]+)\\}\\}/g, (match, varName) => {
         const value = replaceVariable(varName);
         urlVariables[varName] = value;
         return value;
@@ -983,10 +984,11 @@ class Engine {
       let body = block.ApiBody || '';
       const bodyVariables = {};
       if (body) {
-        body = body.replace(/\\{\\{(\\w+)\\}\\}/g, (match, varName) => {
-          const varValue = this.variables[varName] !== undefined ? this.variables[varName] :
-                          (this.globalConstants && this.globalConstants[varName] !== undefined ? this.globalConstants[varName] : null);
-          bodyVariables[varName] = varValue;
+        body = body.replace(/\\{\\{([^}]+)\\}\\}/g, (match, varName) => {
+          const trimmedName = String(varName).trim();
+          const varValue = this.variables[trimmedName] !== undefined ? this.variables[trimmedName] :
+                          (this.globalConstants && this.globalConstants[trimmedName] !== undefined ? this.globalConstants[trimmedName] : null);
+          bodyVariables[trimmedName] = varValue;
 
           if (varValue === null || varValue === undefined) {
             return 'null';
@@ -1025,7 +1027,7 @@ class Engine {
           const bodyObj = JSON.parse(body);
           body = JSON.stringify(bodyObj);
         } catch (e) {
-          
+
         }
       }
 
@@ -1036,7 +1038,7 @@ class Engine {
 
       Object.keys(headers).forEach(key => {
         if (headers[key]) {
-          headers[key] = headers[key].replace(/\\{\\{(\\w+)\\}\\}/g, (match, varName) => replaceVariable(varName));
+          headers[key] = headers[key].replace(/\\{\\{([^}]+)\\}\\}/g, (match, varName) => replaceVariable(varName));
         }
       });
 
@@ -1128,7 +1130,7 @@ class Engine {
             this.variables[answersVarName] = answersArray.map(item => String(item));
           }
         } catch (error) {
-          
+
         }
       }
 
@@ -1551,7 +1553,7 @@ class Engine {
 
 
 export function exportToWeb(project: Project): WebAppCode {
-  
+
   const engineNodes = adaptProjectToEngine(project);
   const projectJson = JSON.stringify(engineNodes, null, 2);
 
@@ -1590,14 +1592,14 @@ export function exportToWeb(project: Project): WebAppCode {
 
     <script src="Engine.js"></script>
     <script>
-        
+
         ${globals}
 
-        
+
         const BOT_STRUCTURE = ${projectJson};
         const GLOBAL_CONSTANTS = ${JSON.stringify(project.globalConstants || {})};
 
-        
+
         let currentEngine = null;
         let currentUI = null;
 
@@ -1605,7 +1607,7 @@ export function exportToWeb(project: Project): WebAppCode {
         const startButton = document.getElementById('startButton');
 
         function restartBot() {
-            
+
             chatMessages.innerHTML = \`
                 <div class="message bot-message">
                     <div class="message-bubble">
@@ -1614,24 +1616,24 @@ export function exportToWeb(project: Project): WebAppCode {
                 </div>
             \`;
 
-            
+
             startButton.style.display = 'block';
 
-            
+
             currentEngine = null;
             currentUI = null;
         }
 
         async function startBot() {
             try {
-                
+
                 startButton.style.display = 'none';
 
-                
+
                 currentUI = new WebUI(chatMessages);
                 currentEngine = new Engine(currentUI, BOT_STRUCTURE, GLOBAL_CONSTANTS);
 
-                
+
                 await currentEngine.execute(true);
 
             } catch (error) {
@@ -1647,19 +1649,19 @@ export function exportToWeb(project: Project): WebAppCode {
             }
         }
 
-        
+
         startButton.addEventListener('click', startBot);
 
-        
+
         window.restartBot = restartBot;
 
 
-        
+
     </script>
 </body>
 </html>`;
 
-  
+
   const cssContent = `
         * {
             margin: 0;
@@ -1873,7 +1875,7 @@ export function exportToWeb(project: Project): WebAppCode {
             transform: scale(0.9);
         }
 
-        
+
         @media (max-width: 600px) {
             .chatbot-container {
                 height: 80vh;
@@ -1891,7 +1893,7 @@ export function exportToWeb(project: Project): WebAppCode {
 
             .text-input {
                 padding: 8px 12px;
-                font-size: 14px; 
+                font-size: 14px;
             }
 
             .send-btn {
@@ -1901,7 +1903,7 @@ export function exportToWeb(project: Project): WebAppCode {
             }
         }
 
-        
+
         .chat-messages::-webkit-scrollbar {
             width: 6px;
         }
@@ -1922,19 +1924,19 @@ export function exportToWeb(project: Project): WebAppCode {
 `;
 
   const jsContent = `
-        
+
         ${globals}
 
-        
+
         const BOT_STRUCTURE = ${projectJson};
         const GLOBAL_CONSTANTS = ${JSON.stringify(project.globalConstants || {})};
 
-        
+
         let currentEngine = null;
         let currentUI = null;
 
         function restartBot() {
-            
+
             const chatMessages = document.getElementById('chatMessages');
             chatMessages.innerHTML = \`
                 <div class="message bot-message">
@@ -1944,11 +1946,11 @@ export function exportToWeb(project: Project): WebAppCode {
                 </div>
             \`;
 
-            
+
             const startButton = document.getElementById('startButton');
             startButton.style.display = 'block';
 
-            
+
             currentEngine = null;
             currentUI = null;
         }
@@ -1958,14 +1960,14 @@ export function exportToWeb(project: Project): WebAppCode {
                 const chatMessages = document.getElementById('chatMessages');
                 const startButton = document.getElementById('startButton');
 
-                
+
                 startButton.style.display = 'none';
 
-                
+
                 currentUI = new WebUI(chatMessages);
                 currentEngine = new Engine(currentUI, BOT_STRUCTURE, GLOBAL_CONSTANTS);
 
-                
+
                 await currentEngine.execute(true);
 
             } catch (error) {
@@ -1982,11 +1984,11 @@ export function exportToWeb(project: Project): WebAppCode {
             }
         }
 
-        
+
         window.restartBot = restartBot;
         window.startBot = startBot;
 
-        
+
         document.addEventListener('DOMContentLoaded', () => {
             const startButton = document.getElementById('startButton');
             if (startButton) {
@@ -2006,7 +2008,7 @@ export function exportToWeb(project: Project): WebAppCode {
 
 export function createWebExport(project: Project): { code: string; instructions: string; files: { name: string; content: string }[] } {
   const { html, css, js, projectJson } = exportToWeb(project);
-  
+
   // Используем уже сгенерированный JavaScript код Engine
   // Код Engine уже встроен в generateWebEngineCode() и готов к использованию
   const engineJsContent = generateWebEngineCode();
@@ -2102,7 +2104,7 @@ export function createWebExport(project: Project): { code: string; instructions:
 . Проверьте сообщения об ошибках
 . Убедитесь, что все файлы в одной папке
 
-Приятного использования! 
+Приятного использования!
 
 ---
 *Создано с помощью No-Code Bot*

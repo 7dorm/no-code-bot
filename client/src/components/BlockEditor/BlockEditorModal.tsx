@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useEditorStore } from '../../store/useEditorStore';
+import { BlockData, MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, AiRoute, AiEntity, AiEntityType } from '../../types';
+import { EditorState } from '../../store/useEditorStore';
 import { BlockData, MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, AiRoute, AiEntity, AiEntityType } from '../../types';
 import './BlockEditorModal.css';
 
 interface BlockEditorModalProps {
   nodeId: string;
   onClose: () => void;
+  useStore: () => EditorState;
 }
 
-const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose }) => {
-  const { currentProject, updateBlock, deleteBlock } = useEditorStore();
+const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose, useStore }) => {
+  const { currentProject, updateBlock, deleteBlock } = useStore();
   
   const node = currentProject?.blocks.find(b => b.id === nodeId);
   

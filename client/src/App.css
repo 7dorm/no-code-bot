@@ -24,6 +24,97 @@ html, body {
   background-color: #f5f5f5;
 }
 
+.remote-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background-color: #fff;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.remote-controls select {
+  padding: 8px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.remote-controls button {
+  padding: 8px 16px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.remote-controls button:hover {
+  background-color: #f0f0f0;
+}
+
+.remote-controls .token-input {
+  display: flex;
+  gap: 8px;
+}
+
+.remote-controls .token-input input {
+  padding: 8px 12px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  font-size: 14px;
+  min-width: 200px;
+}
+
+.remote-controls .status.connected {
+  color: #4caf50;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.remote-controls .created-token {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: #e8f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 4px;
+}
+
+.remote-controls .token-label {
+  font-size: 14px;
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+.remote-controls .token-value {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #1b5e20;
+  background-color: #fff;
+  padding: 4px 8px;
+  border-radius: 3px;
+  border: 1px solid #a5d6a7;
+}
+
+.remote-controls .copy-button {
+  padding: 4px 8px;
+  font-size: 12px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.remote-controls .copy-button:hover {
+  background-color: #45a049;
+}
+
 .app-content {
   flex: 1;
   position: relative;

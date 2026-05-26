@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useEditorStore } from '../../store/useEditorStore';
+import { EditorState } from '../../store/useEditorStore';
 import { BlockNode, BlockType } from '../../types';
 import {
   MessageBlockMeta,
@@ -25,11 +25,14 @@ const BLOCK_TYPES = [
   AiExtractorBlockMeta,
 ];
 
-const BlockLibrary: React.FC = () => {
+interface BlockLibraryProps {
+  useStore: () => EditorState;
+}
+
+const BlockLibrary: React.FC<BlockLibraryProps> = ({ useStore }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
-  
-  const { currentProject, addBlock, selectNode } = useEditorStore();
+  const { currentProject, addBlock, selectNode } = useStore();
 
   const handleAddBlock = (type: BlockType) => {
     
@@ -120,7 +123,7 @@ const BlockLibrary: React.FC = () => {
   };
 
   if (editingNodeId && isEditing) {
-    return <BlockEditorModal nodeId={editingNodeId} onClose={handleCloseEditor} />;
+    return <BlockEditorModal nodeId={editingNodeId} useStore={useStore} onClose={handleCloseEditor} />;
   }
 
   if (!currentProject) {

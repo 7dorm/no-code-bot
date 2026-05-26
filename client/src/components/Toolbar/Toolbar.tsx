@@ -1,9 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useEditorStore } from '../../store/useEditorStore';
+import { EditorState } from '../../store/useEditorStore';
 import ExportModal from '../Export/ExportModal';
 import './Toolbar.css';
 
-const Toolbar: React.FC = () => {
+interface ToolbarProps {
+  useStore: () => EditorState;
+}
+
+const Toolbar: React.FC<ToolbarProps> = ({ useStore }) => {
   const {
     currentProject,
     createProject,
@@ -14,7 +18,7 @@ const Toolbar: React.FC = () => {
     redo,
     toggleSettings,
     togglePreview,
-  } = useEditorStore();
+  } = useStore();
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -151,7 +155,7 @@ const Toolbar: React.FC = () => {
       </div>
 
       {isExportModalOpen && (
-        <ExportModal onClose={() => setIsExportModalOpen(false)} />
+        <ExportModal onClose={() => setIsExportModalOpen(false)} useStore={useStore} />
       )}
     </div>
   );

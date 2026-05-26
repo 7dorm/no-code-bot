@@ -122,7 +122,7 @@ bot.on('photo', async (ctx) => {
     const photos = ctx.message.photo;
     if (photos && photos.length > 0) {
         
-        const largestPhoto = photos[photos.length - ];
+        const largestPhoto = photos[photos.length - 1];
         if (largestPhoto && largestPhoto.file_id) {
             const fileName = `photo_${Date.now()}.jpg`;
             await state.ui.handleUserFile(largestPhoto.file_id, fileName, true);

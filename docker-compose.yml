@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  engine-manager:
+    build:
+      context: .
+      dockerfile: ./server/Dockerfile
+    container_name: engine-manager
+    ports:
+      - "3004:3004"
+    environment:
+      - ENGINE_MANAGER_PORT=3004
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  remote-serv:
+    build:
+      context: ./remote-serv
+      dockerfile: Dockerfile
+    container_name: remote-serv
+    ports:
+      - "8080:8080"
+    environment:
+      - ENGINE_MANAGER_URL=http://engine-manager:3004
+    depends_on:
+      - engine-manager
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge

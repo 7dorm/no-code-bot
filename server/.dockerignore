@@ -1,0 +1,25 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules
+
+# Build
+dist
+
+# Documentation
+README.md
+
+# Don't ignore backend - it's needed by runtime
+# backend

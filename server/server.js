@@ -5,6 +5,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  const query = Object.keys(req.query || {}).length ? req.query : undefined;
+  const body = Object.keys(req.body || {}).length ? req.body : undefined;
+  console.log(`[${timestamp}] ${req.method} ${req.originalUrl}`, { query, body });
+  next();
+});
+
 
 const doctors = [
   'Терапевт',

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useEditorStore } from '../../store/useEditorStore';
+import { EditorState } from '../../store/useEditorStore';
 import { ExportPlatform } from '../../types';
 import { createTelegramExport } from '../../utils/telegramExporter';
 import { createWebExport } from '../../utils/webExporter';
@@ -9,10 +9,11 @@ import JSZip from 'jszip';
 
 interface ExportModalProps {
   onClose: () => void;
+  useStore: () => EditorState;
 }
 
-const ExportModal: React.FC<ExportModalProps> = ({ onClose }) => {
-  const { currentProject } = useEditorStore();
+const ExportModal: React.FC<ExportModalProps> = ({ onClose, useStore }) => {
+  const { currentProject } = useStore();
   const [exportType, setExportType] = useState<'messenger' | 'webpage' | 'nodejs'>('messenger');
   const [selectedPlatform, setSelectedPlatform] = useState<ExportPlatform>(
     currentProject?.exportPlatform || 'telegram'

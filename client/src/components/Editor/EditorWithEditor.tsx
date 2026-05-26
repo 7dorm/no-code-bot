@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import Editor from './Editor';
 import BlockEditorModal from '../BlockEditor/BlockEditorModal';
 import VariablesPanel from '../VariablesPanel/VariablesPanel';
-import { useEditorStore } from '../../store/useEditorStore';
+import { EditorState } from '../../store/useEditorStore';
 import './EditorWithEditor.css';
 
-const EditorWithEditor: React.FC = () => {
+interface EditorWithEditorProps {
+  useStore: () => EditorState;
+}
+
+const EditorWithEditor: React.FC<EditorWithEditorProps> = ({ useStore }) => {
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
-  const { selectedNodeId, deleteBlock, isPreviewMode } = useEditorStore();
+  const { selectedNodeId, deleteBlock, isPreviewMode } = useStore();
 
   
   useEffect(() => {
@@ -71,12 +75,13 @@ const EditorWithEditor: React.FC = () => {
   return (
     <div className="editor-with-panel">
       <div className="editor-container">
-        <Editor />
+        <Editor useStore={useStore} />
       </div>
-      <VariablesPanel />
+      <VariablesPanel useStore={useStore} />
       {editingNodeId && (
         <BlockEditorModal
           nodeId={editingNodeId}
+          useStore={useStore}
           onClose={() => setEditingNodeId(null)}
         />
       )}

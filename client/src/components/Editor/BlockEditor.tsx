@@ -21,6 +21,7 @@ const BlockEditor: React.FC = () => {
   return (
     <BlockEditorModal
       nodeId={selectedNodeId}
+      useStore={useEditorStore}
       onClose={() => setIsModalOpen(false)}
     />
   );
