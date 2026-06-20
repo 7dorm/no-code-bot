@@ -63,6 +63,26 @@ function mergeSessionSummary(
   return next;
 }
 
+function previewStatesEqual(
+  current: SharedPreviewState | undefined,
+  next: SharedPreviewState,
+): boolean {
+  if (!current) {
+    return false;
+  }
+
+  return (
+    current.active === next.active
+    && current.ownerOnly === next.ownerOnly
+    && current.isRunning === next.isRunning
+    && current.waitingForInput === next.waitingForInput
+    && current.waitingForFile === next.waitingForFile
+    && current.requestedFileName === next.requestedFileName
+    && current.activeAnswersMessageIndex === next.activeAnswersMessageIndex
+    && JSON.stringify(current.messages) === JSON.stringify(next.messages)
+  );
+}
+
 function normalizeParticipantName(name?: string): string {
   const trimmed = name?.trim();
   return trimmed || 'Участник';
@@ -117,12 +137,24 @@ function bindClient(
   });
 
   client.onSessionState((sessionState) => {
-    set((state) => ({
-      ...state,
-      remoteSessionToken: sessionState.token,
-      remoteSessionState: sessionState,
-      remoteSessions: mergeSessionSummary(state.remoteSessions, toSessionSummary(sessionState)),
-    }));
+    set((state) => {
+      if (
+        state.remoteSessionState
+        && state.remoteSessionState.token === sessionState.token
+        && previewStatesEqual(state.remoteSessionState.preview, sessionState.preview)
+        && state.remoteSessionState.participantsCount === sessionState.participantsCount
+        && state.remoteSessionState.isCurrentParticipantOwner === sessionState.isCurrentParticipantOwner
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        remoteSessionToken: sessionState.token,
+        remoteSessionState: sessionState,
+        remoteSessions: mergeSessionSummary(state.remoteSessions, toSessionSummary(sessionState)),
+      };
+    });
   });
 
   client.onConnect(() => {
@@ -250,6 +282,10 @@ export const useEditorStoreWithInternal = create<EditorState>((set, get) => ({
   updateRemotePreviewState: (previewState: SharedPreviewState) => {
     const { remoteClient, remoteSessionState } = get();
     if (!remoteClient || !remoteSessionState?.isCurrentParticipantOwner) {
+      return;
+    }
+
+    if (previewStatesEqual(remoteSessionState.preview, previewState)) {
       return;
     }
 

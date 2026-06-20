@@ -154,11 +154,14 @@ function getVariableValue(varRef: string, context: { variables: Record<string, a
 }
 
 interface BlockNodeProps extends NodeProps<BlockData> {
-  useStore: () => EditorState;
+  useStore: {
+    (): EditorState;
+    <T>(selector: (state: EditorState) => T): T;
+  };
 }
 
 const BlockNode: React.FC<BlockNodeProps> = ({ id, data, selected, useStore }) => {
-  const { currentProject } = useStore();
+  const currentProject = useStore((state) => state.currentProject);
   const backgroundColor = getBlockColor(data.type as any);
   const icon = getBlockIcon(data.type as any);
   const preview = getBlockPreview(data);

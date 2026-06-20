@@ -3,6 +3,7 @@ import { EditorState } from '../../store/useEditorStore';
 import { Engine } from '@backend/Engine';
 import { WebUI } from '@backend/WebUI';
 import { adaptProjectToEngine } from '../../utils/backend/projectAdapter';
+import type { SharedPreviewState } from '../../client/RemoteEditorClient';
 import './Preview.css';
 
 interface PreviewProps {
@@ -40,7 +41,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
   const canControlPreview = !isRemoteSession || isPreviewOwner;
   const sharedPreview = remoteSessionState?.preview;
 
-  const buildSharedPreviewState = useCallback(() => ({
+  const buildSharedPreviewState = useCallback((): SharedPreviewState => ({
     active: true,
     ownerOnly: true,
     isRunning,
@@ -51,7 +52,6 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
     messages,
     controllerParticipantId: remoteSessionState?.currentParticipantId,
     controllerName: remoteSessionState?.ownerName,
-    updatedAt: new Date().toISOString(),
   }), [
     activeAnswersMessageIndex,
     isRunning,
@@ -85,7 +85,13 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
       return;
     }
 
-    updateRemotePreviewState(buildSharedPreviewState());
+    const timer = window.setTimeout(() => {
+      updateRemotePreviewState(buildSharedPreviewState());
+    }, 150);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
   }, [
     buildSharedPreviewState,
     isPreviewOwner,

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -8,6 +8,7 @@ import ReactFlow, {
   ReactFlowProvider,
   Connection,
   NodeProps,
+  ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -18,19 +19,20 @@ import ErrorPanel from './ErrorPanel';
 import './Editor.css';
 
 interface EditorProps {
-  useStore: () => EditorState;
+  useStore: {
+    (): EditorState;
+    <T>(selector: (state: EditorState) => T): T;
+  };
 }
 
 const EditorInner: React.FC<EditorProps> = ({ useStore }) => {
-  const {
-    currentProject,
-    addConnection,
-    deleteConnection,
-    selectNode,
-    selectedNodeId,
-    updateBlock,
-    deleteBlock,
-  } = useStore();
+  const currentProject = useStore((state) => state.currentProject);
+  const selectedNodeId = useStore((state) => state.selectedNodeId);
+  const addConnection = useStore((state) => state.addConnection);
+  const deleteConnection = useStore((state) => state.deleteConnection);
+  const selectNode = useStore((state) => state.selectNode);
+  const updateBlock = useStore((state) => state.updateBlock);
+  const deleteBlock = useStore((state) => state.deleteBlock);
   
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const nodeTypes = React.useMemo(() => ({
@@ -104,22 +106,38 @@ const EditorInner: React.FC<EditorProps> = ({ useStore }) => {
     [deleteConnection]
   );
 
-  const nodes: Node[] = currentProject?.blocks.map(block => ({
-    id: block.id,
-    type: 'blockNode',
-    position: block.position,
-    data: block.data,
-    selected: block.id === selectedNodeId,
-  })) || [];
+  const nodes = useMemo((): Node[] => {
+    if (!currentProject) {
+      return [];
+    }
 
-  const edges: Edge[] = currentProject?.connections.map(conn => ({
-    id: conn.id,
-    source: conn.source,
-    target: conn.target,
-    sourceHandle: conn.sourceHandle,
-    targetHandle: conn.targetHandle,
-    type: conn.type || 'smoothstep',
-  })) || [];
+    return currentProject.blocks.map((block) => ({
+      id: block.id,
+      type: 'blockNode',
+      position: block.position,
+      data: block.data,
+      selected: block.id === selectedNodeId,
+    }));
+  }, [currentProject, selectedNodeId]);
+
+  const edges = useMemo((): Edge[] => {
+    if (!currentProject) {
+      return [];
+    }
+
+    return currentProject.connections.map((conn) => ({
+      id: conn.id,
+      source: conn.source,
+      target: conn.target,
+      sourceHandle: conn.sourceHandle,
+      targetHandle: conn.targetHandle,
+      type: conn.type || 'smoothstep',
+    }));
+  }, [currentProject]);
+
+  const onInit = useCallback((instance: ReactFlowInstance) => {
+    instance.fitView();
+  }, []);
 
   return (
     <>
@@ -137,7 +155,7 @@ const EditorInner: React.FC<EditorProps> = ({ useStore }) => {
           onNodesDelete={onNodesDelete}
           onEdgesDelete={onEdgesDelete}
           nodeTypes={nodeTypes}
-          fitView
+          onInit={onInit}
           attributionPosition="bottom-left"
         >
           <Background color="#aaa" gap={6} />
