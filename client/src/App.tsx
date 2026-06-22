@@ -4,6 +4,8 @@ import EditorWithEditor from './components/Editor/EditorWithEditor';
 import Toolbar from './components/Toolbar/Toolbar';
 import SettingsModal from './components/Settings/SettingsModal';
 import Preview from './components/Preview/Preview';
+import PreviewSetupModal from './components/Preview/PreviewSetupModal';
+import ConnectionStatusBadge from './components/Remote/ConnectionStatusBadge';
 import './App.css';
 
 function App() {
@@ -23,9 +25,14 @@ function App() {
     isConnected,
     remoteSessionToken,
     remoteParticipantName,
-    remoteSessions,
     remoteSessionState,
-    refreshRemoteSessions,
+    previewSetupPending,
+    remoteConnectionStatus,
+    remoteReconnectAttempt,
+    remoteReconnectMaxAttempts,
+    createRemotePreview,
+    openRemotePreview,
+    retryRemoteConnection,
     setRemoteParticipantName,
   } = useStore();
   const [sessionToken, setSessionToken] = useState('');
@@ -45,24 +52,7 @@ function App() {
   }, [currentProject, createProject, storeType]);
 
   useEffect(() => {
-    if (storeType !== 'internal') {
-      return;
-    }
-
-    void refreshRemoteSessions();
-    const timer = window.setInterval(() => {
-      void refreshRemoteSessions();
-    }, 5000);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [storeType, refreshRemoteSessions]);
-
-  
-  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         undo();
@@ -83,7 +73,6 @@ function App() {
   const handleConnectRemote = async () => {
     try {
       await connectRemote(remoteParticipantName);
-      await refreshRemoteSessions();
     } catch (error) {
       console.error('Failed to connect:', error);
     }
@@ -103,23 +92,21 @@ function App() {
     try {
       await joinRemote(sessionToken, remoteParticipantName);
       setSessionToken('');
-      await refreshRemoteSessions();
     } catch (error) {
       console.error('Failed to join:', error);
     }
   };
 
-  const handleJoinListedSession = async (token: string) => {
+  const handleCreatePreview = async (ownerOnly: boolean) => {
     try {
-      await joinRemote(token, remoteParticipantName);
-      setSessionToken(token);
-      await refreshRemoteSessions();
+      await createRemotePreview(ownerOnly);
     } catch (error) {
-      console.error('Failed to join listed session:', error);
+      console.error('Failed to create preview:', error);
     }
   };
 
   const currentParticipants = remoteSessionState?.participants || [];
+  const sessionPreviews = remoteSessionState?.previews || [];
 
   return (
     <div className="app">
@@ -143,9 +130,14 @@ function App() {
                 placeholder="Ваше имя в сессии"
                 maxLength={64}
               />
-              <button onClick={() => void refreshRemoteSessions()}>
-                Обновить сессии
-              </button>
+              {(isConnected || remoteConnectionStatus !== 'idle') && (
+                <ConnectionStatusBadge
+                  status={remoteConnectionStatus}
+                  attempt={remoteReconnectAttempt}
+                  maxAttempts={remoteReconnectMaxAttempts}
+                  onRetry={() => void retryRemoteConnection().catch(console.error)}
+                />
+              )}
             </>
           )}
         </div>
@@ -159,7 +151,7 @@ function App() {
                   <div className="token-input">
                     <input
                       type="text"
-                      placeholder="Токен для ручного подключения"
+                      placeholder="Токен для подключения"
                       value={sessionToken}
                       onChange={(e) => setSessionToken(e.target.value)}
                       onKeyDown={(e) => {
@@ -188,11 +180,8 @@ function App() {
                       </div>
                     </div>
                     <div className="session-badges">
-                      <span className={`status-badge ${remoteSessionState.isCurrentParticipantOwner ? 'owner' : 'viewer'}`}>
-                        {remoteSessionState.isCurrentParticipantOwner ? 'Owner preview' : 'Read only preview'}
-                      </span>
-                      <span className={`status-badge ${remoteSessionState.preview.active ? 'active' : 'idle'}`}>
-                        {remoteSessionState.preview.active ? 'Preview активен' : 'Preview не запущен'}
+                      <span className="status-badge active">
+                        Участников: {currentParticipants.length}
                       </span>
                     </div>
                   </div>
@@ -205,69 +194,79 @@ function App() {
                       {currentParticipants.map((participant) => (
                         <div key={participant.id} className="participant-chip">
                           <span>{participant.name}</span>
-                          {participant.isOwner && <span className="participant-role">owner</span>}
+                          {participant.isOwner && <span className="participant-role">создатель сессии</span>}
                         </div>
                       ))}
                     </div>
                   </div>
 
+                  <div className="previews-panel">
+                    <div className="participants-title">
+                      Preview в этой сессии ({sessionPreviews.length})
+                    </div>
+                    {sessionPreviews.length === 0 ? (
+                      <div className="sessions-empty">
+                        Активных preview пока нет. Любой участник может запустить preview через кнопку «Предпросмотр».
+                      </div>
+                    ) : (
+                      <div className="previews-list">
+                        {sessionPreviews.map((preview) => (
+                          <div key={preview.id} className="preview-card">
+                            <div className="preview-card-main">
+                              <strong>{preview.creatorName}</strong>
+                              <span className="preview-card-meta">
+                                {preview.ownerOnly ? 'Управляет только создатель' : 'Управляют все участники'}
+                              </span>
+                              <span className="preview-card-meta">
+                                {preview.isRunning ? 'Диалог идет' : 'Диалог завершен или еще не начат'}
+                              </span>
+                            </div>
+                            <button onClick={() => openRemotePreview(preview.id)}>
+                              Открыть
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="session-footer">
                     <span className="session-owner">
-                      Владелец preview: {remoteSessionState.ownerName || 'не назначен'}
+                      Поделитесь токеном сессии, чтобы другие могли подключиться
                     </span>
                     <button onClick={handleDisconnect}>Отключиться</button>
                   </div>
                 </div>
               )}
             </div>
-
-            {!isConnected && (
-              <div className="sessions-grid">
-                {remoteSessions.length === 0 ? (
-                  <div className="sessions-empty">
-                    Доступных сессий пока нет. Создай первую или обнови список.
-                  </div>
-                ) : (
-                  remoteSessions.map((session) => (
-                    <div key={session.token} className="session-card">
-                      <div className="session-card-header">
-                        <div>
-                          <strong>{session.projectName || 'Без названия'}</strong>
-                          <div className="session-token">{session.token}</div>
-                        </div>
-                        <span className={`status-badge ${session.previewActive ? 'active' : 'idle'}`}>
-                          {session.previewActive ? 'Preview активен' : 'Preview idle'}
-                        </span>
-                      </div>
-
-                      <div className="session-meta">
-                        <span>Owner: {session.ownerName || 'неизвестно'}</span>
-                        <span>Участников: {session.participantsCount}</span>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          setSessionToken(session.token);
-                          void handleJoinListedSession(session.token);
-                        }}
-                      >
-                        Подключиться
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
           </div>
         )}
       </div>
-      
+
       <Toolbar useStore={useStore} />
 
       <div className="app-content">
         <EditorWithEditor useStore={useStore} />
         {isSettingsOpen && <SettingsModal onClose={toggleSettings} useStore={useStore} />}
-        {isPreviewMode && <Preview onClose={() => useStore.setState({ isPreviewMode: false })} useStore={useStore} />}
+        {previewSetupPending && (
+          <PreviewSetupModal
+            onConfirm={(ownerOnly) => void handleCreatePreview(ownerOnly)}
+            onCancel={() => useStore.setState({ previewSetupPending: false })}
+          />
+        )}
+        {isPreviewMode && (
+          <Preview
+            onClose={() => {
+              const state = useStore.getState();
+              if (state.isConnected) {
+                state.closeRemotePreview();
+              } else {
+                useStore.setState({ isPreviewMode: false });
+              }
+            }}
+            useStore={useStore}
+          />
+        )}
       </div>
     </div>
   );

@@ -16,7 +16,8 @@ import (
 var (
 	ErrSessionNotFound     = errors.New("session not found")
 	ErrParticipantNotFound = errors.New("participant not found")
-	ErrPreviewForbidden    = errors.New("only the session owner can control preview")
+	ErrPreviewNotFound     = errors.New("preview not found")
+	ErrPreviewForbidden    = errors.New("preview control forbidden")
 )
 
 type Config []byte
@@ -48,6 +49,31 @@ type PreviewState struct {
 	UpdatedAt                 time.Time        `json:"updatedAt"`
 }
 
+type PreviewInstance struct {
+	ID                   string
+	OwnerOnly            bool
+	CreatorParticipantID uuid.UUID
+	CreatorName          string
+	State                PreviewState
+}
+
+type PreviewSummary struct {
+	ID                        string           `json:"id"`
+	OwnerOnly                 bool             `json:"ownerOnly"`
+	CreatorParticipantID      string           `json:"creatorParticipantId"`
+	CreatorName               string           `json:"creatorName"`
+	ControllerParticipantID   string           `json:"controllerParticipantId,omitempty"`
+	ControllerName            string           `json:"controllerName,omitempty"`
+	Active                    bool             `json:"active"`
+	IsRunning                 bool             `json:"isRunning"`
+	WaitingForInput           bool             `json:"waitingForInput"`
+	WaitingForFile            bool             `json:"waitingForFile"`
+	RequestedFileName         string           `json:"requestedFileName,omitempty"`
+	ActiveAnswersMessageIndex *int             `json:"activeAnswersMessageIndex"`
+	Messages                  []PreviewMessage `json:"messages"`
+	UpdatedAt                 time.Time        `json:"updatedAt"`
+}
+
 type Participant struct {
 	ID       string    `json:"id"`
 	Name     string    `json:"name"`
@@ -56,26 +82,17 @@ type Participant struct {
 }
 
 type SessionStateMessage struct {
-	Type                      string        `json:"type"`
-	Token                     string        `json:"token"`
-	ProjectName               string        `json:"projectName"`
-	CurrentParticipantID      string        `json:"currentParticipantId"`
-	OwnerParticipantID        string        `json:"ownerParticipantId,omitempty"`
-	OwnerName                 string        `json:"ownerName,omitempty"`
-	IsCurrentParticipantOwner bool          `json:"isCurrentParticipantOwner"`
-	Participants              []Participant `json:"participants"`
-	ParticipantsCount         int           `json:"participantsCount"`
-	Preview                   PreviewState  `json:"preview"`
-	UpdatedAt                 time.Time     `json:"updatedAt"`
-}
-
-type SessionSummary struct {
-	Token             string    `json:"token"`
-	ProjectName       string    `json:"projectName"`
-	OwnerName         string    `json:"ownerName,omitempty"`
-	ParticipantsCount int       `json:"participantsCount"`
-	PreviewActive     bool      `json:"previewActive"`
-	UpdatedAt         time.Time `json:"updatedAt"`
+	Type                 string           `json:"type"`
+	Token                string           `json:"token"`
+	ProjectName          string           `json:"projectName"`
+	CurrentParticipantID string           `json:"currentParticipantId"`
+	OwnerParticipantID   string           `json:"ownerParticipantId,omitempty"`
+	OwnerName            string           `json:"ownerName,omitempty"`
+	IsCurrentParticipantOwner bool        `json:"isCurrentParticipantOwner"`
+	Participants         []Participant    `json:"participants"`
+	ParticipantsCount    int              `json:"participantsCount"`
+	Previews             []PreviewSummary `json:"previews"`
+	UpdatedAt            time.Time        `json:"updatedAt"`
 }
 
 type ParticipantConnection struct {
@@ -93,22 +110,30 @@ type SessionData struct {
 	OwnerName          string
 	OwnerParticipantID uuid.UUID
 	Participants       map[uuid.UUID]*ParticipantConnection
-	Preview            PreviewState
+	Previews           map[string]*PreviewInstance
 	UpdatedAt          time.Time
+	EmptySince         *time.Time
 }
 
 type SessionManager struct {
-	config   ConfigManager
-	sessions map[string]*SessionData
-	mu       sync.RWMutex
+	config          ConfigManager
+	sessions        map[string]*SessionData
+	mu              sync.RWMutex
+	sessionTTL      time.Duration
+	cleanupInterval time.Duration
 }
 
-func NewSessionManager(config ConfigManager) *SessionManager {
-	return &SessionManager{
-		config:   config,
-		sessions: make(map[string]*SessionData),
-		mu:       sync.RWMutex{},
+func NewSessionManager(config ConfigManager, sessionTTL, cleanupInterval time.Duration) *SessionManager {
+	sm := &SessionManager{
+		config:          config,
+		sessions:        make(map[string]*SessionData),
+		sessionTTL:      sessionTTL,
+		cleanupInterval: cleanupInterval,
 	}
+
+	go sm.startCleanupLoop()
+
+	return sm
 }
 
 func (sm *SessionManager) NewSession(config Config) (string, string, error) {
@@ -133,12 +158,8 @@ func (sm *SessionManager) NewSession(config Config) (string, string, error) {
 		ProjectName:  projectName,
 		OwnerKey:     ownerKey,
 		Participants: make(map[uuid.UUID]*ParticipantConnection),
-		Preview: PreviewState{
-			OwnerOnly: true,
-			Messages:  []PreviewMessage{},
-			UpdatedAt: now,
-		},
-		UpdatedAt: now,
+		Previews:     make(map[string]*PreviewInstance),
+		UpdatedAt:    now,
 	}
 
 	return configID, ownerKey, nil
@@ -176,15 +197,11 @@ func (sm *SessionManager) ConnectSession(token string, participantName string, o
 	}
 	session.Participants[participantID] = participant
 	session.UpdatedAt = joinedAt
+	session.EmptySince = nil
 
 	if isOwner {
 		session.OwnerParticipantID = participantID
 		session.OwnerName = name
-		if session.Preview.Active {
-			session.Preview.ControllerParticipantID = participantID.String()
-			session.Preview.ControllerName = name
-			session.Preview.UpdatedAt = joinedAt
-		}
 	}
 
 	sm.broadcastSessionStateLocked(token, session)
@@ -228,7 +245,42 @@ func (sm *SessionManager) ApplyPatch(patch []byte, token string, sender uuid.UUI
 	return nil
 }
 
-func (sm *SessionManager) UpdatePreview(token string, sender uuid.UUID, preview PreviewState) error {
+func (sm *SessionManager) CreatePreview(token string, sender uuid.UUID, ownerOnly bool) (string, error) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	session, ok := sm.sessions[token]
+	if !ok {
+		return "", ErrSessionNotFound
+	}
+
+	participant, ok := session.Participants[sender]
+	if !ok {
+		return "", ErrParticipantNotFound
+	}
+
+	now := time.Now()
+	previewID := uuid.NewString()
+	session.Previews[previewID] = &PreviewInstance{
+		ID:                   previewID,
+		OwnerOnly:            ownerOnly,
+		CreatorParticipantID: sender,
+		CreatorName:          participant.Name,
+		State: PreviewState{
+			Active:    true,
+			OwnerOnly: ownerOnly,
+			Messages:  []PreviewMessage{},
+			UpdatedAt: now,
+		},
+	}
+	session.UpdatedAt = now
+
+	sm.broadcastSessionStateLocked(token, session)
+
+	return previewID, nil
+}
+
+func (sm *SessionManager) UpdatePreview(token string, previewID string, sender uuid.UUID, preview PreviewState) error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
@@ -237,24 +289,40 @@ func (sm *SessionManager) UpdatePreview(token string, sender uuid.UUID, preview 
 		return ErrSessionNotFound
 	}
 
+	instance, ok := session.Previews[previewID]
+	if !ok {
+		return ErrPreviewNotFound
+	}
+
 	participant, ok := session.Participants[sender]
 	if !ok {
 		return ErrParticipantNotFound
 	}
 
-	if !participant.IsOwner {
+	if instance.OwnerOnly && instance.CreatorParticipantID != sender {
 		return ErrPreviewForbidden
 	}
 
-	preview.OwnerOnly = true
-	preview.ControllerParticipantID = sender.String()
-	preview.ControllerName = participant.Name
+	preview.OwnerOnly = instance.OwnerOnly
+	preview.Active = true
 	preview.UpdatedAt = time.Now()
 	if preview.Messages == nil {
 		preview.Messages = []PreviewMessage{}
 	}
 
-	session.Preview = preview
+	if instance.OwnerOnly {
+		preview.ControllerParticipantID = sender.String()
+		preview.ControllerName = participant.Name
+	} else {
+		existingController := instance.State.ControllerParticipantID
+		if existingController != "" && existingController != sender.String() {
+			return ErrPreviewForbidden
+		}
+		preview.ControllerParticipantID = sender.String()
+		preview.ControllerName = participant.Name
+	}
+
+	instance.State = preview
 	session.UpdatedAt = preview.UpdatedAt
 
 	sm.broadcastSessionStateLocked(token, session)
@@ -262,27 +330,98 @@ func (sm *SessionManager) UpdatePreview(token string, sender uuid.UUID, preview 
 	return nil
 }
 
-func (sm *SessionManager) ListSessions() []SessionSummary {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
+type PreviewInputMessage struct {
+	Type          string `json:"type"`
+	PreviewID     string `json:"previewId"`
+	InputType     string `json:"inputType"`
+	Value         string `json:"value"`
+	SenderID      string `json:"senderId"`
+	SenderName    string `json:"senderName"`
+}
 
-	items := make([]SessionSummary, 0, len(sm.sessions))
-	for token, session := range sm.sessions {
-		items = append(items, SessionSummary{
-			Token:             token,
-			ProjectName:       session.ProjectName,
-			OwnerName:         session.OwnerName,
-			ParticipantsCount: len(session.Participants),
-			PreviewActive:     session.Preview.Active,
-			UpdatedAt:         session.UpdatedAt,
-		})
+func (sm *SessionManager) RelayPreviewInput(token string, previewID string, sender uuid.UUID, inputType string, value string) error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	session, ok := sm.sessions[token]
+	if !ok {
+		return ErrSessionNotFound
 	}
 
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].UpdatedAt.After(items[j].UpdatedAt)
-	})
+	instance, ok := session.Previews[previewID]
+	if !ok {
+		return ErrPreviewNotFound
+	}
 
-	return items
+	participant, ok := session.Participants[sender]
+	if !ok {
+		return ErrParticipantNotFound
+	}
+
+	if instance.OwnerOnly && instance.CreatorParticipantID != sender {
+		return ErrPreviewForbidden
+	}
+
+	controllerID := instance.State.ControllerParticipantID
+	if controllerID == "" {
+		return nil
+	}
+
+	controllerUUID, err := uuid.Parse(controllerID)
+	if err != nil {
+		return err
+	}
+
+	controller, ok := session.Participants[controllerUUID]
+	if !ok {
+		return nil
+	}
+
+	if controllerUUID == sender {
+		return nil
+	}
+
+	payload, err := json.Marshal(PreviewInputMessage{
+		Type:       "preview_input",
+		PreviewID:  previewID,
+		InputType:  inputType,
+		Value:      value,
+		SenderID:   sender.String(),
+		SenderName: participant.Name,
+	})
+	if err != nil {
+		return err
+	}
+
+	sendNonBlocking(controller.Outgoing, payload)
+
+	return nil
+}
+
+func (sm *SessionManager) ClosePreview(token string, previewID string, sender uuid.UUID) error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	session, ok := sm.sessions[token]
+	if !ok {
+		return ErrSessionNotFound
+	}
+
+	instance, ok := session.Previews[previewID]
+	if !ok {
+		return ErrPreviewNotFound
+	}
+
+	if instance.CreatorParticipantID != sender {
+		return ErrPreviewForbidden
+	}
+
+	delete(session.Previews, previewID)
+	session.UpdatedAt = time.Now()
+
+	sm.broadcastSessionStateLocked(token, session)
+
+	return nil
 }
 
 func (sm *SessionManager) DisconnectSession(participantID uuid.UUID, token string) {
@@ -302,13 +441,31 @@ func (sm *SessionManager) DisconnectSession(participantID uuid.UUID, token strin
 	delete(session.Participants, participantID)
 	session.UpdatedAt = time.Now()
 
+	for previewID, preview := range session.Previews {
+		if preview.OwnerOnly && preview.CreatorParticipantID == participantID {
+			delete(session.Previews, previewID)
+			continue
+		}
+
+		if preview.State.ControllerParticipantID == participantID.String() {
+			preview.State.ControllerParticipantID = ""
+			preview.State.ControllerName = ""
+			preview.State.UpdatedAt = session.UpdatedAt
+		}
+	}
+
 	if session.OwnerParticipantID == participantID {
 		session.OwnerParticipantID = uuid.Nil
-		if session.Preview.Active {
-			session.Preview.ControllerParticipantID = ""
-			session.Preview.ControllerName = participant.Name
-			session.Preview.UpdatedAt = session.UpdatedAt
-		}
+	}
+
+	if len(session.Participants) == 0 {
+		now := time.Now()
+		session.EmptySince = &now
+		slog.Info(
+			"Session is empty and scheduled for expiry",
+			"config_id", session.ConfigID,
+			"expires_at", now.Add(sm.sessionTTL),
+		)
 	}
 
 	sm.broadcastSessionStateLocked(token, session)
@@ -345,6 +502,15 @@ func (sm *SessionManager) sessionStatePayloadLocked(token string, session *Sessi
 		return participants[i].JoinedAt.Before(participants[j].JoinedAt)
 	})
 
+	previews := make([]PreviewSummary, 0, len(session.Previews))
+	for _, preview := range session.Previews {
+		previews = append(previews, previewSummaryFromInstance(preview))
+	}
+
+	sort.Slice(previews, func(i, j int) bool {
+		return previews[i].UpdatedAt.After(previews[j].UpdatedAt)
+	})
+
 	message := SessionStateMessage{
 		Type:                      "session_state",
 		Token:                     token,
@@ -354,7 +520,7 @@ func (sm *SessionManager) sessionStatePayloadLocked(token string, session *Sessi
 		IsCurrentParticipantOwner: session.OwnerParticipantID == currentParticipantID,
 		Participants:              participants,
 		ParticipantsCount:         len(participants),
-		Preview:                   session.Preview,
+		Previews:                  previews,
 		UpdatedAt:                 session.UpdatedAt,
 	}
 
@@ -363,6 +529,25 @@ func (sm *SessionManager) sessionStatePayloadLocked(token string, session *Sessi
 	}
 
 	return json.Marshal(message)
+}
+
+func previewSummaryFromInstance(preview *PreviewInstance) PreviewSummary {
+	return PreviewSummary{
+		ID:                        preview.ID,
+		OwnerOnly:                 preview.OwnerOnly,
+		CreatorParticipantID:      preview.CreatorParticipantID.String(),
+		CreatorName:               preview.CreatorName,
+		ControllerParticipantID:   preview.State.ControllerParticipantID,
+		ControllerName:            preview.State.ControllerName,
+		Active:                    preview.State.Active,
+		IsRunning:                 preview.State.IsRunning,
+		WaitingForInput:           preview.State.WaitingForInput,
+		WaitingForFile:            preview.State.WaitingForFile,
+		RequestedFileName:         preview.State.RequestedFileName,
+		ActiveAnswersMessageIndex: preview.State.ActiveAnswersMessageIndex,
+		Messages:                  preview.State.Messages,
+		UpdatedAt:                 preview.State.UpdatedAt,
+	}
 }
 
 func extractProjectName(config Config) string {
@@ -402,6 +587,62 @@ func sendNonBlocking(outgoing chan<- []byte, payload []byte) {
 	case outgoing <- message:
 	default:
 		slog.Warn("dropping outgoing session message because the channel is full")
+	}
+}
+
+func (sm *SessionManager) startCleanupLoop() {
+	ticker := time.NewTicker(sm.cleanupInterval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		sm.cleanupExpiredSessions()
+	}
+}
+
+func (sm *SessionManager) cleanupExpiredSessions() {
+	type expiredSession struct {
+		token    string
+		configID string
+	}
+
+	expired := make([]expiredSession, 0)
+
+	sm.mu.Lock()
+	now := time.Now()
+	for token, session := range sm.sessions {
+		if len(session.Participants) > 0 || session.EmptySince == nil {
+			continue
+		}
+
+		if now.Sub(*session.EmptySince) >= sm.sessionTTL {
+			expired = append(expired, expiredSession{
+				token:    token,
+				configID: session.ConfigID,
+			})
+			delete(sm.sessions, token)
+		}
+	}
+	sm.mu.Unlock()
+
+	for _, item := range expired {
+		slog.Info(
+			"Removing expired session",
+			"token", item.token,
+			"config_id", item.configID,
+		)
+		sm.deleteConfigAsync(item.configID)
+	}
+}
+
+func (sm *SessionManager) deleteConfigAsync(configID string) {
+	configUUID, err := uuid.Parse(configID)
+	if err != nil {
+		slog.Error("failed to parse config id for deletion", "config_id", configID, "error", err)
+		return
+	}
+
+	if err := sm.config.DeleteConfig(configUUID); err != nil {
+		slog.Error("failed to delete expired config", "config_id", configID, "error", err)
 	}
 }
 

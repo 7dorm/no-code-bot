@@ -18,8 +18,10 @@ type sessions interface {
 	NewSession(config Config) (string, string, error)
 	ConnectSession(token string, participantName string, ownerKey string, outgoing chan<- []byte) (uuid.UUID, Config, error)
 	ApplyPatch(patch []byte, token string, sender uuid.UUID) error
-	UpdatePreview(token string, sender uuid.UUID, preview PreviewState) error
-	ListSessions() []SessionSummary
+	CreatePreview(token string, sender uuid.UUID, ownerOnly bool) (string, error)
+	UpdatePreview(token string, previewID string, sender uuid.UUID, preview PreviewState) error
+	RelayPreviewInput(token string, previewID string, sender uuid.UUID, inputType string, value string) error
+	ClosePreview(token string, previewID string, sender uuid.UUID) error
 	DisconnectSession(session uuid.UUID, token string)
 }
 
@@ -29,14 +31,23 @@ type httpWebSocket struct {
 }
 
 type clientEnvelope struct {
-	Type  string       `json:"type"`
-	State PreviewState `json:"state"`
+	Type      string       `json:"type"`
+	PreviewID string       `json:"previewId,omitempty"`
+	OwnerOnly *bool        `json:"ownerOnly,omitempty"`
+	InputType string       `json:"inputType,omitempty"`
+	Value     string       `json:"value,omitempty"`
+	State     PreviewState `json:"state"`
 }
 
 type sessionCreatedMessage struct {
 	Type     string `json:"type"`
 	Token    string `json:"token"`
 	OwnerKey string `json:"ownerKey,omitempty"`
+}
+
+type previewCreatedMessage struct {
+	Type      string `json:"type"`
+	PreviewID string `json:"previewId"`
 }
 
 var upgrader = websocket.Upgrader{
@@ -49,7 +60,7 @@ func (ws *httpWebSocket) MemberSession(ctxx context.Context, conn *websocket.Con
 	ctx, cancel := context.WithCancel(ctxx)
 	defer cancel()
 
-	outgoing := make(chan []byte, 32)
+	outgoing := make(chan []byte, 256)
 
 	participantID, config, err := ws.sessions.ConnectSession(token, participantName, ownerKey, outgoing)
 	if err != nil {
@@ -57,30 +68,7 @@ func (ws *httpWebSocket) MemberSession(ctxx context.Context, conn *websocket.Con
 		return
 	}
 	defer ws.sessions.DisconnectSession(participantID, token)
-
-	if err := conn.WriteMessage(websocket.TextMessage, config); err != nil {
-		conn.Close()
-		return
-	}
-
 	defer conn.Close()
-
-	go func() {
-		defer cancel()
-
-		for {
-			_, msg, err := conn.ReadMessage()
-			if err != nil {
-				ws.sessions.DisconnectSession(participantID, token)
-				slog.Info("Disconnected session", "participant_id", participantID, "token", token)
-				return
-			}
-
-			if err := ws.handleClientMessage(token, participantID, msg); err != nil {
-				slog.Error("Failed to process client message", "error", err, "token", token)
-			}
-		}
-	}()
 
 	go func() {
 		for {
@@ -96,29 +84,85 @@ func (ws *httpWebSocket) MemberSession(ctxx context.Context, conn *websocket.Con
 		}
 	}()
 
+	if !queueOutgoing(ctx, outgoing, config) {
+		return
+	}
+
+	go func() {
+		defer cancel()
+
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				ws.sessions.DisconnectSession(participantID, token)
+				slog.Info("Disconnected session", "participant_id", participantID, "token", token)
+				return
+			}
+
+			if response, err := ws.handleClientMessage(token, participantID, msg); err != nil {
+				slog.Error("Failed to process client message", "error", err, "token", token)
+			} else if len(response) > 0 {
+				queueOutgoing(ctx, outgoing, response)
+			}
+		}
+	}()
+
 	<-ctx.Done()
 }
 
-func (ws *httpWebSocket) handleClientMessage(token string, participantID uuid.UUID, msg []byte) error {
+func queueOutgoing(ctx context.Context, outgoing chan<- []byte, payload []byte) bool {
+	message := append([]byte(nil), payload...)
+	select {
+	case <-ctx.Done():
+		return false
+	case outgoing <- message:
+		return true
+	}
+}
+
+func (ws *httpWebSocket) handleClientMessage(token string, participantID uuid.UUID, msg []byte) ([]byte, error) {
 	trimmed := bytes.TrimSpace(msg)
 	if len(trimmed) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	if trimmed[0] == '[' {
-		return ws.sessions.ApplyPatch(msg, token, participantID)
+		return nil, ws.sessions.ApplyPatch(msg, token, participantID)
 	}
 
 	var envelope clientEnvelope
 	if err := json.Unmarshal(msg, &envelope); err != nil {
-		return err
+		return nil, err
 	}
 
 	switch envelope.Type {
+	case "preview_create":
+		ownerOnly := envelope.OwnerOnly != nil && *envelope.OwnerOnly
+		previewID, err := ws.sessions.CreatePreview(token, participantID, ownerOnly)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(previewCreatedMessage{
+			Type:      "preview_created",
+			PreviewID: previewID,
+		})
 	case "preview_state":
-		return ws.sessions.UpdatePreview(token, participantID, envelope.State)
+		if envelope.PreviewID == "" {
+			return nil, fmt.Errorf("previewId is required")
+		}
+		return nil, ws.sessions.UpdatePreview(token, envelope.PreviewID, participantID, envelope.State)
+	case "preview_input":
+		if envelope.PreviewID == "" {
+			return nil, fmt.Errorf("previewId is required")
+		}
+		return nil, ws.sessions.RelayPreviewInput(token, envelope.PreviewID, participantID, envelope.InputType, envelope.Value)
+	case "preview_close":
+		if envelope.PreviewID == "" {
+			return nil, fmt.Errorf("previewId is required")
+		}
+		return nil, ws.sessions.ClosePreview(token, envelope.PreviewID, participantID)
 	default:
-		return fmt.Errorf("unknown client message type: %s", envelope.Type)
+		return nil, fmt.Errorf("unknown client message type: %s", envelope.Type)
 	}
 }
 
@@ -175,17 +219,10 @@ func (ws *httpWebSocket) HandlerJoin(w http.ResponseWriter, r *http.Request) {
 	ws.MemberSession(ctx, conn, token, readParticipantName(r), r.URL.Query().Get("ownerKey"))
 }
 
-func (ws *httpWebSocket) HandleListSessions(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
-		"items": ws.sessions.ListSessions(),
-	})
-}
-
 func (ws *httpWebSocket) Handle() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/create", ws.HandlerCreate)
 	mux.HandleFunc("/session/", ws.HandlerJoin)
-	mux.HandleFunc("/api/sessions", ws.HandleListSessions)
 
 	server := &http.Server{
 		Addr:    ":" + ws.port,

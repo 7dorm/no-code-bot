@@ -14,6 +14,20 @@ export type RemoteConfigSnapshot = {
   runtime?: any;
 };
 
+export type RemoteConnectionStatus =
+  | 'idle'
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'disconnected'
+  | 'failed';
+
+export interface RemoteConnectionInfo {
+  status: RemoteConnectionStatus;
+  attempt: number;
+  maxAttempts: number;
+}
+
 export interface RemoteParticipant {
   id: string;
   name: string;
@@ -28,6 +42,7 @@ export interface PreviewChatMessage {
 }
 
 export interface SharedPreviewState {
+  id?: string;
   active: boolean;
   ownerOnly: boolean;
   isRunning: boolean;
@@ -41,6 +56,23 @@ export interface SharedPreviewState {
   updatedAt?: string;
 }
 
+export interface RemotePreviewInstance {
+  id: string;
+  ownerOnly: boolean;
+  creatorParticipantId: string;
+  creatorName: string;
+  controllerParticipantId?: string;
+  controllerName?: string;
+  active: boolean;
+  isRunning: boolean;
+  waitingForInput: boolean;
+  waitingForFile: boolean;
+  requestedFileName?: string;
+  activeAnswersMessageIndex: number | null;
+  messages: PreviewChatMessage[];
+  updatedAt?: string;
+}
+
 export interface RemoteSessionState {
   type: 'session_state';
   token: string;
@@ -51,17 +83,8 @@ export interface RemoteSessionState {
   isCurrentParticipantOwner: boolean;
   participants: RemoteParticipant[];
   participantsCount: number;
-  preview: SharedPreviewState;
+  previews: RemotePreviewInstance[];
   updatedAt?: string;
-}
-
-export interface RemoteSessionSummary {
-  token: string;
-  projectName: string;
-  ownerName?: string;
-  participantsCount: number;
-  previewActive: boolean;
-  updatedAt: string;
 }
 
 interface RemoteSessionCreatedMessage {
@@ -70,19 +93,34 @@ interface RemoteSessionCreatedMessage {
   ownerKey?: string;
 }
 
+interface PreviewCreatedMessage {
+  type: 'preview_created';
+  previewId: string;
+}
+
 interface PreviewSyncEnvelope {
   type: 'preview_state';
+  previewId: string;
   state: SharedPreviewState;
 }
 
-function toHttpUrl(wsUrl: string): string {
-  if (wsUrl.startsWith('ws://')) {
-    return `http://${wsUrl.slice(5)}`;
-  }
-  if (wsUrl.startsWith('wss://')) {
-    return `https://${wsUrl.slice(6)}`;
-  }
-  return wsUrl;
+interface PreviewCreateEnvelope {
+  type: 'preview_create';
+  ownerOnly: boolean;
+}
+
+interface PreviewCloseEnvelope {
+  type: 'preview_close';
+  previewId: string;
+}
+
+export interface PreviewInputMessage {
+  type: 'preview_input';
+  previewId: string;
+  inputType: 'text' | 'file' | 'restart';
+  value: string;
+  senderId: string;
+  senderName: string;
 }
 
 function getDefaultRemoteWsUrl(): string {
@@ -93,14 +131,23 @@ function getDefaultRemoteWsUrl(): string {
 
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.hostname}:8080`;
+    return `${protocol}//${window.location.hostname}:8787`;
   }
 
-  return 'ws://localhost:8080';
+  return 'ws://127.0.0.1:8787';
+}
+
+function getMaxReconnectAttempts(): number {
+  const configured = Number(import.meta.env.VITE_REMOTE_RECONNECT_MAX_ATTEMPTS);
+  if (Number.isFinite(configured) && configured > 0) {
+    return Math.floor(configured);
+  }
+  return 10;
 }
 
 function normalizePreviewState(state: SharedPreviewState): SharedPreviewState {
   return {
+    id: state.id,
     active: state.active,
     ownerOnly: state.ownerOnly,
     isRunning: state.isRunning,
@@ -121,52 +168,48 @@ function normalizePreviewState(state: SharedPreviewState): SharedPreviewState {
 export class RemoteEditorClient {
   private ws: WebSocket | null = null;
   private readonly wsUrl: string;
-  private readonly httpUrl: string;
+  private readonly maxReconnectAttempts: number;
   private token: string | null = null;
   private ownerKey: string | null = null;
   private participantName = '';
+  private connectionStatus: RemoteConnectionStatus = 'idle';
+  private reconnectAttempts = 0;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private shouldReconnect = true;
   private onPatchCallbacks: Array<(patch: JsonPatch) => void> = [];
   private onConfigCallbacks: Array<(snapshot: RemoteConfigSnapshot) => void> = [];
   private onSessionStateCallbacks: Array<(state: RemoteSessionState) => void> = [];
   private onConnectCallbacks: Array<() => void> = [];
   private onDisconnectCallbacks: Array<() => void> = [];
-  private reconnectAttempts = 0;
-  private readonly maxReconnectAttempts = 5;
-  private readonly reconnectDelay = 1000;
-  private shouldReconnect = true;
+  private onConnectionStatusCallbacks: Array<(info: RemoteConnectionInfo) => void> = [];
+  private previewInputHandler: ((message: PreviewInputMessage) => void) | null = null;
 
   constructor(wsUrl: string = getDefaultRemoteWsUrl()) {
     this.wsUrl = wsUrl;
-    this.httpUrl = toHttpUrl(wsUrl);
-  }
-
-  async listSessions(): Promise<RemoteSessionSummary[]> {
-    const response = await fetch(`${this.httpUrl}/api/sessions`);
-    if (!response.ok) {
-      throw new Error(`Failed to list sessions: ${response.status}`);
-    }
-
-    const payload = await response.json();
-    return Array.isArray(payload?.items) ? payload.items : [];
+    this.maxReconnectAttempts = getMaxReconnectAttempts();
   }
 
   connect(initialConfig?: any, participantName: string = ''): Promise<string> {
     this.participantName = participantName.trim();
     this.shouldReconnect = true;
+    this.clearReconnectTimer();
+    this.reconnectAttempts = 0;
+    this.setConnectionStatus('connecting');
 
     return new Promise((resolve, reject) => {
       try {
-        this.ws = new WebSocket(this.buildCreateUrl());
+        this.closeSocketSilently();
+        const ws = new WebSocket(this.buildCreateUrl());
+        this.ws = ws;
 
-        this.ws.onopen = () => {
+        ws.onopen = () => {
           this.reconnectAttempts = 0;
+          this.setConnectionStatus('connected');
           this.onConnectCallbacks.forEach((cb) => cb());
-          if (this.ws) {
-            this.ws.send(JSON.stringify(initialConfig || {}));
-          }
+          ws.send(JSON.stringify(initialConfig || {}));
         };
 
-        this.ws.onmessage = (event) => {
+        ws.onmessage = (event) => {
           const data = typeof event.data === 'string' ? event.data : String(event.data);
           const created = this.tryHandleSessionCreated(data);
           if (created) {
@@ -177,14 +220,18 @@ export class RemoteEditorClient {
           this.handleServerMessage(data);
         };
 
-        this.ws.onerror = (error) => {
-          reject(error);
+        ws.onerror = () => {
+          reject(new Error('Failed to connect to remote session'));
         };
 
-        this.ws.onclose = () => {
+        ws.onclose = () => {
+          if (this.ws === ws) {
+            this.ws = null;
+          }
           this.handleSocketClose();
         };
       } catch (error) {
+        this.setConnectionStatus('failed');
         reject(error);
       }
     });
@@ -194,30 +241,62 @@ export class RemoteEditorClient {
     this.token = token;
     this.participantName = participantName.trim();
     this.shouldReconnect = true;
+    this.reconnectAttempts = 0;
+    this.clearReconnectTimer();
+    this.setConnectionStatus('connecting');
+
+    return this.openJoinSocket();
+  }
+
+  retryConnection(): Promise<void> {
+    if (!this.token) {
+      return Promise.reject(new Error('No session token to reconnect'));
+    }
+
+    this.shouldReconnect = true;
+    this.reconnectAttempts = 0;
+    this.clearReconnectTimer();
+    this.setConnectionStatus('connecting');
+
+    return this.openJoinSocket();
+  }
+
+  createPreview(ownerOnly: boolean): Promise<string> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return Promise.reject(new Error('WebSocket is not connected'));
+    }
+
+    const envelope: PreviewCreateEnvelope = {
+      type: 'preview_create',
+      ownerOnly,
+    };
 
     return new Promise((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        reject(new Error('Preview creation timed out'));
+      }, 5000);
+
+      const handleMessage = (event: MessageEvent) => {
+        const data = typeof event.data === 'string' ? event.data : String(event.data);
+        try {
+          const parsed = JSON.parse(data) as PreviewCreatedMessage;
+          if (parsed?.type === 'preview_created' && typeof parsed.previewId === 'string') {
+            window.clearTimeout(timeout);
+            this.ws?.removeEventListener('message', handleMessage);
+            resolve(parsed.previewId);
+          }
+        } catch {
+          // ignore non-json messages handled elsewhere
+        }
+      };
+
+      this.ws?.addEventListener('message', handleMessage);
+
       try {
-        this.ws = new WebSocket(this.buildJoinUrl(token));
-
-        this.ws.onopen = () => {
-          this.reconnectAttempts = 0;
-          this.onConnectCallbacks.forEach((cb) => cb());
-          resolve();
-        };
-
-        this.ws.onmessage = (event) => {
-          const data = typeof event.data === 'string' ? event.data : String(event.data);
-          this.handleServerMessage(data);
-        };
-
-        this.ws.onerror = (error) => {
-          reject(error);
-        };
-
-        this.ws.onclose = () => {
-          this.handleSocketClose();
-        };
+        this.ws?.send(JSON.stringify(envelope));
       } catch (error) {
+        window.clearTimeout(timeout);
+        this.ws?.removeEventListener('message', handleMessage);
         reject(error);
       }
     });
@@ -235,13 +314,14 @@ export class RemoteEditorClient {
     }
   }
 
-  sendPreviewState(state: SharedPreviewState): void {
+  sendPreviewState(previewId: string, state: SharedPreviewState): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return;
     }
 
     const envelope: PreviewSyncEnvelope = {
       type: 'preview_state',
+      previewId,
       state: normalizePreviewState(state),
     };
 
@@ -249,6 +329,40 @@ export class RemoteEditorClient {
       this.ws.send(JSON.stringify(envelope));
     } catch (error) {
       console.error('Failed to send preview state:', error);
+    }
+  }
+
+  closePreview(previewId: string): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const envelope: PreviewCloseEnvelope = {
+      type: 'preview_close',
+      previewId,
+    };
+
+    try {
+      this.ws.send(JSON.stringify(envelope));
+    } catch (error) {
+      console.error('Failed to close preview:', error);
+    }
+  }
+
+  sendPreviewInput(previewId: string, inputType: PreviewInputMessage['inputType'], value: string): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    try {
+      this.ws.send(JSON.stringify({
+        type: 'preview_input',
+        previewId,
+        inputType,
+        value,
+      }));
+    } catch (error) {
+      console.error('Failed to send preview input:', error);
     }
   }
 
@@ -272,20 +386,94 @@ export class RemoteEditorClient {
     this.onDisconnectCallbacks.push(callback);
   }
 
+  onConnectionStatus(callback: (info: RemoteConnectionInfo) => void): void {
+    this.onConnectionStatusCallbacks.push(callback);
+  }
+
+  onPreviewInput(callback: (message: PreviewInputMessage) => void): void {
+    this.previewInputHandler = callback;
+  }
+
+  clearPreviewInputHandler(): void {
+    this.previewInputHandler = null;
+  }
+
   disconnect(): void {
     this.shouldReconnect = false;
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
+    this.clearReconnectTimer();
+    this.closeSocketSilently();
+    this.setConnectionStatus('disconnected');
   }
 
   getToken(): string | null {
     return this.token;
   }
 
+  getConnectionInfo(): RemoteConnectionInfo {
+    return {
+      status: this.connectionStatus,
+      attempt: this.reconnectAttempts,
+      maxAttempts: this.maxReconnectAttempts,
+    };
+  }
+
   isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+  }
+
+  private openJoinSocket(): Promise<void> {
+    if (!this.token) {
+      return Promise.reject(new Error('Session token is missing'));
+    }
+
+    return new Promise((resolve, reject) => {
+      try {
+        this.closeSocketSilently();
+        const ws = new WebSocket(this.buildJoinUrl(this.token!));
+        this.ws = ws;
+        let settled = false;
+
+        ws.onopen = () => {
+          this.reconnectAttempts = 0;
+          this.setConnectionStatus('connected');
+          this.onConnectCallbacks.forEach((cb) => cb());
+          settled = true;
+          resolve();
+        };
+
+        ws.onmessage = (event) => {
+          const data = typeof event.data === 'string' ? event.data : String(event.data);
+          this.handleServerMessage(data);
+        };
+
+        ws.onerror = () => {
+          if (!settled) {
+            settled = true;
+            reject(new Error('Failed to join remote session'));
+          }
+        };
+
+        ws.onclose = () => {
+          if (this.ws === ws) {
+            this.ws = null;
+          }
+
+          if (!settled) {
+            settled = true;
+            reject(new Error('Remote session connection closed'));
+            if (this.shouldReconnect && this.token) {
+              this.onDisconnectCallbacks.forEach((cb) => cb());
+              this.scheduleReconnect();
+            }
+            return;
+          }
+
+          this.handleSocketClose();
+        };
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   private handleServerMessage(data: string): void {
@@ -300,6 +488,11 @@ export class RemoteEditorClient {
       if (this.isSessionState(parsed)) {
         this.token = parsed.token;
         this.onSessionStateCallbacks.forEach((cb) => cb(parsed));
+        return;
+      }
+
+      if (this.isPreviewInput(parsed)) {
+        this.previewInputHandler?.(parsed);
         return;
       }
 
@@ -350,21 +543,81 @@ export class RemoteEditorClient {
   }
 
   private handleSocketClose(): void {
-    this.onDisconnectCallbacks.forEach((cb) => cb());
-    this.ws = null;
+    if (!this.shouldReconnect) {
+      this.onDisconnectCallbacks.forEach((cb) => cb());
+      this.setConnectionStatus('disconnected');
+      return;
+    }
 
-    if (!this.shouldReconnect || !this.token || this.reconnectAttempts >= this.maxReconnectAttempts) {
+    if (!this.token) {
+      this.onDisconnectCallbacks.forEach((cb) => cb());
+      this.setConnectionStatus('disconnected');
+      return;
+    }
+
+    this.onDisconnectCallbacks.forEach((cb) => cb());
+    this.scheduleReconnect();
+  }
+
+  private scheduleReconnect(): void {
+    if (!this.shouldReconnect || !this.token) {
+      this.setConnectionStatus('disconnected');
+      return;
+    }
+
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.setConnectionStatus('failed');
       return;
     }
 
     this.reconnectAttempts += 1;
-    setTimeout(() => {
-      if (this.token) {
-        this.join(this.token, this.participantName).catch((error) => {
-          console.error('Failed to reconnect to remote session:', error);
-        });
-      }
-    }, this.reconnectDelay);
+    this.setConnectionStatus('reconnecting');
+
+    const delay = Math.min(1000 * (2 ** (this.reconnectAttempts - 1)), 30000);
+    this.clearReconnectTimer();
+    this.reconnectTimer = window.setTimeout(() => {
+      this.reconnectTimer = null;
+      this.setConnectionStatus('connecting');
+      void this.openJoinSocket().catch((error) => {
+        console.warn('Reconnect attempt failed:', error);
+      });
+    }, delay);
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer !== null) {
+      window.clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  private closeSocketSilently(): void {
+    if (!this.ws) {
+      return;
+    }
+
+    const socket = this.ws;
+    socket.onopen = null;
+    socket.onmessage = null;
+    socket.onerror = null;
+    socket.onclose = null;
+    socket.close();
+    this.ws = null;
+  }
+
+  private setConnectionStatus(status: RemoteConnectionStatus): void {
+    if (this.connectionStatus === status) {
+      this.emitConnectionStatus();
+      return;
+    }
+
+    this.connectionStatus = status;
+    this.emitConnectionStatus();
+  }
+
+  private emitConnectionStatus(): void {
+    const info = this.getConnectionInfo();
+    this.onConnectionStatusCallbacks.forEach((cb) => cb(info));
   }
 
   private isJsonPatch(value: unknown): value is JsonPatch {
@@ -386,6 +639,15 @@ export class RemoteEditorClient {
       typeof value === 'object' &&
       (value as RemoteSessionState).type === 'session_state' &&
       typeof (value as RemoteSessionState).token === 'string'
+    );
+  }
+
+  private isPreviewInput(value: unknown): value is PreviewInputMessage {
+    return (
+      !!value &&
+      typeof value === 'object' &&
+      (value as PreviewInputMessage).type === 'preview_input' &&
+      typeof (value as PreviewInputMessage).previewId === 'string'
     );
   }
 }

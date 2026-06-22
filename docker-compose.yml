@@ -7,7 +7,7 @@ services:
       dockerfile: ./server/Dockerfile
     container_name: engine-manager
     ports:
-      - "3004:3004"
+      - "4004:3004"
     environment:
       - ENGINE_MANAGER_PORT=3004
     networks:
@@ -20,9 +20,11 @@ services:
       dockerfile: Dockerfile
     container_name: remote-serv
     ports:
-      - "8080:8080"
+      - "8787:8080"
     environment:
       - ENGINE_MANAGER_URL=http://engine-manager:3004
+      - SESSION_TTL=${SESSION_TTL:-2160h}
+      - SESSION_CLEANUP_INTERVAL=${SESSION_CLEANUP_INTERVAL:-1h}
     depends_on:
       - engine-manager
     networks:

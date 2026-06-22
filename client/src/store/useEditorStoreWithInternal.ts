@@ -5,8 +5,8 @@ import {
   RemoteEditorClient,
   type JsonPatch,
   type RemoteConfigSnapshot,
+  type RemotePreviewInstance,
   type RemoteSessionState,
-  type RemoteSessionSummary,
   type SharedPreviewState,
 } from '../client/RemoteEditorClient';
 import { useEditorStore, type EditorState } from './useEditorStore';
@@ -43,44 +43,64 @@ function toProjectFromPatch(current: Project, patch: JsonPatch): Project {
   return normalizeProjectDates(updated);
 }
 
-function toSessionSummary(state: RemoteSessionState): RemoteSessionSummary {
-  return {
-    token: state.token,
-    projectName: state.projectName,
-    ownerName: state.ownerName,
-    participantsCount: state.participantsCount,
-    previewActive: state.preview.active,
-    updatedAt: state.updatedAt || new Date().toISOString(),
-  };
-}
-
-function mergeSessionSummary(
-  sessions: RemoteSessionSummary[],
-  summary: RemoteSessionSummary,
-): RemoteSessionSummary[] {
-  const next = sessions.filter((item) => item.token !== summary.token);
-  next.unshift(summary);
-  return next;
-}
-
-function previewStatesEqual(
-  current: SharedPreviewState | undefined,
-  next: SharedPreviewState,
+function previewInstancesEqual(
+  current: RemotePreviewInstance[] | undefined,
+  next: RemotePreviewInstance[],
 ): boolean {
   if (!current) {
     return false;
   }
 
-  return (
-    current.active === next.active
-    && current.ownerOnly === next.ownerOnly
-    && current.isRunning === next.isRunning
-    && current.waitingForInput === next.waitingForInput
-    && current.waitingForFile === next.waitingForFile
-    && current.requestedFileName === next.requestedFileName
-    && current.activeAnswersMessageIndex === next.activeAnswersMessageIndex
-    && JSON.stringify(current.messages) === JSON.stringify(next.messages)
-  );
+  if (current.length !== next.length) {
+    return false;
+  }
+
+  return current.every((item, index) => {
+    const candidate = next[index];
+    return (
+      item.id === candidate.id
+      && item.active === candidate.active
+      && item.isRunning === candidate.isRunning
+      && item.waitingForInput === candidate.waitingForInput
+      && item.waitingForFile === candidate.waitingForFile
+      && item.requestedFileName === candidate.requestedFileName
+    && item.activeAnswersMessageIndex === candidate.activeAnswersMessageIndex
+    && item.controllerParticipantId === candidate.controllerParticipantId
+    && JSON.stringify(item.messages) === JSON.stringify(candidate.messages)
+    );
+  });
+}
+
+function previewStateFromInstance(preview: RemotePreviewInstance): SharedPreviewState {
+  return {
+    id: preview.id,
+    active: preview.active,
+    ownerOnly: preview.ownerOnly,
+    isRunning: preview.isRunning,
+    waitingForInput: preview.waitingForInput,
+    waitingForFile: preview.waitingForFile,
+    requestedFileName: preview.requestedFileName,
+    activeAnswersMessageIndex: preview.activeAnswersMessageIndex,
+    messages: preview.messages,
+    controllerParticipantId: preview.controllerParticipantId,
+    controllerName: preview.controllerName,
+    updatedAt: preview.updatedAt,
+  };
+}
+
+function canControlPreview(
+  preview: RemotePreviewInstance | undefined,
+  participantId: string | undefined,
+): boolean {
+  if (!preview || !participantId) {
+    return false;
+  }
+
+  if (!preview.ownerOnly) {
+    return true;
+  }
+
+  return preview.creatorParticipantId === participantId;
 }
 
 function normalizeParticipantName(name?: string): string {
@@ -138,12 +158,17 @@ function bindClient(
 
   client.onSessionState((sessionState) => {
     set((state) => {
+      const previews = sessionState.previews || [];
+      const activePreviewStillExists = !state.activePreviewId
+        || previews.some((preview) => preview.id === state.activePreviewId);
+
       if (
         state.remoteSessionState
         && state.remoteSessionState.token === sessionState.token
-        && previewStatesEqual(state.remoteSessionState.preview, sessionState.preview)
+        && previewInstancesEqual(state.remoteSessionState.previews, previews)
         && state.remoteSessionState.participantsCount === sessionState.participantsCount
         && state.remoteSessionState.isCurrentParticipantOwner === sessionState.isCurrentParticipantOwner
+        && activePreviewStillExists
       ) {
         return state;
       }
@@ -152,7 +177,9 @@ function bindClient(
         ...state,
         remoteSessionToken: sessionState.token,
         remoteSessionState: sessionState,
-        remoteSessions: mergeSessionSummary(state.remoteSessions, toSessionSummary(sessionState)),
+        activePreviewId: activePreviewStillExists ? state.activePreviewId : null,
+        isPreviewMode: activePreviewStillExists ? state.isPreviewMode : false,
+        previewSetupPending: activePreviewStillExists ? state.previewSetupPending : false,
       };
     });
   });
@@ -170,6 +197,16 @@ function bindClient(
       isConnected: false,
     }));
   });
+
+  client.onConnectionStatus((info) => {
+    set((state) => ({
+      ...state,
+      remoteConnectionStatus: info.status,
+      remoteReconnectAttempt: info.attempt,
+      remoteReconnectMaxAttempts: info.maxAttempts,
+      isConnected: info.status === 'connected',
+    }));
+  });
 }
 
 export const useEditorStoreWithInternal = create<EditorState>((set, get) => ({
@@ -182,10 +219,14 @@ export const useEditorStoreWithInternal = create<EditorState>((set, get) => ({
 
   remoteClient: null,
   isConnected: false,
+  remoteConnectionStatus: 'idle',
+  remoteReconnectAttempt: 0,
+  remoteReconnectMaxAttempts: 10,
   remoteSessionToken: null,
   remoteParticipantName: useEditorStore.getState().remoteParticipantName,
-  remoteSessions: [],
   remoteSessionState: null,
+  activePreviewId: null,
+  previewSetupPending: false,
 
   connectRemote: async (participantName?: string) => {
     const client = new RemoteEditorClient();
@@ -218,7 +259,6 @@ export const useEditorStoreWithInternal = create<EditorState>((set, get) => ({
       remoteSessionToken: token,
     }));
 
-    await get().refreshRemoteSessions();
     return token;
   },
 
@@ -237,37 +277,50 @@ export const useEditorStoreWithInternal = create<EditorState>((set, get) => ({
       remoteClient: client,
       remoteSessionToken: token,
     }));
-
-    await get().refreshRemoteSessions();
   },
 
   disconnectRemote: () => {
-    const { remoteClient } = get();
+    const { remoteClient, activePreviewId, remoteSessionState } = get();
+    const preview = remoteSessionState?.previews.find((item) => item.id === activePreviewId);
+    const participantId = remoteSessionState?.currentParticipantId;
+
+    if (
+      remoteClient
+      && activePreviewId
+      && preview
+      && preview.creatorParticipantId === participantId
+    ) {
+      remoteClient.closePreview(activePreviewId);
+    }
     remoteClient?.disconnect();
 
     set((state) => ({
       ...state,
       remoteClient: null,
       isConnected: false,
+      remoteConnectionStatus: 'disconnected',
+      remoteReconnectAttempt: 0,
       remoteSessionToken: null,
       remoteSessionState: null,
+      activePreviewId: null,
+      previewSetupPending: false,
       isPreviewMode: false,
     }));
-
-    void get().refreshRemoteSessions();
   },
 
-  refreshRemoteSessions: async () => {
-    try {
-      const client = get().remoteClient ?? new RemoteEditorClient();
-      const sessions = await client.listSessions();
-      set((state) => ({
-        ...state,
-        remoteSessions: sessions,
-      }));
-    } catch (error) {
-      console.error('Failed to refresh remote sessions:', error);
+  retryRemoteConnection: async () => {
+    const { remoteClient, remoteSessionToken, remoteParticipantName } = get();
+    if (!remoteClient || !remoteSessionToken) {
+      throw new Error('No remote session to reconnect');
     }
+
+    await remoteClient.retryConnection();
+    set((state) => ({
+      ...state,
+      remoteClient,
+      remoteSessionToken,
+      remoteParticipantName,
+    }));
   },
 
   setRemoteParticipantName: (name: string) => {
@@ -279,26 +332,97 @@ export const useEditorStoreWithInternal = create<EditorState>((set, get) => ({
     }));
   },
 
-  updateRemotePreviewState: (previewState: SharedPreviewState) => {
-    const { remoteClient, remoteSessionState } = get();
-    if (!remoteClient || !remoteSessionState?.isCurrentParticipantOwner) {
-      return;
+  createRemotePreview: async (ownerOnly: boolean) => {
+    const { remoteClient } = get();
+    if (!remoteClient) {
+      throw new Error('Not connected to remote session');
     }
 
-    if (previewStatesEqual(remoteSessionState.preview, previewState)) {
-      return;
-    }
-
-    remoteClient.sendPreviewState(previewState);
+    const previewId = await remoteClient.createPreview(ownerOnly);
     set((state) => ({
       ...state,
-      remoteSessionState: state.remoteSessionState
-        ? {
-            ...state.remoteSessionState,
-            preview: previewState,
-          }
-        : state.remoteSessionState,
+      activePreviewId: previewId,
+      previewSetupPending: false,
+      isPreviewMode: true,
     }));
+    return previewId;
+  },
+
+  openRemotePreview: (previewId: string) => {
+    set((state) => ({
+      ...state,
+      activePreviewId: previewId,
+      previewSetupPending: false,
+      isPreviewMode: true,
+    }));
+  },
+
+  closeRemotePreview: () => {
+    const { remoteClient, activePreviewId, remoteSessionState } = get();
+    const preview = remoteSessionState?.previews.find((item) => item.id === activePreviewId);
+    const participantId = remoteSessionState?.currentParticipantId;
+
+    if (
+      remoteClient
+      && activePreviewId
+      && preview
+      && preview.creatorParticipantId === participantId
+    ) {
+      remoteClient.closePreview(activePreviewId);
+    }
+
+    set((state) => ({
+      ...state,
+      activePreviewId: null,
+      previewSetupPending: false,
+      isPreviewMode: false,
+    }));
+  },
+
+  requestPreviewSetup: () => {
+    set((state) => ({
+      ...state,
+      previewSetupPending: true,
+    }));
+  },
+
+  updateRemotePreviewState: (previewState: SharedPreviewState) => {
+    const { remoteClient, remoteSessionState, activePreviewId } = get();
+    if (!remoteClient || !remoteSessionState || !activePreviewId) {
+      return;
+    }
+
+    const preview = remoteSessionState.previews.find((item) => item.id === activePreviewId);
+    if (!canControlPreview(preview, remoteSessionState.currentParticipantId)) {
+      return;
+    }
+
+    const participantId = remoteSessionState.currentParticipantId;
+    if (preview && !preview.ownerOnly) {
+      if (!preview.controllerParticipantId) {
+        if (previewState.controllerParticipantId !== participantId) {
+          return;
+        }
+      } else if (preview.controllerParticipantId !== participantId) {
+        return;
+      }
+    }
+
+    const currentState = preview ? previewStateFromInstance(preview) : undefined;
+    if (currentState && JSON.stringify(currentState) === JSON.stringify(previewState)) {
+      return;
+    }
+
+    remoteClient.sendPreviewState(activePreviewId, previewState);
+  },
+
+  submitRemotePreviewInput: (inputType: 'text' | 'file' | 'restart', value: string) => {
+    const { remoteClient, activePreviewId } = get();
+    if (!remoteClient || !activePreviewId) {
+      return;
+    }
+
+    remoteClient.sendPreviewInput(activePreviewId, inputType, value);
   },
 
   createProject: (name: string) => {
@@ -574,6 +698,16 @@ export const useEditorStoreWithInternal = create<EditorState>((set, get) => ({
   },
 
   togglePreview: () => {
+    const { isConnected, isPreviewMode } = get();
+    if (isConnected) {
+      if (isPreviewMode) {
+        get().closeRemotePreview();
+        return;
+      }
+      get().requestPreviewSetup();
+      return;
+    }
+
     set((state) => ({
       ...state,
       isPreviewMode: !state.isPreviewMode,

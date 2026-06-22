@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	engineManagerURL := "http://localhost:3004"
+	engineManagerURL := "http://localhost:4004"
 	if envURL := os.Getenv("ENGINE_MANAGER_URL"); envURL != "" {
 		engineManagerURL = envURL
 	}
@@ -15,8 +15,11 @@ func main() {
 		port = envPort
 	}
 
+	sessionTTL := parseSessionTTL()
+	cleanupInterval := parseCleanupInterval()
+
 	configManager := NewEngineManagerClient(engineManagerURL)
-	sessionManager := NewSessionManager(configManager)
+	sessionManager := NewSessionManager(configManager, sessionTTL, cleanupInterval)
 
 	ws := &httpWebSocket{
 		sessions: sessionManager,
@@ -25,6 +28,7 @@ func main() {
 
 	log.Printf("Starting remote-serv on :%s", port)
 	log.Printf("Connecting to engine-manager at %s", engineManagerURL)
+	log.Printf("Session TTL: %s, cleanup interval: %s", sessionTTL, cleanupInterval)
 
 	if err := ws.Handle(); err != nil {
 		log.Fatal(err)

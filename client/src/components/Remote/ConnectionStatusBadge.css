@@ -1,0 +1,50 @@
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  border: 1px solid #d7dee8;
+  background: #f8fafc;
+}
+
+.connection-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.connection-status--connected .connection-status-dot {
+  background: #16a34a;
+}
+
+.connection-status--connecting .connection-status-dot,
+.connection-status--reconnecting .connection-status-dot {
+  background: #f59e0b;
+  animation: connection-pulse 1.2s ease-in-out infinite;
+}
+
+.connection-status--failed .connection-status-dot,
+.connection-status--disconnected .connection-status-dot {
+  background: #ef4444;
+}
+
+.connection-status-retry {
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+@keyframes connection-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}

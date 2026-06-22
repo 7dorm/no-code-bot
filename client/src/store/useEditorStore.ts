@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { BlockNode, Connection, Project, ConditionBlockData, AiSettings, ExportPlatform } from '../types';
 import type {
   RemoteEditorClient,
+  RemoteConnectionStatus,
   RemoteSessionState,
-  RemoteSessionSummary,
   SharedPreviewState,
 } from '../client/RemoteEditorClient';
 import { createId } from '../utils/createId';
@@ -34,17 +34,26 @@ export interface EditorState {
 
   remoteClient: RemoteEditorClient | null;
   isConnected: boolean;
+  remoteConnectionStatus: RemoteConnectionStatus;
+  remoteReconnectAttempt: number;
+  remoteReconnectMaxAttempts: number;
   remoteSessionToken: string | null;
   remoteParticipantName: string;
-  remoteSessions: RemoteSessionSummary[];
   remoteSessionState: RemoteSessionState | null;
+  activePreviewId: string | null;
+  previewSetupPending: boolean;
 
   connectRemote: (participantName?: string) => Promise<string>;
   joinRemote: (token: string, participantName?: string) => Promise<void>;
   disconnectRemote: () => void;
-  refreshRemoteSessions: () => Promise<void>;
+  retryRemoteConnection: () => Promise<void>;
   setRemoteParticipantName: (name: string) => void;
+  createRemotePreview: (ownerOnly: boolean) => Promise<string>;
+  openRemotePreview: (previewId: string) => void;
+  closeRemotePreview: () => void;
+  requestPreviewSetup: () => void;
   updateRemotePreviewState: (state: SharedPreviewState) => void;
+  submitRemotePreviewInput: (inputType: 'text' | 'file' | 'restart', value: string) => void;
 
   createProject: (name: string) => void;
   updateProject: (updates: Partial<Project>) => void;
@@ -92,10 +101,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   remoteClient: null,
   isConnected: false,
+  remoteConnectionStatus: 'idle',
+  remoteReconnectAttempt: 0,
+  remoteReconnectMaxAttempts: 10,
   remoteSessionToken: null,
   remoteParticipantName: loadRemoteParticipantName(),
-  remoteSessions: [],
   remoteSessionState: null,
+  activePreviewId: null,
+  previewSetupPending: false,
 
   connectRemote: async (_participantName?: string) => {
     throw new Error('Remote connection not available in local mode');
@@ -106,8 +119,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   disconnectRemote: () => {
     // No-op in local mode
   },
-  refreshRemoteSessions: async () => {
-    // No-op in local mode
+  retryRemoteConnection: async () => {
+    throw new Error('Remote connection not available in local mode');
   },
   setRemoteParticipantName: (name: string) => {
     const normalized = name.trim() || 'Участник';
@@ -116,7 +129,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
     set({ remoteParticipantName: normalized });
   },
+  createRemotePreview: async (_ownerOnly: boolean) => {
+    throw new Error('Remote preview not available in local mode');
+  },
+  openRemotePreview: (_previewId: string) => {
+    // No-op in local mode
+  },
+  closeRemotePreview: () => {
+    // No-op in local mode
+  },
+  requestPreviewSetup: () => {
+    set({ previewSetupPending: true });
+  },
   updateRemotePreviewState: (_state: SharedPreviewState) => {
+    // No-op in local mode
+  },
+  submitRemotePreviewInput: (_inputType: 'text' | 'file' | 'restart', _value: string) => {
     // No-op in local mode
   },
 

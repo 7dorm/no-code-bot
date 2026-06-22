@@ -5,7 +5,7 @@ import { HttpError } from './runtime/errors';
 
 const app = express();
 const registry = new ConfigRegistry();
-const port = Number(process.env.ENGINE_MANAGER_PORT ?? 3004);
+const port = Number(process.env.ENGINE_MANAGER_PORT ?? 4004);
 
 app.use(cors());
 app.use(

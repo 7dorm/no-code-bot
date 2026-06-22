@@ -210,6 +210,40 @@ html, body {
   font-size: 11px;
 }
 
+.previews-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.previews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.preview-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #d7dee8;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.preview-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preview-card-meta {
+  color: #5b6472;
+  font-size: 12px;
+}
+
 .sessions-empty {
   padding: 18px;
   border: 1px dashed #cdd6e1;

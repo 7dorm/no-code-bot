@@ -3,7 +3,7 @@ import { EditorState } from '../../store/useEditorStore';
 import { Engine } from '@backend/Engine';
 import { WebUI } from '@backend/WebUI';
 import { adaptProjectToEngine } from '../../utils/backend/projectAdapter';
-import type { SharedPreviewState } from '../../client/RemoteEditorClient';
+import type { PreviewInputMessage, RemotePreviewInstance, SharedPreviewState } from '../../client/RemoteEditorClient';
 import './Preview.css';
 
 interface PreviewProps {
@@ -17,13 +17,52 @@ interface ChatMessage {
   answers?: string[];
 }
 
+function canInteractWithPreview(
+  preview: RemotePreviewInstance | undefined,
+  participantId: string | undefined,
+): boolean {
+  if (!preview || !participantId) {
+    return false;
+  }
+
+  if (!preview.ownerOnly) {
+    return true;
+  }
+
+  return preview.creatorParticipantId === participantId;
+}
+
+function isPreviewDriver(
+  preview: RemotePreviewInstance | undefined,
+  participantId: string | undefined,
+): boolean {
+  if (!preview || !participantId) {
+    return false;
+  }
+
+  if (preview.ownerOnly) {
+    return preview.creatorParticipantId === participantId;
+  }
+
+  if (!preview.controllerParticipantId) {
+    return false;
+  }
+
+  return preview.controllerParticipantId === participantId;
+}
+
 const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
   const {
     currentProject,
-    isConnected,
+    remoteConnectionStatus,
     remoteSessionState,
+    activePreviewId,
+    remoteClient,
     updateRemotePreviewState,
+    submitRemotePreviewInput,
+    closeRemotePreview,
   } = useStore();
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [userInput, setUserInput] = useState('');
   const engineRef = useRef<Engine | null>(null);
@@ -36,52 +75,101 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
   const [userJustResponded, setUserJustResponded] = useState(false);
   const executionPromiseRef = useRef<Promise<void> | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const isRemoteSession = isConnected && !!remoteSessionState;
-  const isPreviewOwner = !!remoteSessionState?.isCurrentParticipantOwner;
-  const canControlPreview = !isRemoteSession || isPreviewOwner;
-  const sharedPreview = remoteSessionState?.preview;
+  const handleRestartRef = useRef<(() => void) | null>(null);
+  const waitingForInputRef = useRef(waitingForInput);
+  waitingForInputRef.current = waitingForInput;
+
+  const isRemoteSession = !!remoteSessionState;
+  const isWsConnected = remoteConnectionStatus === 'connected';
+  const activePreview = remoteSessionState?.previews.find((preview) => preview.id === activePreviewId);
+  const participantId = remoteSessionState?.currentParticipantId;
+  const canInteract = !isRemoteSession || (isWsConnected && canInteractWithPreview(activePreview, participantId));
+  const isDriver = isRemoteSession && isPreviewDriver(activePreview, participantId);
+  const isSharedMode = !!activePreview && !activePreview.ownerOnly;
+
+  const applyRemoteSnapshot = useCallback((preview: RemotePreviewInstance) => {
+    setMessages(preview.messages || []);
+    setIsRunning(preview.isRunning || false);
+    setWaitingForInput(preview.waitingForInput || false);
+    setWaitingForFile(preview.waitingForFile || false);
+    setRequestedFileName(preview.requestedFileName || '');
+    setActiveAnswersMessageIndex(
+      typeof preview.activeAnswersMessageIndex === 'number'
+        ? preview.activeAnswersMessageIndex
+        : null,
+    );
+  }, []);
 
   const buildSharedPreviewState = useCallback((): SharedPreviewState => ({
+    id: activePreviewId || undefined,
     active: true,
-    ownerOnly: true,
+    ownerOnly: activePreview?.ownerOnly ?? true,
     isRunning,
     waitingForInput,
     waitingForFile,
     requestedFileName,
     activeAnswersMessageIndex,
     messages,
-    controllerParticipantId: remoteSessionState?.currentParticipantId,
-    controllerName: remoteSessionState?.ownerName,
+    controllerParticipantId: participantId,
+    controllerName: remoteSessionState?.participants.find((item) => item.id === participantId)?.name,
   }), [
     activeAnswersMessageIndex,
+    activePreview?.ownerOnly,
+    activePreviewId,
     isRunning,
     messages,
-    remoteSessionState?.currentParticipantId,
-    remoteSessionState?.ownerName,
+    participantId,
+    remoteSessionState?.participants,
     requestedFileName,
     waitingForFile,
     waitingForInput,
   ]);
 
   useEffect(() => {
-    if (!isRemoteSession || canControlPreview) {
+    if (!isRemoteSession || !activePreview || isDriver) {
       return;
     }
 
-    setMessages(sharedPreview?.messages || []);
-    setIsRunning(sharedPreview?.isRunning || false);
-    setWaitingForInput(sharedPreview?.waitingForInput || false);
-    setWaitingForFile(sharedPreview?.waitingForFile || false);
-    setRequestedFileName(sharedPreview?.requestedFileName || '');
-    setActiveAnswersMessageIndex(
-      typeof sharedPreview?.activeAnswersMessageIndex === 'number'
-        ? sharedPreview.activeAnswersMessageIndex
-        : null,
-    );
-  }, [canControlPreview, isRemoteSession, sharedPreview]);
+    applyRemoteSnapshot(activePreview);
+  }, [activePreview, applyRemoteSnapshot, isDriver, isRemoteSession]);
 
   useEffect(() => {
-    if (!isRemoteSession || !isPreviewOwner) {
+    if (!isRemoteSession || !isSharedMode || !activePreviewId || !participantId || !canInteract || !isWsConnected) {
+      return;
+    }
+
+    if (activePreview?.controllerParticipantId) {
+      return;
+    }
+
+    const participantName = remoteSessionState?.participants.find((item) => item.id === participantId)?.name;
+    updateRemotePreviewState({
+      id: activePreviewId,
+      active: true,
+      ownerOnly: false,
+      isRunning: activePreview?.isRunning ?? false,
+      waitingForInput: activePreview?.waitingForInput ?? false,
+      waitingForFile: activePreview?.waitingForFile ?? false,
+      requestedFileName: activePreview?.requestedFileName ?? '',
+      activeAnswersMessageIndex: activePreview?.activeAnswersMessageIndex ?? null,
+      messages: activePreview?.messages ?? [],
+      controllerParticipantId: participantId,
+      controllerName: participantName,
+    });
+  }, [
+    activePreview,
+    activePreviewId,
+    canInteract,
+    isRemoteSession,
+    isSharedMode,
+    participantId,
+    remoteSessionState?.participants,
+    updateRemotePreviewState,
+    isWsConnected,
+  ]);
+
+  useEffect(() => {
+    if (!isRemoteSession || !isDriver || !activePreviewId || !isWsConnected) {
       return;
     }
 
@@ -93,183 +181,38 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
       window.clearTimeout(timer);
     };
   }, [
+    activePreviewId,
     buildSharedPreviewState,
-    isPreviewOwner,
+    isDriver,
     isRemoteSession,
     updateRemotePreviewState,
+    isWsConnected,
   ]);
 
   useEffect(() => {
-    return () => {
-      if (!isRemoteSession || !isPreviewOwner) {
-        return;
-      }
+    if (isRemoteSession && activePreviewId && !activePreview) {
+      closeRemotePreview();
+    }
+  }, [activePreview, activePreviewId, closeRemotePreview, isRemoteSession]);
 
-      updateRemotePreviewState({
-        active: false,
-        ownerOnly: true,
-        isRunning: false,
-        waitingForInput: false,
-        waitingForFile: false,
-        requestedFileName: '',
-        activeAnswersMessageIndex: null,
-        messages: [],
-        controllerParticipantId: remoteSessionState?.currentParticipantId,
-        controllerName: remoteSessionState?.ownerName,
-        updatedAt: new Date().toISOString(),
-      });
-    };
-  }, [
-    isPreviewOwner,
-    isRemoteSession,
-    remoteSessionState?.currentParticipantId,
-    remoteSessionState?.ownerName,
-    updateRemotePreviewState,
-  ]);
-
-  
-  useEffect(() => {
-    if (isRemoteSession && !isPreviewOwner) {
+  const handleClose = useCallback(() => {
+    if (isRemoteSession) {
+      closeRemotePreview();
       return;
     }
-
-    if (!currentProject) {
-      setMessages([]);
-      setIsRunning(false);
-      return;
-    }
-
-    
-    setMessages([]);
-    setIsRunning(true);
-    setWaitingForInput(false);
-    setUserJustResponded(false);
-
-    
-    const engineNodes = adaptProjectToEngine(currentProject);
-    
-    if (engineNodes.length === 0) {
-      setMessages([{ role: 'bot', content: ' Проект не содержит блоков.' }]);
-      setIsRunning(false);
-      return;
-    }
-
-    
-    const webUI = new WebUI(
-      (message: string, answers?: string[]) => {
-        
-        setMessages(prev => {
-          const newMessages = [...prev, { role: 'bot' as const, content: message, answers }];
-          const newIndex = newMessages.length - 1;
-          
-          
-          
-          if (answers && answers.length > 0) {
-            
-            setActiveAnswersMessageIndex(newIndex);
-            
-            setWaitingForInput(true);
-          } else {
-            
-            
-            setActiveAnswersMessageIndex(null);
-          }
-          
-          return newMessages;
-        });
-      },
-      () => {
-        
-        setMessages(prev => [...prev, { role: 'bot' as const, content: ' Диалог завершен.' }]);
-        setIsRunning(false);
-        setWaitingForInput(false);
-        setActiveAnswersMessageIndex(null);
-      },
-      () => {
-        
-        setWaitingForInput(true);
-      },
-      (fileName: string) => {
-        
-        setWaitingForFile(true);
-        setRequestedFileName(fileName);
-        setMessages(prev => [...prev, { 
-          role: 'bot' as const, 
-          content: ` Пожалуйста, загрузите файл: ${fileName}` 
-        }]);
-      }
-    );
-
-    webUIRef.current = webUI;
-
-    
-    const globalConstants = currentProject.globalConstants || {};
-    const engine = new Engine(webUI, engineNodes, globalConstants);
-    engineRef.current = engine;
-
-    
-    const executeBot = async () => {
-      try {
-        executionPromiseRef.current = engine.execute(true);
-        await executionPromiseRef.current;
-      } catch (err) {
-        setMessages(prev => [...prev, { 
-          role: 'bot', 
-          content: ' Произошла ошибка при выполнении бота.' 
-        }]);
-        setIsRunning(false);
-        setWaitingForInput(false);
-      }
-    };
-
-    executeBot();
-
-    
-    return () => {
-      setIsRunning(false);
-      setWaitingForInput(false);
-      setWaitingForFile(false);
-      setRequestedFileName('');
-      engineRef.current = null;
-      webUIRef.current = null;
-      executionPromiseRef.current = null;
-    };
-  }, [currentProject, isPreviewOwner, isRemoteSession]);
-
-  const sendToEngine = useCallback((text: string) => {
-    if (!canControlPreview || !text || !webUIRef.current || !waitingForInput) {
-      return;
-    }
-
-    
-    setActiveAnswersMessageIndex(null);
-    setWaitingForInput(false); 
-    setUserJustResponded(true); 
-
-    
-    setMessages(prev => [...prev, { role: 'user' as const, content: text }]);
-    setUserInput('');
-
-    webUIRef.current.handleUserMessage(text);
-
-    
-  }, [canControlPreview, waitingForInput]);
-
-  const handleSendMessage = useCallback(() => {
-    const inputText = userInput.trim();
-    if (!inputText) return;
-    sendToEngine(inputText);
-  }, [userInput, sendToEngine]);
-
-  const handleQuickReply = useCallback((reply: string) => {
-    sendToEngine(reply);
-  }, [sendToEngine]);
+    onClose();
+  }, [closeRemotePreview, isRemoteSession, onClose]);
 
   const handleRestart = useCallback(() => {
-    if (!canControlPreview || !currentProject) {
+    if (!canInteract || !currentProject) {
       return;
     }
-    
+
+    if (isRemoteSession && isSharedMode && !isDriver) {
+      submitRemotePreviewInput('restart', '');
+      return;
+    }
+
     setMessages([]);
     setUserInput('');
     setIsRunning(true);
@@ -278,48 +221,40 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
     setRequestedFileName('');
     setActiveAnswersMessageIndex(null);
     setUserJustResponded(false);
-
-    
     executionPromiseRef.current = null;
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
 
-    
     const webUI = new WebUI(
       (message: string, answers?: string[]) => {
-        
-        
         if (userJustResponded && answers && answers.length > 0) {
-          setUserJustResponded(false); 
-          return; 
+          setUserJustResponded(false);
+          return;
         }
 
-        setMessages(prev => {
+        setMessages((prev) => {
           const newMessages = [...prev, { role: 'bot' as const, content: message, answers }];
           const newIndex = newMessages.length - 1;
 
           if (answers && answers.length > 0) {
             setActiveAnswersMessageIndex(newIndex);
-            
-            
             if (!userJustResponded) {
               setWaitingForInput(true);
             }
-            setUserJustResponded(false); 
+            setUserJustResponded(false);
           } else {
             setActiveAnswersMessageIndex(null);
-            
-            
             setWaitingForInput(false);
-            setUserJustResponded(false); 
+            setUserJustResponded(false);
           }
 
           return newMessages;
         });
       },
       () => {
-        setMessages(prev => [...prev, { role: 'bot' as const, content: ' Диалог завершен.' }]);
+        setMessages((prev) => [...prev, { role: 'bot' as const, content: ' Диалог завершен.' }]);
         setIsRunning(false);
         setWaitingForInput(false);
         setActiveAnswersMessageIndex(null);
@@ -331,151 +266,327 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
       (fileName: string) => {
         setWaitingForFile(true);
         setRequestedFileName(fileName);
-        setMessages(prev => [...prev, {
+        setMessages((prev) => [...prev, {
           role: 'bot' as const,
-          content: ` Пожалуйста, загрузите файл: ${fileName}`
+          content: ` Пожалуйста, загрузите файл: ${fileName}`,
         }]);
-      }
+      },
     );
 
     webUIRef.current = webUI;
 
-    
     const globalConstants = currentProject.globalConstants || {};
     const engine = new Engine(webUI, adaptProjectToEngine(currentProject), globalConstants);
     engineRef.current = engine;
 
-    
     const executeBot = async () => {
       try {
         executionPromiseRef.current = engine.execute(true);
         await executionPromiseRef.current;
-      } catch (err) {
-        setMessages(prev => [...prev, {
+      } catch {
+        setMessages((prev) => [...prev, {
           role: 'bot',
-          content: ' Произошла ошибка при выполнении бота.'
+          content: ' Произошла ошибка при выполнении бота.',
         }]);
         setIsRunning(false);
         setWaitingForInput(false);
       }
     };
 
-    executeBot();
-  }, [canControlPreview, currentProject, userJustResponded]);
+    void executeBot();
+  }, [canInteract, currentProject, isDriver, isRemoteSession, isSharedMode, submitRemotePreviewInput, userJustResponded]);
+
+  handleRestartRef.current = handleRestart;
+
+  useEffect(() => {
+    if (isRemoteSession) {
+      if (!isWsConnected || !isDriver) {
+        return;
+      }
+    }
+
+    if (!currentProject) {
+      setMessages([]);
+      setIsRunning(false);
+      return;
+    }
+
+    setMessages([]);
+    setIsRunning(true);
+    setWaitingForInput(false);
+    setUserJustResponded(false);
+
+    const engineNodes = adaptProjectToEngine(currentProject);
+
+    if (engineNodes.length === 0) {
+      setMessages([{ role: 'bot', content: ' Проект не содержит блоков.' }]);
+      setIsRunning(false);
+      return;
+    }
+
+    const webUI = new WebUI(
+      (message: string, answers?: string[]) => {
+        setMessages((prev) => {
+          const newMessages = [...prev, { role: 'bot' as const, content: message, answers }];
+          const newIndex = newMessages.length - 1;
+
+          if (answers && answers.length > 0) {
+            setActiveAnswersMessageIndex(newIndex);
+            setWaitingForInput(true);
+          } else {
+            setActiveAnswersMessageIndex(null);
+          }
+
+          return newMessages;
+        });
+      },
+      () => {
+        setMessages((prev) => [...prev, { role: 'bot' as const, content: ' Диалог завершен.' }]);
+        setIsRunning(false);
+        setWaitingForInput(false);
+        setActiveAnswersMessageIndex(null);
+      },
+      () => {
+        setWaitingForInput(true);
+      },
+      (fileName: string) => {
+        setWaitingForFile(true);
+        setRequestedFileName(fileName);
+        setMessages((prev) => [...prev, {
+          role: 'bot' as const,
+          content: ` Пожалуйста, загрузите файл: ${fileName}`,
+        }]);
+      },
+    );
+
+    webUIRef.current = webUI;
+
+    const globalConstants = currentProject.globalConstants || {};
+    const engine = new Engine(webUI, engineNodes, globalConstants);
+    engineRef.current = engine;
+
+    const executeBot = async () => {
+      try {
+        executionPromiseRef.current = engine.execute(true);
+        await executionPromiseRef.current;
+      } catch {
+        setMessages((prev) => [...prev, {
+          role: 'bot',
+          content: ' Произошла ошибка при выполнении бота.',
+        }]);
+        setIsRunning(false);
+        setWaitingForInput(false);
+      }
+    };
+
+    void executeBot();
+
+    return () => {
+      setIsRunning(false);
+      setWaitingForInput(false);
+      setWaitingForFile(false);
+      setRequestedFileName('');
+      engineRef.current = null;
+      webUIRef.current = null;
+      executionPromiseRef.current = null;
+    };
+  }, [currentProject, isDriver, isRemoteSession, isWsConnected]);
+
+  useEffect(() => {
+    if (!remoteClient || !isDriver || !activePreviewId) {
+      remoteClient?.clearPreviewInputHandler();
+      return;
+    }
+
+    const handlePreviewInput = (message: PreviewInputMessage) => {
+      if (message.previewId !== activePreviewId) {
+        return;
+      }
+
+      if (message.inputType === 'restart') {
+        handleRestartRef.current?.();
+        return;
+      }
+
+      if (message.inputType === 'text' && webUIRef.current && waitingForInputRef.current) {
+        setActiveAnswersMessageIndex(null);
+        setWaitingForInput(false);
+        setUserJustResponded(true);
+        setMessages((prev) => [...prev, {
+          role: 'user' as const,
+          content: message.value,
+        }]);
+        webUIRef.current.handleUserMessage(message.value);
+        return;
+      }
+
+      if (message.inputType === 'file' && webUIRef.current) {
+        setMessages((prev) => [...prev, {
+          role: 'user' as const,
+          content: ` Файл загружен: ${message.value}`,
+        }]);
+        webUIRef.current.handleUserFile(message.value);
+        setWaitingForFile(false);
+        setRequestedFileName('');
+        setWaitingForInput(false);
+        setUserJustResponded(true);
+      }
+    };
+
+    remoteClient.onPreviewInput(handlePreviewInput);
+
+    return () => {
+      remoteClient.clearPreviewInputHandler();
+    };
+  }, [activePreviewId, isDriver, remoteClient]);
+
+  const sendToEngine = useCallback((text: string) => {
+    if (!canInteract || !text || !waitingForInput) {
+      return;
+    }
+
+    if (isRemoteSession && isSharedMode && !isDriver) {
+      submitRemotePreviewInput('text', text);
+      setUserInput('');
+      return;
+    }
+
+    if (!webUIRef.current) {
+      return;
+    }
+
+    setActiveAnswersMessageIndex(null);
+    setWaitingForInput(false);
+    setUserJustResponded(true);
+    setMessages((prev) => [...prev, { role: 'user' as const, content: text }]);
+    setUserInput('');
+    webUIRef.current.handleUserMessage(text);
+  }, [canInteract, isDriver, isRemoteSession, isSharedMode, submitRemotePreviewInput, waitingForInput]);
+
+  const handleSendMessage = useCallback(() => {
+    const inputText = userInput.trim();
+    if (!inputText) {
+      return;
+    }
+    sendToEngine(inputText);
+  }, [sendToEngine, userInput]);
+
+  const handleQuickReply = useCallback((reply: string) => {
+    sendToEngine(reply);
+  }, [sendToEngine]);
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canControlPreview) {
+    if (!canInteract) {
       return;
     }
 
     const file = event.target.files?.[0];
-    if (!file || !webUIRef.current) {
+    if (!file) {
       return;
     }
 
-    
-    setMessages(prev => [...prev, {
+    if (isRemoteSession && isSharedMode && !isDriver) {
+      submitRemotePreviewInput('file', file.name);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    if (!webUIRef.current) {
+      return;
+    }
+
+    setMessages((prev) => [...prev, {
       role: 'user' as const,
-      content: ` Файл загружен: ${file.name}`
+      content: ` Файл загружен: ${file.name}`,
     }]);
 
-    
     webUIRef.current.handleUserFile(file.name);
-
-    
     setWaitingForFile(false);
     setRequestedFileName('');
-    setWaitingForInput(false); 
-    setUserJustResponded(true); 
+    setWaitingForInput(false);
+    setUserJustResponded(true);
 
-    
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-
-    
-  }, [canControlPreview]);
+  }, [canInteract, isDriver, isRemoteSession, isSharedMode, submitRemotePreviewInput]);
 
   if (!currentProject) {
     return (
-      <div className="preview-overlay" onClick={onClose}>
-        <div className="preview-modal" onClick={e => e.stopPropagation()}>
+      <div className="preview-overlay" onClick={handleClose}>
+        <div className="preview-modal" onClick={(event) => event.stopPropagation()}>
           <p>Проект не найден</p>
-          <button onClick={onClose}>Закрыть</button>
+          <button onClick={handleClose}>Закрыть</button>
         </div>
       </div>
     );
   }
 
+  const previewTitle = activePreview
+    ? `Preview: ${activePreview.creatorName}${activePreview.ownerOnly ? ' (только создатель)' : ' (все участники)'}`
+    : ' Предпросмотр бота';
+
+  const controlHint = isRemoteSession && isSharedMode && !isDriver && canInteract
+    ? `Управление через ${activePreview?.controllerName || 'ведущего участника'}`
+    : null;
+
   return (
-    <div className="preview-overlay" onClick={onClose}>
-      <div className="preview-modal" onClick={e => e.stopPropagation()}>
+    <div className="preview-overlay" onClick={handleClose}>
+      <div className="preview-modal" onClick={(event) => event.stopPropagation()}>
         <div className="preview-header">
-          <h2> Предпросмотр бота</h2>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <div>
+            <h3>{previewTitle}</h3>
+            {controlHint && <p className="preview-control-hint">{controlHint}</p>}
+          </div>
+          <button className="close-btn" onClick={handleClose}>✕</button>
         </div>
 
         <div className="preview-chat">
           <div className="chat-messages">
-            {isRemoteSession && !canControlPreview && !sharedPreview?.active && (
-              <div className="chat-message bot">
-                <div className="message-bubble">
-                  Владелец сессии еще не запустил preview. Когда он откроет предпросмотр, диалог появится здесь.
-                </div>
-              </div>
-            )}
-            {messages.length === 0 && (!isRemoteSession || canControlPreview || sharedPreview?.active) && (
+            {messages.length === 0 && (
               <div className="chat-message bot">
                 <div className="message-bubble"> Загрузка бота...</div>
               </div>
             )}
-            {messages.map((msg, idx) => {
-              return (
-                <div key={idx} className={`chat-message ${msg.role}`}>
-                  <div className="message-bubble">
+            {messages.map((msg, idx) => (
+              <div key={idx} className={`chat-message ${msg.role}`}>
+                <div className="message-bubble">
                   {msg.content}
-                  {msg.role === 'bot' && 
-                   msg.answers && 
-                   msg.answers.length > 0 && 
-                   activeAnswersMessageIndex === idx && 
-                   waitingForInput && (
-                    <div className="quick-replies">
-                      {msg.answers.map((ans, i) => (
-                        <button
-                          key={`${idx}-ans-${i}`}
-                          className="quick-reply-btn"
-                          onClick={() => {
-                            handleQuickReply(ans);
-                          }}
-                          disabled={!canControlPreview || !waitingForInput || activeAnswersMessageIndex !== idx}
-                        >
-                          {ans}
-                        </button>
-                      ))}
-                    </div>
+                  {msg.role === 'bot'
+                    && msg.answers
+                    && msg.answers.length > 0
+                    && activeAnswersMessageIndex === idx
+                    && waitingForInput && (
+                      <div className="quick-replies">
+                        {msg.answers.map((ans, i) => (
+                          <button
+                            key={`${idx}-ans-${i}`}
+                            className="quick-reply-btn"
+                            onClick={() => handleQuickReply(ans)}
+                            disabled={!canInteract || !waitingForInput || activeAnswersMessageIndex !== idx}
+                          >
+                            {ans}
+                          </button>
+                        ))}
+                      </div>
                   )}
                 </div>
               </div>
-              );
-            })}
+            ))}
           </div>
 
           <div className="chat-input-container">
-            {!canControlPreview ? (
+            {!canInteract ? (
               <div className="restart-container">
-                <button
-                  className="restart-btn"
-                  disabled
-                >
-                  Preview управляется владельцем
+                <button className="restart-btn" disabled>
+                  Preview доступен только для просмотра
                 </button>
               </div>
             ) : !isRunning && !waitingForInput ? (
               <div className="restart-container">
-                <button
-                  className="restart-btn"
-                  onClick={handleRestart}
-                >
+                <button className="restart-btn" onClick={handleRestart}>
                    Начать заново
                 </button>
               </div>
@@ -498,29 +609,27 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
                   type="text"
                   className="chat-input"
                   placeholder={
-                    !canControlPreview
-                      ? "Preview управляется владельцем сессии"
-                      : waitingForInput && activeAnswersMessageIndex !== null
-                      ? "Выберите вариант выше или введите свой ответ..."
+                    waitingForInput && activeAnswersMessageIndex !== null
+                      ? 'Выберите вариант выше или введите свой ответ...'
                       : waitingForInput
-                      ? "Введите сообщение..."
+                      ? 'Введите сообщение...'
                       : isRunning
-                      ? "Ожидание..."
-                      : "Диалог завершен"
+                      ? 'Ожидание...'
+                      : 'Диалог завершен'
                   }
                   value={userInput}
-                  onChange={(e) => setUserInput(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && canControlPreview && waitingForInput) {
+                  onChange={(event) => setUserInput(event.target.value)}
+                  onKeyPress={(event) => {
+                    if (event.key === 'Enter' && canInteract && waitingForInput) {
                       handleSendMessage();
                     }
                   }}
-                  disabled={!canControlPreview || !waitingForInput}
+                  disabled={!canInteract || !waitingForInput}
                 />
                 <button
                   className="send-btn"
                   onClick={handleSendMessage}
-                  disabled={!canControlPreview || !waitingForInput}
+                  disabled={!canInteract || !waitingForInput}
                 >
                   ➤
                 </button>
