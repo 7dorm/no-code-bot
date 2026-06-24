@@ -474,6 +474,28 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           contextMode: oldParams.contextMode || (block.data as any).contextMode || 'last_message',
         };
         break;
+      case 'aiAssistant':
+        newData = {
+          type: 'aiAssistant',
+          label: block.data.label,
+          inputVariable: oldParams.inputVariable || (block.data as any).inputVariable || 'lastMessage',
+          instruction: oldParams.instruction || (block.data as any).instruction || '',
+          routes: (block.data as any).routes || oldParams.routes || [],
+          entities: (block.data as any).entities || oldParams.entities || [],
+          askMissing: oldParams.askMissing ?? (block.data as any).askMissing ?? true,
+          loop: oldParams.loop ?? (block.data as any).loop ?? true,
+          exitPhrases: (block.data as any).exitPhrases || oldParams.exitPhrases || ['/stop', 'стоп', 'пока'],
+          confidenceThreshold: oldParams.confidenceThreshold ?? (block.data as any).confidenceThreshold ?? 0.6,
+          replyVariable: oldParams.replyVariable || (block.data as any).replyVariable || 'ai_reply',
+          buttonsVariable: oldParams.buttonsVariable || (block.data as any).buttonsVariable || 'ai_buttons',
+          rawResultVariable: oldParams.rawResultVariable || (block.data as any).rawResultVariable,
+          confidenceVariable: oldParams.confidenceVariable || (block.data as any).confidenceVariable,
+          reasonVariable: oldParams.reasonVariable || (block.data as any).reasonVariable,
+          saveNormalizedIntentTo: oldParams.saveNormalizedIntentTo || (block.data as any).saveNormalizedIntentTo || 'intent',
+          specialTopicVariable: oldParams.specialTopicVariable || (block.data as any).specialTopicVariable || 'is_special_topic',
+          contextMode: oldParams.contextMode || (block.data as any).contextMode || 'last_n_messages',
+        };
+        break;
       case 'start':
 
         newData = {

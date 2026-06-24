@@ -73,6 +73,7 @@ export function normalizeProject(
   }
 
   const globalConstants = normalizeRecord(raw.globalConstants);
+  const aiSettings = normalizeRecord(raw.aiSettings) as ProjectConfig['aiSettings'];
   const createdAt = options.createdAt ?? parseDate(raw.createdAt) ?? now;
   const updatedAt = options.updatedAt ?? parseDate(raw.updatedAt) ?? now;
 
@@ -82,6 +83,7 @@ export function normalizeProject(
     exportPlatform: normalizeExportPlatform(raw.exportPlatform),
     botToken: readOptionalString(raw.botToken),
     telegramToken: readOptionalString(raw.telegramToken),
+    aiSettings,
     globalConstants,
     blocks,
     connections,

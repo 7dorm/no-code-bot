@@ -1,5 +1,5 @@
 import { Project, BlockNode } from '../../types';
-import { MessageBlockData, ConditionBlockData, VariableBlockData, ScriptBlockData, ApiBlockData, FileBlockData, AiRouterBlockData, AiExtractorBlockData } from '../../types';
+import { MessageBlockData, ConditionBlockData, VariableBlockData, ScriptBlockData, ApiBlockData, FileBlockData, AiRouterBlockData, AiExtractorBlockData, AiAssistantBlockData } from '../../types';
 import { EngineNode } from '@backend/Engine';
 
 
@@ -204,6 +204,32 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
         break;
       }
 
+      case 'aiAssistant': {
+        const aiData = block.data as AiAssistantBlockData;
+        engineNode.Type = 'aiAssistant';
+        engineNode.AiSettings = project.aiSettings;
+        engineNode.AiInputVariable = aiData.inputVariable;
+        engineNode.AiInstruction = aiData.instruction;
+        engineNode.AiContextMode = aiData.contextMode || project.aiSettings?.contextWindowMode || 'last_message';
+        engineNode.AiRoutes = aiData.routes || [];
+        engineNode.AiEntities = aiData.entities || [];
+        engineNode.AiAskMissing = aiData.askMissing ?? true;
+        engineNode.AiLoop = aiData.loop ?? false;
+        engineNode.AiExitPhrases = aiData.exitPhrases || [];
+        engineNode.AiConfidenceThreshold = aiData.confidenceThreshold ?? project.aiSettings?.confidenceThreshold ?? 0.6;
+        engineNode.AiRawResultVariable = aiData.rawResultVariable;
+        engineNode.AiReplyVariable = aiData.replyVariable;
+        engineNode.AiButtonsVariable = aiData.buttonsVariable;
+        engineNode.AiConfidenceVariable = aiData.confidenceVariable;
+        engineNode.AiReasonVariable = aiData.reasonVariable;
+        engineNode.AiIntentVariable = aiData.saveNormalizedIntentTo;
+        engineNode.AiSpecialTopicVariable = aiData.specialTopicVariable;
+        engineNode.Nexts.push(blockConnections?.get('task-complete') || '');
+        engineNode.Nexts.push(blockConnections?.get('task-missing') || '');
+        engineNode.Nexts.push(blockConnections?.get('chat') || '');
+        break;
+      }
+
       case 'api': {
         const apiData = block.data as ApiBlockData;
         engineNode.Type = 'api';
@@ -256,7 +282,7 @@ export function adaptProjectToEngine(project: Project): EngineNode[] {
 }
 
 
-function mapBlockTypeToEngine(blockType: string): 'output' | 'condition' | 'start' | 'variable' | 'api' | 'FILE' | 'skip' | 'script' | 'aiRouter' | 'aiExtractor' {
+function mapBlockTypeToEngine(blockType: string): 'output' | 'condition' | 'start' | 'variable' | 'api' | 'FILE' | 'skip' | 'script' | 'aiRouter' | 'aiExtractor' | 'aiAssistant' {
   switch (blockType) {
     case 'message':
       return 'output';
@@ -276,6 +302,8 @@ function mapBlockTypeToEngine(blockType: string): 'output' | 'condition' | 'star
       return 'aiRouter';
     case 'aiExtractor':
       return 'aiExtractor';
+    case 'aiAssistant':
+      return 'aiAssistant';
     default:
       return 'skip';
   }

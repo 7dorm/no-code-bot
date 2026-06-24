@@ -17,6 +17,14 @@ interface ChatMessage {
   answers?: string[];
 }
 
+function clearMessageAnswers(messages: ChatMessage[]): ChatMessage[] {
+  return messages.map((message) => (
+    message.answers && message.answers.length > 0
+      ? { ...message, answers: [] }
+      : message
+  ));
+}
+
 function canInteractWithPreview(
   preview: RemotePreviewInstance | undefined,
   participantId: string | undefined,
@@ -235,7 +243,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
         }
 
         setMessages((prev) => {
-          const newMessages = [...prev, { role: 'bot' as const, content: message, answers }];
+          const newMessages = [...clearMessageAnswers(prev), { role: 'bot' as const, content: message, answers }];
           const newIndex = newMessages.length - 1;
 
           if (answers && answers.length > 0) {
@@ -254,7 +262,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
         });
       },
       () => {
-        setMessages((prev) => [...prev, { role: 'bot' as const, content: ' Диалог завершен.' }]);
+        setMessages((prev) => [...clearMessageAnswers(prev), { role: 'bot' as const, content: ' Диалог завершен.' }]);
         setIsRunning(false);
         setWaitingForInput(false);
         setActiveAnswersMessageIndex(null);
@@ -266,7 +274,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
       (fileName: string) => {
         setWaitingForFile(true);
         setRequestedFileName(fileName);
-        setMessages((prev) => [...prev, {
+        setMessages((prev) => [...clearMessageAnswers(prev), {
           role: 'bot' as const,
           content: ` Пожалуйста, загрузите файл: ${fileName}`,
         }]);
@@ -284,7 +292,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
         executionPromiseRef.current = engine.execute(true);
         await executionPromiseRef.current;
       } catch {
-        setMessages((prev) => [...prev, {
+        setMessages((prev) => [...clearMessageAnswers(prev), {
           role: 'bot',
           content: ' Произошла ошибка при выполнении бота.',
         }]);
@@ -327,7 +335,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
     const webUI = new WebUI(
       (message: string, answers?: string[]) => {
         setMessages((prev) => {
-          const newMessages = [...prev, { role: 'bot' as const, content: message, answers }];
+          const newMessages = [...clearMessageAnswers(prev), { role: 'bot' as const, content: message, answers }];
           const newIndex = newMessages.length - 1;
 
           if (answers && answers.length > 0) {
@@ -341,7 +349,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
         });
       },
       () => {
-        setMessages((prev) => [...prev, { role: 'bot' as const, content: ' Диалог завершен.' }]);
+        setMessages((prev) => [...clearMessageAnswers(prev), { role: 'bot' as const, content: ' Диалог завершен.' }]);
         setIsRunning(false);
         setWaitingForInput(false);
         setActiveAnswersMessageIndex(null);
@@ -352,7 +360,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
       (fileName: string) => {
         setWaitingForFile(true);
         setRequestedFileName(fileName);
-        setMessages((prev) => [...prev, {
+        setMessages((prev) => [...clearMessageAnswers(prev), {
           role: 'bot' as const,
           content: ` Пожалуйста, загрузите файл: ${fileName}`,
         }]);
@@ -370,7 +378,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
         executionPromiseRef.current = engine.execute(true);
         await executionPromiseRef.current;
       } catch {
-        setMessages((prev) => [...prev, {
+        setMessages((prev) => [...clearMessageAnswers(prev), {
           role: 'bot',
           content: ' Произошла ошибка при выполнении бота.',
         }]);
@@ -412,7 +420,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
         setActiveAnswersMessageIndex(null);
         setWaitingForInput(false);
         setUserJustResponded(true);
-        setMessages((prev) => [...prev, {
+        setMessages((prev) => [...clearMessageAnswers(prev), {
           role: 'user' as const,
           content: message.value,
         }]);
@@ -421,7 +429,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
       }
 
       if (message.inputType === 'file' && webUIRef.current) {
-        setMessages((prev) => [...prev, {
+        setMessages((prev) => [...clearMessageAnswers(prev), {
           role: 'user' as const,
           content: ` Файл загружен: ${message.value}`,
         }]);
@@ -458,7 +466,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
     setActiveAnswersMessageIndex(null);
     setWaitingForInput(false);
     setUserJustResponded(true);
-    setMessages((prev) => [...prev, { role: 'user' as const, content: text }]);
+    setMessages((prev) => [...clearMessageAnswers(prev), { role: 'user' as const, content: text }]);
     setUserInput('');
     webUIRef.current.handleUserMessage(text);
   }, [canInteract, isDriver, isRemoteSession, isSharedMode, submitRemotePreviewInput, waitingForInput]);
@@ -497,7 +505,7 @@ const Preview: React.FC<PreviewProps> = ({ onClose, useStore }) => {
       return;
     }
 
-    setMessages((prev) => [...prev, {
+    setMessages((prev) => [...clearMessageAnswers(prev), {
       role: 'user' as const,
       content: ` Файл загружен: ${file.name}`,
     }]);

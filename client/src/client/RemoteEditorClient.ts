@@ -131,10 +131,10 @@ function getDefaultRemoteWsUrl(): string {
 
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.hostname}:8787`;
+    return `${protocol}//${window.location.hostname}:8080`;
   }
 
-  return 'ws://127.0.0.1:8787';
+  return 'ws://127.0.0.1:8080';
 }
 
 function getMaxReconnectAttempts(): number {
@@ -201,11 +201,19 @@ export class RemoteEditorClient {
         this.closeSocketSilently();
         const ws = new WebSocket(this.buildCreateUrl());
         this.ws = ws;
+        let settled = false;
+        const timeout = window.setTimeout(() => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          this.setConnectionStatus('failed');
+          this.closeSocketSilently();
+          reject(new Error('Не удалось создать совместную сессию: таймаут. Проверьте, что remote-serv запущен на 8080, а engine-manager на 4004.'));
+        }, 10000);
 
         ws.onopen = () => {
           this.reconnectAttempts = 0;
-          this.setConnectionStatus('connected');
-          this.onConnectCallbacks.forEach((cb) => cb());
           ws.send(JSON.stringify(initialConfig || {}));
         };
 
@@ -213,6 +221,12 @@ export class RemoteEditorClient {
           const data = typeof event.data === 'string' ? event.data : String(event.data);
           const created = this.tryHandleSessionCreated(data);
           if (created) {
+            if (!settled) {
+              settled = true;
+              window.clearTimeout(timeout);
+              this.setConnectionStatus('connected');
+              this.onConnectCallbacks.forEach((cb) => cb());
+            }
             resolve(created.token);
             return;
           }
@@ -221,12 +235,24 @@ export class RemoteEditorClient {
         };
 
         ws.onerror = () => {
-          reject(new Error('Failed to connect to remote session'));
+          if (!settled) {
+            settled = true;
+            window.clearTimeout(timeout);
+            this.setConnectionStatus('failed');
+            reject(new Error('Не удалось подключиться к сервису совместных сессий. Проверьте remote-serv на порту 8080.'));
+          }
         };
 
         ws.onclose = () => {
           if (this.ws === ws) {
             this.ws = null;
+          }
+          if (!settled) {
+            settled = true;
+            window.clearTimeout(timeout);
+            this.setConnectionStatus('failed');
+            reject(new Error('Соединение закрылось до создания сессии. Проверьте, что remote-serv запущен на 8080, а engine-manager на 4004.'));
+            return;
           }
           this.handleSocketClose();
         };

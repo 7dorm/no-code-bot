@@ -18,6 +18,7 @@ export {
   ScriptBlockMeta,
   AiRouterBlockMeta,
   AiExtractorBlockMeta,
+  AiAssistantBlockMeta,
   
   getBlockMeta,
   getBlockIcon,
@@ -35,6 +36,7 @@ export type {
   FileBlockData,
   ScriptBlockData,
   AiContextMode,
+  AiAssistantBlockData,
   AiEntity,
   AiEntityType,
   AiExtractorBlockData,
@@ -45,8 +47,13 @@ export type {
 } from './blocks';
 
 export interface AiSettings {
-  provider?: 'mock' | 'custom' | 'openai';
+  provider?: 'mock' | 'custom' | 'openai' | 'openaiCompatible' | 'yandex-alice' | 'yandexgpt';
   endpoint?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  iamToken?: string;
+  folderId?: string;
+  modelUri?: string;
   model?: string;
   systemPrompt?: string;
   safetyPrompt?: string;

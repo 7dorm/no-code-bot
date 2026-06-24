@@ -1,5 +1,5 @@
 import React from 'react';
-import type { RemoteConnectionStatus } from '../client/RemoteEditorClient';
+import type { RemoteConnectionStatus } from '../../client/RemoteEditorClient';
 import './ConnectionStatusBadge.css';
 
 interface ConnectionStatusBadgeProps {

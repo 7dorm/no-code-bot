@@ -1,7 +1,7 @@
 import {Engine} from "./Engine"
 import {UI} from "./UI";
 import * as readline from "readline";
-import {readFileSync} from "node:fs";
+import {loadBotConfig} from "./configLoader";
 
 class ConsoleUi implements UI {
     private stop: boolean = false;
@@ -13,7 +13,9 @@ class ConsoleUi implements UI {
 
     async sendMessage(message: string, answers: string[]): Promise<void> {
         console.log(message);
-        if (answers.length > 0) return;
+        if (answers.length > 0) {
+            console.log(`Варианты: ${answers.join(' | ')}`);
+        }
     }
 
    async getInput(): Promise<string> {
@@ -52,9 +54,8 @@ class ConsoleUi implements UI {
 async function main() {
     console.log("Staring");
     const ui = new ConsoleUi();
-    const raw = readFileSync("./test/test.json", "utf-8");
-    const data = JSON.parse(raw);
-    const eng = new Engine(ui, data, {});
+    const {nodes, globalConstants} = loadBotConfig("./test/test.json");
+    const eng = new Engine(ui, nodes, globalConstants);
 
     while (!ui.Is_done()) {
         await eng.execute();

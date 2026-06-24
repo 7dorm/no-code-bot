@@ -4,5 +4,6 @@ export interface UI {
     getInput(): Promise<string>;
     getFile(pathToSave: string, name: string): Promise<string>;
     deleteFile(path: string): void;
+    isWaitingForInput?(): boolean;
     finish(): void;
 }

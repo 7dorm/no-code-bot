@@ -19,11 +19,12 @@ export type {
   AiContextMode,
   AiEntity,
   AiEntityType,
+  AiAssistantBlockData,
   AiExtractorBlockData,
   AiRoute,
   AiRouterBlockData,
 } from './AiBlock';
-export { AiRouterBlockMeta, AiExtractorBlockMeta } from './AiBlock';
+export { AiRouterBlockMeta, AiExtractorBlockMeta, AiAssistantBlockMeta } from './AiBlock';
 
 
 export type { BlockType, BlockMeta } from './blockRegistry';
@@ -44,4 +45,5 @@ export type BlockData =
   | import('./FileBlock').FileBlockData
   | import('./ScriptBlock').ScriptBlockData
   | import('./AiBlock').AiRouterBlockData
-  | import('./AiBlock').AiExtractorBlockData;
+  | import('./AiBlock').AiExtractorBlockData
+  | import('./AiBlock').AiAssistantBlockData;

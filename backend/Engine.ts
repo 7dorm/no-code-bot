@@ -3,7 +3,7 @@ import { UI } from "./UI";
 declare const require: any;
 export interface EngineNode {
   id: string;
-  Type: 'output' | 'condition' | 'start' | 'variable' | 'FILE' | 'api' | 'skip' | 'script' | 'aiRouter' | 'aiExtractor';
+  Type: 'output' | 'condition' | 'start' | 'variable' | 'FILE' | 'api' | 'skip' | 'script' | 'aiRouter' | 'aiExtractor' | 'aiAssistant';
   Text?: string;
   VarName?: string;
   VarType?: string;
@@ -47,13 +47,23 @@ export interface EngineNode {
   AiEntities?: AiEntity[];
   AiAskMissing?: boolean;
   AiRawResultVariable?: string;
+  AiReplyVariable?: string;
+  AiButtonsVariable?: string;
+  AiSpecialTopicVariable?: string;
+  AiLoop?: boolean;
+  AiExitPhrases?: string[];
 }
 
 export type AiContextMode = 'none' | 'last_message' | 'last_n_messages';
 
 export interface AiSettings {
-  provider?: 'mock' | 'custom' | 'openai';
+  provider?: 'mock' | 'custom' | 'openai' | 'openaiCompatible' | 'yandex-alice' | 'yandexgpt';
   endpoint?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  iamToken?: string;
+  folderId?: string;
+  modelUri?: string;
   model?: string;
   systemPrompt?: string;
   safetyPrompt?: string;
@@ -99,6 +109,17 @@ interface AiExtractedEntity {
 interface AiExtractorResult {
   entities: Record<string, AiExtractedEntity>;
   missing: string[];
+}
+
+interface AiAssistantResult {
+  message: string;
+  intent?: string;
+  isSpecialTopic?: boolean;
+  confidence?: number;
+  reason?: string;
+  entities?: Record<string, AiExtractedEntity>;
+  missing?: string[];
+  buttons?: string[];
 }
 
 
@@ -434,6 +455,9 @@ export class Engine {
         break;
       case "aiExtractor":
         await this.executeAiExtractor();
+        break;
+      case "aiAssistant":
+        await this.executeAiAssistant();
         break;
       default:
         break;
@@ -1256,12 +1280,17 @@ export class Engine {
     if (!block) return;
 
     const input = await this.getAiInput(block);
+    let accumulatedInput = input;
     let result = await this.runAiExtractor(block, input);
     this.applyAiExtractorResult(block, result);
 
     let missing = this.getMissingRequiredEntities(block, result);
-    if (missing.length > 0 && block.AiAskMissing !== false) {
+    let attempts = 0;
+    const maxAttempts = Math.max(1, (block.AiEntities || []).length + 2);
+
+    while (missing.length > 0 && block.AiAskMissing !== false && attempts < maxAttempts) {
       const entity = missing[0];
+      if (!entity) return;
       const prompt = entity.askPrompt || `Уточните значение для "${entity.name}".`;
       await this.ui.sendMessage(prompt, []);
       this.recordBotMessage(prompt);
@@ -1271,9 +1300,11 @@ export class Engine {
       this.variables['userInput'] = userInput;
       this.recordUserMessage(userInput);
 
-      result = await this.runAiExtractor(block, `${input}\n${userInput}`);
+      accumulatedInput = `${accumulatedInput}\n${entity.name}: ${userInput}`;
+      result = await this.runAiExtractor(block, accumulatedInput);
       this.applyAiExtractorResult(block, result);
       missing = this.getMissingRequiredEntities(block, result);
+      attempts++;
     }
 
     if (block.AiRawResultVariable) {
@@ -1281,6 +1312,63 @@ export class Engine {
     }
 
     const nextId = missing.length === 0 ? block.Nexts[0] : block.Nexts[1];
+    if (nextId) {
+      this.index = nextId;
+      this.skipInput = true;
+      await this.execute();
+    } else {
+      this.ui.finish();
+      this.isFinished = true;
+    }
+  }
+
+  async executeAiAssistant(): Promise<void> {
+    const block = this.nodeStructure[this.index!];
+    if (!block) return;
+
+    const input = await this.getAiInput(block);
+    if (this.isAiExitMessage(input, block)) {
+      this.ui.finish();
+      this.isFinished = true;
+      return;
+    }
+
+    const result = await this.runAiAssistant(block, input);
+    this.applyAiAssistantResult(block, result);
+
+    const messageToSend = result.message.trim() || 'Не смог подготовить ответ. Попробуйте переформулировать.';
+    const buttons = this.normalizeAiButtons(result.buttons);
+    await this.ui.sendMessage(messageToSend, buttons);
+    this.recordBotMessage(messageToSend);
+
+    if (block.AiLoop) {
+      const userInput = await this.ui.getInput();
+      this.variables['lastMessage'] = userInput;
+      this.variables['userInput'] = userInput;
+      this.recordUserMessage(userInput);
+
+      if (this.isAiExitMessage(userInput, block)) {
+        this.ui.finish();
+        this.isFinished = true;
+        return;
+      }
+
+      this.executionCount[block.id] = 0;
+      this.index = block.id;
+      this.skipInput = true;
+      await this.execute(true);
+      return;
+    }
+
+    const missing = this.getMissingRequiredEntities(block, {
+      entities: result.entities || {},
+      missing: result.missing || [],
+    });
+    const nextIndex = result.isSpecialTopic
+      ? (missing.length === 0 ? 0 : 1)
+      : 2;
+    const nextId = block.Nexts[nextIndex] || block.Nexts[0];
+
     if (nextId) {
       this.index = nextId;
       this.skipInput = true;
@@ -1324,7 +1412,7 @@ export class Engine {
       return {
         route: remoteResult.route,
         confidence: this.clampConfidence(remoteResult.confidence),
-        reason: remoteResult.reason,
+        reason: remoteResult.reason || '',
       };
     }
 
@@ -1348,16 +1436,48 @@ export class Engine {
     });
 
     if (remoteResult && remoteResult.entities && typeof remoteResult.entities === 'object') {
-      return {
+      return this.mergeLocalAiExtractorResult(block, input, {
         entities: remoteResult.entities,
         missing: Array.isArray(remoteResult.missing) ? remoteResult.missing : [],
-      };
+      });
     }
 
     return this.localExtract(input, block.AiEntities || []);
   }
 
-  private async callAiEndpoint<T>(mode: 'router' | 'extractor', block: EngineNode, extraPayload: Record<string, any>): Promise<T | null> {
+  private async runAiAssistant(block: EngineNode, input: string): Promise<AiAssistantResult> {
+    const remoteResult = await this.callAiEndpoint<AiAssistantResult>('assistant', block, {
+      input,
+      routes: block.AiRoutes || [],
+      entities: block.AiEntities || [],
+      expectedResponse: {
+        message: 'text to send to user',
+        intent: 'chat or route id from routes',
+        isSpecialTopic: 'boolean',
+        confidence: 'number from 0 to 1',
+        reason: 'short explanation',
+        entities: {
+          entityName: {
+            value: 'extracted value or null',
+            confidence: 'number from 0 to 1',
+            found: 'boolean',
+          },
+        },
+        missing: ['missing required entity names'],
+        buttons: ['optional quick reply text'],
+      },
+    });
+
+    if (remoteResult && typeof remoteResult.message === 'string') {
+      const normalized = this.normalizeAiAssistantResult(remoteResult);
+      const withLocalEntities = this.mergeLocalAiAssistantResult(block, input, normalized);
+      return this.sanitizeAiAssistantResult(block, withLocalEntities);
+    }
+
+    return this.localAssistant(input, block);
+  }
+
+  private async callAiEndpoint<T>(mode: 'router' | 'extractor' | 'assistant', block: EngineNode, extraPayload: Record<string, any>): Promise<T | null> {
     const endpoint = block.AiSettings?.endpoint?.trim();
     if (!endpoint) {
       return null;
@@ -1371,6 +1491,11 @@ export class Engine {
         body: JSON.stringify({
           mode,
           provider: block.AiSettings?.provider || 'custom',
+          apiKey: block.AiSettings?.apiKey,
+          baseUrl: block.AiSettings?.baseUrl,
+          iamToken: block.AiSettings?.iamToken,
+          folderId: block.AiSettings?.folderId,
+          modelUri: block.AiSettings?.modelUri,
           model: block.AiSettings?.model,
           temperature: block.AiSettings?.temperature ?? 0.2,
           maxTokens: block.AiSettings?.maxTokens ?? 800,
@@ -1413,7 +1538,7 @@ export class Engine {
     }
 
     const normalizedInput = this.normalizeAiText(input);
-    let bestRoute = routes[0];
+    let bestRoute = routes[0]!;
     let bestScore = 0;
 
     routes.forEach(route => {
@@ -1471,6 +1596,154 @@ export class Engine {
     return result;
   }
 
+  private mergeLocalAiExtractorResult(block: EngineNode, input: string, result: AiExtractorResult): AiExtractorResult {
+    const localResult = this.localExtract(input, block.AiEntities || []);
+    const mergedEntities: Record<string, AiExtractedEntity> = { ...(result.entities || {}) };
+
+    (block.AiEntities || []).forEach(entity => {
+      const localEntity = localResult.entities[entity.name];
+      const remoteEntity = mergedEntities[entity.name];
+
+      if (localEntity?.found && (!remoteEntity || !remoteEntity.found)) {
+        mergedEntities[entity.name] = localEntity;
+      }
+    });
+
+    const missing = (block.AiEntities || [])
+      .filter(entity => {
+        const variableName = entity.variableName || entity.name;
+        const existingValue = this.variables[variableName];
+        const alreadyFilled = existingValue !== undefined && existingValue !== null && existingValue !== '';
+        const extracted = mergedEntities[entity.name];
+        return !!entity.required && !alreadyFilled && (!extracted || !extracted.found);
+      })
+      .map(entity => entity.name);
+
+    return {
+      entities: mergedEntities,
+      missing,
+    };
+  }
+
+  private mergeLocalAiAssistantResult(block: EngineNode, input: string, result: AiAssistantResult): AiAssistantResult {
+    const extraction = this.mergeLocalAiExtractorResult(block, input, {
+      entities: result.entities || {},
+      missing: result.missing || [],
+    });
+    const activeSpecialTopic = this.isAiSpecialTopicActive(block);
+    const threshold = block.AiConfidenceThreshold ?? block.AiSettings?.confidenceThreshold ?? 0.6;
+    const fallbackRouteId = block.AiRoutes?.[0]?.id;
+
+    return {
+      ...result,
+      intent: activeSpecialTopic && (!result.intent || result.intent === 'chat') ? (fallbackRouteId || result.intent) : result.intent,
+      isSpecialTopic: result.isSpecialTopic || activeSpecialTopic,
+      confidence: activeSpecialTopic ? Math.max(this.clampConfidence(result.confidence), threshold) : result.confidence,
+      reason: activeSpecialTopic && !result.isSpecialTopic ? 'Продолжается активный сценарий сбора данных' : result.reason,
+      entities: extraction.entities,
+      missing: extraction.missing,
+    };
+  }
+
+  private localAssistant(input: string, block: EngineNode): AiAssistantResult {
+    const routes = block.AiRoutes || [];
+    const threshold = block.AiConfidenceThreshold ?? block.AiSettings?.confidenceThreshold ?? 0.6;
+    const routed = this.localRoute(input, routes);
+    const activeSpecialTopic = this.isAiSpecialTopicActive(block);
+    const route = routes.find(item => item.id === routed.route) || (activeSpecialTopic ? routes[0] : undefined);
+    const isSpecialTopic = (!!route && routed.confidence >= threshold) || activeSpecialTopic;
+
+    if (isSpecialTopic) {
+      const extraction = this.localExtract(input, block.AiEntities || []);
+      const missing = this.getMissingRequiredEntities(block, extraction);
+      const firstMissing = missing[0];
+      const buttons = this.getButtonsForMissingEntity(firstMissing);
+      const filled = (block.AiEntities || [])
+        .map(entity => {
+          const extracted = extraction.entities[entity.name];
+          return extracted?.found ? `${entity.name}: ${extracted.value}` : null;
+        })
+        .filter(Boolean);
+
+      return {
+        message: firstMissing
+          ? (firstMissing.askPrompt || `Уточните значение для "${firstMissing.name}".`)
+          : `Понял, это сценарий "${route?.title || 'активный сценарий'}". ${filled.length > 0 ? `Сохранил: ${filled.join(', ')}.` : 'Данные пока не найдены.'}`,
+        intent: route?.id || routed.route,
+        isSpecialTopic: true,
+        confidence: activeSpecialTopic ? Math.max(routed.confidence, threshold) : routed.confidence,
+        reason: activeSpecialTopic && routed.confidence < threshold ? 'Продолжается активный сценарий сбора данных' : (routed.reason || ''),
+        entities: extraction.entities,
+        missing: extraction.missing,
+        buttons,
+      };
+    }
+
+    return {
+      message: this.localAssistantChatReply(input),
+      intent: 'chat',
+      isSpecialTopic: false,
+      confidence: routed.confidence,
+      reason: 'Сообщение не похоже на одну из специальных тем',
+      entities: {},
+      missing: [],
+      buttons: this.shouldOfferHelpButtons(input) ? ['Записаться', 'Что ты умеешь?'] : [],
+    };
+  }
+
+  private localAssistantChatReply(input: string): string {
+    const normalized = this.normalizeAiText(input);
+
+    if (/(^| )(привет|здравствуй|добрый день|доброе утро|добрый вечер)( |$)/i.test(normalized)) {
+      return 'Привет! Я могу отвечать на обычные вопросы, а если вы напишете про запись к врачу, начну собирать нужные данные.';
+    }
+
+    if (normalized.includes('что ты умеешь') || normalized.includes('помощь')) {
+      return 'Я умею поддерживать обычный диалог и отдельно распознавать специальные темы бота. Например, могу помочь с записью к врачу и уточнить врача, дату, время и имя.';
+    }
+
+    if (normalized.includes('2 2') || normalized.includes('два плюс два')) {
+      return '2 + 2 = 4.';
+    }
+
+    return 'Я понял вопрос. В тестовом mock-режиме отвечаю кратко, а при настроенных ключах Yandex AI Studio ответ будет генерироваться моделью.';
+  }
+
+  private shouldOfferHelpButtons(input: string): boolean {
+    const normalized = this.normalizeAiText(input);
+    return normalized.includes('помощ') || normalized.includes('умеешь') || normalized.includes('начать');
+  }
+
+  private isAiSpecialTopicActive(block: EngineNode): boolean {
+    if (block.AiSpecialTopicVariable) {
+      const value = this.variables[block.AiSpecialTopicVariable];
+      if (value === true || value === 'true') {
+        return true;
+      }
+    }
+
+    return (block.AiEntities || []).some(entity => {
+      const variableName = entity.variableName || entity.name;
+      const value = this.variables[variableName];
+      const status = this.variables[`${variableName}_status`];
+      return (
+        value !== undefined && value !== null && value !== '' ||
+        status === 'filled' ||
+        status === 'undefined'
+      );
+    });
+  }
+
+  private getButtonsForMissingEntity(entity?: AiEntity): string[] {
+    if (!entity) {
+      return ['Подтвердить', 'Изменить'];
+    }
+    if (entity.type === 'enum' && entity.enumValues && entity.enumValues.length > 0) {
+      return entity.enumValues;
+    }
+    return [];
+  }
+
   private extractEntityValue(input: string, entity: AiEntity): { value: any; confidence: number; found: boolean } {
     const normalized = input.trim();
     let value: any = null;
@@ -1499,13 +1772,11 @@ export class Engine {
           break;
         }
         case 'date': {
-          const match = normalized.match(/\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b/i);
-          value = match?.[0] || null;
+          value = this.extractNaturalDate(normalized);
           break;
         }
         case 'time': {
-          const match = normalized.match(/\b\d{1,2}:\d{2}\b/);
-          value = match?.[0] || null;
+          value = this.extractNaturalTime(normalized);
           break;
         }
         case 'number': {
@@ -1528,6 +1799,8 @@ export class Engine {
           break;
         }
         case 'string':
+          value = this.extractStringEntityValue(normalized, entity);
+          break;
         default:
           value = null;
           break;
@@ -1536,6 +1809,107 @@ export class Engine {
 
     const found = value !== null && value !== undefined && value !== '';
     return { value, confidence: found ? 0.75 : 0, found };
+  }
+
+  private extractNaturalDate(input: string): string | null {
+    const explicitDate = input.match(/\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b/i);
+    if (explicitDate?.[0]) {
+      return explicitDate[0];
+    }
+
+    const normalized = this.normalizeAiText(input);
+    const date = new Date();
+
+    if (normalized.includes('послезавтра')) {
+      date.setDate(date.getDate() + 2);
+    } else if (normalized.includes('завтра')) {
+      date.setDate(date.getDate() + 1);
+    } else if (!normalized.includes('сегодня')) {
+      return null;
+    }
+
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    return `${day}.${month}.${year}`;
+  }
+
+  private extractNaturalTime(input: string): string | null {
+    const explicitTime = input.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+    if (explicitTime?.[0]) {
+      const [hour, minute] = explicitTime[0].split(':');
+      return `${String(Number(hour)).padStart(2, '0')}:${minute}`;
+    }
+
+    const text = input.toLowerCase();
+    const naturalTime = text.match(/(?:^|\s)(?:в|на|к)\s*(\d{1,2})(?::([0-5]\d))?\s*(утра|вечера|дня|ночи)(?=$|\s|[.,!?;:])/i)
+      || text.match(/(?:^|\s)(\d{1,2})(?::([0-5]\d))?\s*(утра|вечера|дня|ночи)(?=$|\s|[.,!?;:])/i)
+      || text.match(/(?:^|\s)(?:в|на|к)\s*(\d{1,2})(?::([0-5]\d))?\s*(час(?:ов|а)?)?(?=$|\s|[.,!?;:])/i)
+      || (text.match(/^\s*(\d{1,2})\s*$/) as RegExpMatchArray | null);
+
+    if (!naturalTime) {
+      return null;
+    }
+
+    let hour = Number(naturalTime[1]);
+    const minute = naturalTime[2] ? Number(naturalTime[2]) : 0;
+    const period = naturalTime[3] || '';
+
+    if (Number.isNaN(hour) || Number.isNaN(minute) || hour > 23 || minute > 59) {
+      return null;
+    }
+
+    if ((period.includes('вечера') || period.includes('дня')) && hour < 12) {
+      hour += 12;
+    }
+    if (period.includes('ночи') && hour === 12) {
+      hour = 0;
+    }
+
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  }
+
+  private extractStringEntityValue(input: string, entity: AiEntity): string | null {
+    const hint = this.normalizeAiText(`${entity.name} ${entity.variableName || ''} ${entity.description || ''} ${entity.askPrompt || ''}`);
+    const isNameLike = /(name|имя|пациент|фамил)/i.test(hint);
+
+    if (!isNameLike) {
+      return null;
+    }
+
+    const labels = [entity.name, entity.variableName]
+      .filter((label): label is string => !!label && label.trim().length > 0)
+      .map(label => this.escapeRegex(label.trim()));
+    const labeledValue = labels.length > 0
+      ? input.match(new RegExp(`(?:^|\\n)\\s*(?:${labels.join('|')})\\s*:\\s*([^\\n]+)`, 'i'))?.[1]
+      : null;
+    const source = labeledValue || input;
+    const hasExplicitNameMarker = /^(?:\s*(?:меня\s+зовут|мое\s+имя|моё\s+имя|зовут|я\s+буду|я|пациент(?:ка)?|имя|фамилия|как|запишите(?:\s+меня)?(?:\s+как)?|запиши(?:\s+меня)?(?:\s+как)?)\s+)/i.test(source);
+
+    let value = source
+      .trim()
+      .replace(/[.,!?;:]+$/g, '')
+      .replace(/^(?:меня\s+зовут|мое\s+имя|моё\s+имя|зовут|я\s+буду|я|пациент(?:ка)?|имя|фамилия|как|запишите(?:\s+меня)?(?:\s+как)?|запиши(?:\s+меня)?(?:\s+как)?)\s+/i, '')
+      .trim();
+
+    value = value.replace(/^(?:как)\s+/i, '').trim();
+    const isBareShortName = /^[a-zа-яё -]{2,80}$/i.test(value) && value.split(/\s+/).length <= 3;
+    const looksLikeSchedulingAnswer = /\d|(^|\s)(врач|доктор|терапевт|кардиолог|невролог|запис|дата|время|сегодня|завтра|послезавтра|утра|вечера|дня|ночи|час)(\s|$)/i.test(value);
+
+    if (
+      !/[a-zа-яё]/i.test(value) ||
+      value.length < 2 ||
+      value.length > 80 ||
+      looksLikeSchedulingAnswer ||
+      (!labeledValue && !hasExplicitNameMarker && !isBareShortName)
+    ) {
+      return null;
+    }
+
+    return value
+      .split(/\s+/)
+      .map(part => part ? part[0]!.toUpperCase() + part.slice(1).toLowerCase() : part)
+      .join(' ');
   }
 
   private applyAiExtractorResult(block: EngineNode, result: AiExtractorResult): void {
@@ -1554,6 +1928,37 @@ export class Engine {
         this.variables[`${variableName}_status`] = 'undefined';
       }
     });
+  }
+
+  private applyAiAssistantResult(block: EngineNode, result: AiAssistantResult): void {
+    if (result.entities) {
+      this.applyAiExtractorResult(block, {
+        entities: result.entities,
+        missing: result.missing || [],
+      });
+    }
+
+    if (block.AiReplyVariable) {
+      this.variables[block.AiReplyVariable] = result.message;
+    }
+    if (block.AiIntentVariable) {
+      this.variables[block.AiIntentVariable] = result.intent || 'chat';
+    }
+    if (block.AiConfidenceVariable) {
+      this.variables[block.AiConfidenceVariable] = this.clampConfidence(result.confidence);
+    }
+    if (block.AiReasonVariable) {
+      this.variables[block.AiReasonVariable] = result.reason || '';
+    }
+    if (block.AiSpecialTopicVariable) {
+      this.variables[block.AiSpecialTopicVariable] = !!result.isSpecialTopic;
+    }
+    if (block.AiButtonsVariable) {
+      this.variables[block.AiButtonsVariable] = this.normalizeAiButtons(result.buttons);
+    }
+    if (block.AiRawResultVariable) {
+      this.variables[block.AiRawResultVariable] = result;
+    }
   }
 
   private getMissingRequiredEntities(block: EngineNode, result: AiExtractorResult): AiEntity[] {
@@ -1616,12 +2021,79 @@ export class Engine {
       .trim();
   }
 
+  private escapeRegex(text: string): string {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   private clampConfidence(value: any): number {
     const numberValue = Number(value);
     if (Number.isNaN(numberValue)) {
       return 0;
     }
     return Math.max(0, Math.min(1, numberValue));
+  }
+
+  private normalizeAiAssistantResult(result: AiAssistantResult): AiAssistantResult {
+    return {
+      message: typeof result.message === 'string' ? result.message : '',
+      intent: typeof result.intent === 'string' ? result.intent : 'chat',
+      isSpecialTopic: !!result.isSpecialTopic,
+      confidence: this.clampConfidence(result.confidence),
+      reason: typeof result.reason === 'string' ? result.reason : '',
+      entities: result.entities && typeof result.entities === 'object' ? result.entities : {},
+      missing: Array.isArray(result.missing)
+        ? result.missing.filter((item): item is string => typeof item === 'string')
+        : [],
+      buttons: this.normalizeAiButtons(result.buttons),
+    };
+  }
+
+  private sanitizeAiAssistantResult(block: EngineNode, result: AiAssistantResult): AiAssistantResult {
+    if (!result.isSpecialTopic) {
+      return result;
+    }
+
+    const missing = this.getMissingRequiredEntities(block, {
+      entities: result.entities || {},
+      missing: result.missing || [],
+    });
+
+    if (missing.length === 0) {
+      return result;
+    }
+
+    return {
+      ...result,
+      missing: missing.map(entity => entity.name),
+      buttons: this.getButtonsForMissingEntity(missing[0]),
+    };
+  }
+
+  private normalizeAiButtons(buttons: any): string[] {
+    if (!Array.isArray(buttons)) {
+      return [];
+    }
+
+    const unique = new Set<string>();
+    buttons.forEach(button => {
+      if (typeof button !== 'string') {
+        return;
+      }
+      const normalized = button.trim();
+      if (normalized.length > 0 && normalized.length <= 64) {
+        unique.add(normalized);
+      }
+    });
+
+    return Array.from(unique).slice(0, 6);
+  }
+
+  private isAiExitMessage(input: string, block: EngineNode): boolean {
+    const phrases = block.AiExitPhrases && block.AiExitPhrases.length > 0
+      ? block.AiExitPhrases
+      : ['/stop', 'стоп', 'завершить', 'пока'];
+    const normalizedInput = this.normalizeAiText(input);
+    return phrases.some(phrase => normalizedInput === this.normalizeAiText(phrase));
   }
 
 

@@ -1,4 +1,6 @@
 import {
+  AiEntity,
+  AiRoute,
   EngineNode,
   ProjectConfig,
 } from './projectTypes';
@@ -96,6 +98,65 @@ export function adaptProjectToEngine(project: ProjectConfig): EngineNode[] {
         engineNode.ScriptCode = readString(data.code, '');
         engineNode.ScriptReturnVariable = readString(data.returnVariable);
         pushSimpleNext(engineNode, blockConnections?.get('output'));
+        break;
+      }
+
+      case 'aiRouter': {
+        engineNode.Type = 'aiRouter';
+        engineNode.AiSettings = project.aiSettings;
+        engineNode.AiInputVariable = readString(data.inputVariable);
+        engineNode.AiInstruction = readString(data.instruction);
+        engineNode.AiContextMode = readAiContextMode(data.contextMode, project.aiSettings?.contextWindowMode || 'last_message');
+        engineNode.AiRoutes = readObjectArray<AiRoute>(data.routes);
+        engineNode.AiFallbackRoute = readString(data.fallbackRoute);
+        engineNode.AiConfidenceThreshold = readNumber(data.confidenceThreshold, project.aiSettings?.confidenceThreshold ?? 0.6);
+        engineNode.AiConfidenceVariable = readString(data.confidenceVariable);
+        engineNode.AiReasonVariable = readString(data.reasonVariable);
+        engineNode.AiIntentVariable = readString(data.saveNormalizedIntentTo);
+
+        engineNode.AiRoutes.forEach((_, index) => {
+          engineNode.Nexts.push(blockConnections?.get(`route-${index}`) || '');
+        });
+        engineNode.Nexts.push(blockConnections?.get('fallback') || '');
+        break;
+      }
+
+      case 'aiExtractor': {
+        engineNode.Type = 'aiExtractor';
+        engineNode.AiSettings = project.aiSettings;
+        engineNode.AiInputVariable = readString(data.inputVariable);
+        engineNode.AiInstruction = readString(data.instruction);
+        engineNode.AiContextMode = readAiContextMode(data.contextMode, project.aiSettings?.contextWindowMode || 'last_message');
+        engineNode.AiEntities = readObjectArray<AiEntity>(data.entities);
+        engineNode.AiAskMissing = readBoolean(data.askMissing, true);
+        engineNode.AiRawResultVariable = readString(data.rawResultVariable);
+        engineNode.Nexts.push(blockConnections?.get('complete') || '');
+        engineNode.Nexts.push(blockConnections?.get('missing') || '');
+        break;
+      }
+
+      case 'aiAssistant': {
+        engineNode.Type = 'aiAssistant';
+        engineNode.AiSettings = project.aiSettings;
+        engineNode.AiInputVariable = readString(data.inputVariable);
+        engineNode.AiInstruction = readString(data.instruction);
+        engineNode.AiContextMode = readAiContextMode(data.contextMode, project.aiSettings?.contextWindowMode || 'last_message');
+        engineNode.AiRoutes = readObjectArray<AiRoute>(data.routes);
+        engineNode.AiEntities = readObjectArray<AiEntity>(data.entities);
+        engineNode.AiConfidenceThreshold = readNumber(data.confidenceThreshold, project.aiSettings?.confidenceThreshold ?? 0.6);
+        engineNode.AiAskMissing = readBoolean(data.askMissing, true);
+        engineNode.AiRawResultVariable = readString(data.rawResultVariable);
+        engineNode.AiReplyVariable = readString(data.replyVariable);
+        engineNode.AiButtonsVariable = readString(data.buttonsVariable);
+        engineNode.AiIntentVariable = readString(data.saveNormalizedIntentTo);
+        engineNode.AiConfidenceVariable = readString(data.confidenceVariable);
+        engineNode.AiReasonVariable = readString(data.reasonVariable);
+        engineNode.AiSpecialTopicVariable = readString(data.specialTopicVariable);
+        engineNode.AiLoop = readBoolean(data.loop, false);
+        engineNode.AiExitPhrases = readStringArray(data.exitPhrases);
+        engineNode.Nexts.push(blockConnections?.get('task-complete') || '');
+        engineNode.Nexts.push(blockConnections?.get('task-missing') || '');
+        engineNode.Nexts.push(blockConnections?.get('chat') || '');
         break;
       }
 
@@ -203,6 +264,30 @@ function readBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+function readNumber(value: unknown, fallback: number): number {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : fallback;
+}
+
+function readObjectArray<T extends object>(value: unknown): T[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is T => (
+    !!item && typeof item === 'object' && !Array.isArray(item)
+  ));
+}
+
+function readAiContextMode(
+  value: unknown,
+  fallback: 'none' | 'last_message' | 'last_n_messages',
+): 'none' | 'last_message' | 'last_n_messages' {
+  if (value === 'none' || value === 'last_message' || value === 'last_n_messages') {
+    return value;
+  }
+  return fallback;
+}
+
 function stringifyValue(value: unknown): string | undefined {
   if (value === undefined || value === null) {
     return undefined;
@@ -246,7 +331,7 @@ function mapFileAction(
 
 function mapBlockTypeToEngine(
   blockType: string,
-): 'output' | 'condition' | 'start' | 'variable' | 'api' | 'FILE' | 'skip' | 'script' {
+): 'output' | 'condition' | 'start' | 'variable' | 'api' | 'FILE' | 'skip' | 'script' | 'aiRouter' | 'aiExtractor' | 'aiAssistant' {
   switch (blockType) {
     case 'message':
       return 'output';
@@ -262,6 +347,12 @@ function mapBlockTypeToEngine(
       return 'FILE';
     case 'script':
       return 'script';
+    case 'aiRouter':
+      return 'aiRouter';
+    case 'aiExtractor':
+      return 'aiExtractor';
+    case 'aiAssistant':
+      return 'aiAssistant';
     default:
       return 'skip';
   }

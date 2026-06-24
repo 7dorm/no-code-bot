@@ -1,7 +1,7 @@
 import {Engine} from "./Engine";
 import {TelegramUI} from "./TelegramUI";
-import {readFileSync} from "node:fs";
 import { Telegraf } from 'telegraf';
+import {loadBotConfig} from "./configLoader";
 
 interface UserState {
     eng: Engine;
@@ -22,11 +22,10 @@ bot.start(async (ctx) => {
     if (!ctx.chat) return;
     const chatId = ctx.chat.id;
 
-    const raw = readFileSync("./test/test.json", "utf-8");
-    const data = JSON.parse(raw);
+    const {nodes, globalConstants} = loadBotConfig("./test/test.json");
 
     const ui = new TelegramUI(ctx);
-    const eng = new Engine(ui, data, {});
+    const eng = new Engine(ui, nodes, globalConstants);
 
     userStates.set(chatId, { eng, ui });
 

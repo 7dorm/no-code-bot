@@ -71,6 +71,16 @@ html, body {
   gap: 12px;
 }
 
+.remote-error {
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #b91c1c;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .remote-actions {
   display: flex;
   flex-direction: column;

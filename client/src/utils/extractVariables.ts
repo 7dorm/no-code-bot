@@ -1,5 +1,5 @@
 import { Project } from '../types';
-import { MessageBlockData, VariableBlockData, ApiBlockData, AiRouterBlockData, AiExtractorBlockData } from '../types';
+import { MessageBlockData, VariableBlockData, ApiBlockData, AiRouterBlockData, AiExtractorBlockData, AiAssistantBlockData } from '../types';
 
 export interface VariableInfo {
   name: string;
@@ -201,6 +201,56 @@ export function extractVariables(project: Project): VariableInfo[] {
             description: 'Сырой JSON-результат извлечения',
           });
         }
+        break;
+      }
+
+      case 'aiAssistant': {
+        const aiData = block.data as AiAssistantBlockData;
+
+        if (aiData.inputVariable) {
+          variablesMap.set(aiData.inputVariable, {
+            name: aiData.inputVariable,
+            type: 'used',
+            blockId: block.id,
+            blockType: 'aiAssistant',
+            description: 'Текст для AI Assistant',
+          });
+        }
+
+        (aiData.entities || []).forEach(entity => {
+          const varName = entity.variableName || entity.name;
+          if (varName && !variablesMap.has(varName)) {
+            variablesMap.set(varName, {
+              name: varName,
+              type: 'saved',
+              blockId: block.id,
+              blockType: 'aiAssistant',
+              description: entity.required
+                ? `Обязательная сущность: ${entity.type}`
+                : `Сущность: ${entity.type}`,
+            });
+          }
+        });
+
+        [
+          aiData.replyVariable,
+          aiData.buttonsVariable,
+          aiData.rawResultVariable,
+          aiData.confidenceVariable,
+          aiData.reasonVariable,
+          aiData.saveNormalizedIntentTo,
+          aiData.specialTopicVariable,
+        ].filter(Boolean).forEach(varName => {
+          if (varName && !variablesMap.has(varName)) {
+            variablesMap.set(varName, {
+              name: varName,
+              type: 'saved',
+              blockId: block.id,
+              blockType: 'aiAssistant',
+              description: 'Сохраняется результат AI Assistant',
+            });
+          }
+        });
         break;
       }
 

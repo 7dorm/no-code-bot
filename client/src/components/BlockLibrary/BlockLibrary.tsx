@@ -10,6 +10,7 @@ import {
   ScriptBlockMeta,
   AiRouterBlockMeta,
   AiExtractorBlockMeta,
+  AiAssistantBlockMeta,
 } from '../../types';
 import BlockEditorModal from '../BlockEditor/BlockEditorModal';
 import { createId } from '../../utils/createId';
@@ -24,6 +25,7 @@ const BLOCK_TYPES = [
   ScriptBlockMeta,
   AiRouterBlockMeta,
   AiExtractorBlockMeta,
+  AiAssistantBlockMeta,
 ];
 
 interface BlockLibraryProps {
@@ -97,6 +99,60 @@ const BlockLibrary: React.FC<BlockLibraryProps> = ({ useStore }) => {
           askMissing: true,
           rawResultVariable: '',
           contextMode: 'last_message' as const,
+        };
+        break;
+      case 'aiAssistant':
+        blockData = {
+          ...blockData,
+          instruction: 'Отвечай на обычные вопросы как AI. Если сообщение относится к специальной теме, извлеки нужные сущности и предложи кнопки только когда они полезны.',
+          inputVariable: 'lastMessage',
+          routes: [
+            {
+              id: 'appointment',
+              title: 'Запись к врачу',
+              description: 'Пользователь хочет записаться, перенести или подобрать прием у врача',
+              examples: ['хочу записаться к врачу', 'запиши к терапевту завтра в 10:00'],
+            },
+          ],
+          entities: [
+            {
+              name: 'doctor',
+              variableName: 'doctor',
+              type: 'enum' as const,
+              description: 'Специализация врача',
+              required: true,
+              enumValues: ['Терапевт', 'Кардиолог', 'Невролог'],
+              askPrompt: 'К какому врачу хотите записаться?',
+            },
+            {
+              name: 'date',
+              variableName: 'date',
+              type: 'date' as const,
+              description: 'Дата приема',
+              required: true,
+              askPrompt: 'На какую дату нужна запись?',
+            },
+            {
+              name: 'time',
+              variableName: 'time',
+              type: 'time' as const,
+              description: 'Время приема',
+              required: true,
+              askPrompt: 'На какое время записать?',
+            },
+          ],
+          askMissing: true,
+          loop: true,
+          exitPhrases: ['/stop', 'стоп', 'пока'],
+          confidenceThreshold: 0.6,
+          replyVariable: 'ai_reply',
+          buttonsVariable: 'ai_buttons',
+          rawResultVariable: 'ai_raw',
+          confidenceVariable: 'ai_confidence',
+          reasonVariable: 'ai_reason',
+          saveNormalizedIntentTo: 'intent',
+          specialTopicVariable: 'is_special_topic',
+          contextMode: 'last_n_messages' as const,
         };
         break;
       case 'start':

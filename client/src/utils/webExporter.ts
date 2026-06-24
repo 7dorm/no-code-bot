@@ -95,6 +95,8 @@ class WebUI extends UI {
 
   async sendMessage(message, answers = []) {
     return new Promise((resolve) => {
+      this.clearQuickReplies();
+
       const messageDiv = document.createElement('div');
       messageDiv.className = 'message bot-message';
 
@@ -131,7 +133,7 @@ class WebUI extends UI {
             this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
 
 
-            buttonsDiv.remove();
+            this.clearQuickReplies();
 
 
             if (this.inputResolver) {
@@ -189,6 +191,7 @@ class WebUI extends UI {
     const handleSend = () => {
       const text = input.value.trim();
       if (text) {
+        this.clearQuickReplies();
 
         const userMessageDiv = document.createElement('div');
         userMessageDiv.className = 'message user-message';
@@ -239,6 +242,12 @@ class WebUI extends UI {
     if (existingInput) {
       existingInput.remove();
     }
+  }
+
+  clearQuickReplies() {
+    this.chatContainer
+      .querySelectorAll('.quick-replies')
+      .forEach((element) => element.remove());
   }
 
   finish() {
@@ -1385,7 +1394,15 @@ class Engine {
         body: JSON.stringify({
           mode,
           provider: (block.AiSettings && block.AiSettings.provider) || 'custom',
+          apiKey: block.AiSettings && block.AiSettings.apiKey,
+          baseUrl: block.AiSettings && block.AiSettings.baseUrl,
+          iamToken: block.AiSettings && block.AiSettings.iamToken,
+          folderId: block.AiSettings && block.AiSettings.folderId,
+          modelUri: block.AiSettings && block.AiSettings.modelUri,
           model: block.AiSettings && block.AiSettings.model,
+          temperature: (block.AiSettings && block.AiSettings.temperature) || 0.2,
+          maxTokens: (block.AiSettings && block.AiSettings.maxTokens) || 800,
+          language: (block.AiSettings && block.AiSettings.language) || 'ru',
           systemPrompt: (block.AiSettings && block.AiSettings.systemPrompt) || '',
           safetyPrompt: (block.AiSettings && block.AiSettings.safetyPrompt) || '',
           instruction: block.AiInstruction || '',

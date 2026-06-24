@@ -19,6 +19,12 @@ npm start
 
 По умолчанию сервер слушает `http://localhost:3003`.
 
+Если порт занят, можно переопределить его:
+
+```bash
+PORT=3013 npm start
+```
+
 ### Основные endpoint'ы
 
 #### `POST /api/ai/complete`
@@ -28,6 +34,62 @@ Mock endpoint для preview AI Router и AI Extractor. Если в настро
 Поддерживаемые режимы:
 - `router` - выбирает route из списка `routes`
 - `extractor` - извлекает сущности из списка `entities`
+- `assistant` - отвечает на обычные вопросы, распознаёт специальные темы, извлекает сущности и возвращает кнопки
+
+Для `provider: "openaiCompatible"` endpoint вызывает OpenAI-compatible API. Для Yandex AI Studio рабочий формат такой:
+
+```json
+{
+  "aiSettings": {
+    "provider": "openaiCompatible",
+    "endpoint": "http://localhost:3003/api/ai/complete",
+    "apiKey": "...",
+    "baseUrl": "https://llm.api.cloud.yandex.net/v1",
+    "model": "gpt://folder-id/yandexgpt-lite"
+  }
+}
+```
+
+Для `provider: "yandex-alice"` или `provider: "yandexgpt"` endpoint попробует вызвать Yandex AI Studio через Foundation Models API.
+
+```json
+{
+  "aiSettings": {
+    "provider": "yandex-alice",
+    "endpoint": "http://localhost:3003/api/ai/complete",
+    "apiKey": "...",
+    "iamToken": "",
+    "folderId": "...",
+    "modelUri": "",
+    "model": "yandexgpt/latest"
+  }
+}
+```
+
+Вместо `apiKey` можно использовать `iamToken`. Модель по умолчанию собирается как `gpt://{folderId}/{model}`; её можно переопределить через `modelUri`. Переменные окружения `YANDEX_API_KEY`, `YANDEX_IAM_TOKEN`, `YANDEX_FOLDER_ID` и `YANDEX_MODEL_URI` остаются запасным вариантом для старых запусков, если в проекте эти поля пустые.
+
+`assistant` ожидает от модели только JSON:
+
+```json
+{
+  "message": "текст ответа пользователю",
+  "intent": "chat или route.id",
+  "isSpecialTopic": false,
+  "confidence": 0.0,
+  "reason": "коротко",
+  "entities": {
+    "entityName": {
+      "value": null,
+      "confidence": 0.0,
+      "found": false
+    }
+  },
+  "missing": [],
+  "buttons": []
+}
+```
+
+Если Yandex credentials не заданы или запрос не удался, сервер вернёт mock-ответ на локальных эвристиках, чтобы можно было проверить конфиг без внешнего API.
 
 #### `POST /api/upload?path=/patients/`
 

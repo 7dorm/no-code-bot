@@ -36,6 +36,7 @@ function App() {
     setRemoteParticipantName,
   } = useStore();
   const [sessionToken, setSessionToken] = useState('');
+  const [remoteError, setRemoteError] = useState('');
 
   useEffect(() => {
     loadFromLocalStorage();
@@ -72,13 +73,19 @@ function App() {
 
   const handleConnectRemote = async () => {
     try {
-      await connectRemote(remoteParticipantName);
+      setRemoteError('');
+      const token = await connectRemote(remoteParticipantName);
+      if (token) {
+        setSessionToken('');
+      }
     } catch (error) {
       console.error('Failed to connect:', error);
+      setRemoteError(error instanceof Error ? error.message : 'Не удалось создать совместную сессию');
     }
   };
 
   const handleDisconnect = () => {
+    setRemoteError('');
     disconnectRemote();
   };
 
@@ -90,18 +97,22 @@ function App() {
 
   const handleJoinRemote = async () => {
     try {
+      setRemoteError('');
       await joinRemote(sessionToken, remoteParticipantName);
       setSessionToken('');
     } catch (error) {
       console.error('Failed to join:', error);
+      setRemoteError(error instanceof Error ? error.message : 'Не удалось подключиться к совместной сессии');
     }
   };
 
   const handleCreatePreview = async (ownerOnly: boolean) => {
     try {
+      setRemoteError('');
       await createRemotePreview(ownerOnly);
     } catch (error) {
       console.error('Failed to create preview:', error);
+      setRemoteError(error instanceof Error ? error.message : 'Не удалось создать общий предпросмотр');
     }
   };
 
@@ -144,6 +155,11 @@ function App() {
 
         {storeType === 'internal' && (
           <div className="remote-lobby">
+            {remoteError && (
+              <div className="remote-error" role="alert">
+                {remoteError}
+              </div>
+            )}
             <div className="remote-actions">
               {!isConnected && (
                 <>

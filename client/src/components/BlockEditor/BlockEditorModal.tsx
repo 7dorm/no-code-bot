@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BlockData, MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, AiRoute, AiEntity, AiEntityType } from '../../types';
+import { BlockData, MessageBlockData, ConditionBlockData, ConditionCase, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, AiAssistantBlockData, AiRoute, AiEntity, AiEntityType } from '../../types';
 import { EditorState } from '../../store/useEditorStore';
 import './BlockEditorModal.css';
 
@@ -924,6 +924,143 @@ const BlockEditorModal: React.FC<BlockEditorModalProps> = ({ nodeId, onClose, us
                   </label>
                 </div>
               ))}
+            </div>
+          </>
+        );
+      }
+
+      case 'aiAssistant': {
+        const assistantData = blockData as AiAssistantBlockData;
+        const updateJsonField = <T,>(raw: string, onParsed: (value: T) => void) => {
+          try {
+            onParsed(JSON.parse(raw) as T);
+          } catch (error) {
+            
+          }
+        };
+
+        return (
+          <>
+            <div className="editor-info">
+              <p>AI Assistant отвечает на обычные вопросы, а при совпадении со специальной темой извлекает сущности, сохраняет переменные и может вернуть кнопки.</p>
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Переменная с текстом пользователя</label>
+              <input
+                type="text"
+                className="editor-input"
+                value={assistantData.inputVariable || ''}
+                onChange={(e) => updateBlockData<AiAssistantBlockData>({ inputVariable: e.target.value.trim() || undefined })}
+                placeholder="lastMessage"
+              />
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Инструкция</label>
+              <textarea
+                className="editor-textarea"
+                value={assistantData.instruction || ''}
+                onChange={(e) => updateBlockData<AiAssistantBlockData>({ instruction: e.target.value })}
+                placeholder="Отвечай на обычные вопросы. Если есть спецтема, извлекай данные и предлагай кнопки только когда они полезны."
+                rows={4}
+              />
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Контекст диалога</label>
+              <select
+                className="editor-select"
+                value={assistantData.contextMode || 'last_n_messages'}
+                onChange={(e) => updateBlockData<AiAssistantBlockData>({ contextMode: e.target.value as AiAssistantBlockData['contextMode'] })}
+              >
+                <option value="none">Не передавать</option>
+                <option value="last_message">Последнее сообщение</option>
+                <option value="last_n_messages">Последние сообщения</option>
+              </select>
+            </div>
+            <div className="editor-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={assistantData.loop ?? true}
+                  onChange={(e) => updateBlockData<AiAssistantBlockData>({ loop: e.target.checked })}
+                />
+                <span>Продолжать диалог в этом блоке</span>
+              </label>
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Порог спецтемы</label>
+              <input
+                type="number"
+                className="editor-input"
+                min={0}
+                max={1}
+                step={0.05}
+                value={assistantData.confidenceThreshold ?? 0.6}
+                onChange={(e) => updateBlockData<AiAssistantBlockData>({ confidenceThreshold: Number(e.target.value) })}
+              />
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Переменные результата</label>
+              <input
+                type="text"
+                className="editor-input"
+                value={assistantData.replyVariable || ''}
+                onChange={(e) => updateBlockData<AiAssistantBlockData>({ replyVariable: e.target.value.trim() || undefined })}
+                placeholder="ai_reply"
+                style={{ marginBottom: '8px' }}
+              />
+              <input
+                type="text"
+                className="editor-input"
+                value={assistantData.buttonsVariable || ''}
+                onChange={(e) => updateBlockData<AiAssistantBlockData>({ buttonsVariable: e.target.value.trim() || undefined })}
+                placeholder="ai_buttons"
+                style={{ marginBottom: '8px' }}
+              />
+              <input
+                type="text"
+                className="editor-input"
+                value={assistantData.saveNormalizedIntentTo || ''}
+                onChange={(e) => updateBlockData<AiAssistantBlockData>({ saveNormalizedIntentTo: e.target.value.trim() || undefined })}
+                placeholder="intent"
+                style={{ marginBottom: '8px' }}
+              />
+              <input
+                type="text"
+                className="editor-input"
+                value={assistantData.specialTopicVariable || ''}
+                onChange={(e) => updateBlockData<AiAssistantBlockData>({ specialTopicVariable: e.target.value.trim() || undefined })}
+                placeholder="is_special_topic"
+              />
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Специальные темы routes (JSON)</label>
+              <textarea
+                className="editor-textarea"
+                value={JSON.stringify(assistantData.routes || [], null, 2)}
+                onChange={(e) => updateJsonField<AiRoute[]>(e.target.value, value => updateBlockData<AiAssistantBlockData>({ routes: value }))}
+                rows={7}
+              />
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Сущности entities (JSON)</label>
+              <textarea
+                className="editor-textarea"
+                value={JSON.stringify(assistantData.entities || [], null, 2)}
+                onChange={(e) => updateJsonField<AiEntity[]>(e.target.value, value => updateBlockData<AiAssistantBlockData>({ entities: value }))}
+                rows={9}
+              />
+            </div>
+            <div className="editor-group">
+              <label className="editor-label">Фразы завершения</label>
+              <textarea
+                className="editor-textarea"
+                value={(assistantData.exitPhrases || []).join('\n')}
+                onChange={(e) => updateBlockData<AiAssistantBlockData>({
+                  exitPhrases: e.target.value.split('\n').map(line => line.trim()).filter(Boolean),
+                })}
+                placeholder={'/stop\nстоп\nпока'}
+                rows={3}
+              />
             </div>
           </>
         );

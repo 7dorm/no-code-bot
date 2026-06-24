@@ -1,4 +1,4 @@
-import { BlockNode, BlockExecutionResult, ExecutionContext, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData } from '../types';
+import { BlockNode, BlockExecutionResult, ExecutionContext, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, AiAssistantBlockData } from '../types';
 
 
 export function executeBlock(
@@ -25,6 +25,8 @@ export function executeBlock(
       return executeAiRouter(block, context, connections);
     case 'aiExtractor':
       return executeAiExtractor(block, context, connections);
+    case 'aiAssistant':
+      return executeAiAssistant(block, context, connections);
     default:
       return {
         success: false,
@@ -470,7 +472,7 @@ function executeAiExtractor(
 
   (aiData.entities || []).forEach(entity => {
     const variableName = entity.variableName || entity.name;
-    const extracted = extractEntityLocally(input, entity.type, entity.enumValues, entity.validationRegex);
+    const extracted = extractEntityLocally(input, entity.type, entity.enumValues, entity.validationRegex, entity);
     if (extracted.found) {
       context.variables[variableName] = extracted.value;
       context.variables[`${variableName}_status`] = 'filled';
@@ -494,6 +496,84 @@ function executeAiExtractor(
   };
 }
 
+function executeAiAssistant(
+  block: BlockNode,
+  context: ExecutionContext,
+  connections: Array<{ source: string; target: string; sourceHandle?: string }>
+): BlockExecutionResult {
+  const aiData = block.data as AiAssistantBlockData;
+  const input = getAiInput(aiData.inputVariable, context);
+  const routes = aiData.routes || [];
+  const normalizedInput = input.toLowerCase();
+  let bestIndex = -1;
+  let bestScore = 0;
+
+  routes.forEach((route, index) => {
+    const text = [route.id, route.title, route.description || '', ...(route.examples || [])].join(' ').toLowerCase();
+    const tokens = Array.from(new Set(text.split(/[^a-zа-яё0-9_]+/gi).filter(token => token.length > 2)));
+    const score = tokens.reduce((sum, token) => normalizedInput.includes(token) ? sum + 1 : sum, 0);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+
+  const confidence = bestScore ? Math.min(0.95, 0.55 + bestScore * 0.1) : 0.25;
+  const threshold = aiData.confidenceThreshold ?? 0.6;
+  const activeSpecialTopicValue = aiData.specialTopicVariable
+    ? context.variables[aiData.specialTopicVariable]
+    : context.variables.is_special_topic;
+  const isActiveSpecialTopic = activeSpecialTopicValue === true || activeSpecialTopicValue === 'true';
+  const activeRouteIndex = bestIndex >= 0 ? bestIndex : 0;
+  const isSpecialTopic = (bestIndex >= 0 && confidence >= threshold) || isActiveSpecialTopic;
+  const missing: string[] = [];
+
+  if (isSpecialTopic) {
+    (aiData.entities || []).forEach(entity => {
+      const variableName = entity.variableName || entity.name;
+      const extracted = extractEntityLocally(input, entity.type, entity.enumValues, entity.validationRegex, entity);
+      if (extracted.found) {
+        context.variables[variableName] = extracted.value;
+        context.variables[`${variableName}_status`] = 'filled';
+      } else if (entity.required && (
+        context.variables[variableName] === undefined ||
+        context.variables[variableName] === null ||
+        context.variables[variableName] === ''
+      )) {
+        missing.push(entity.name);
+        context.variables[`${variableName}_status`] = 'undefined';
+      }
+    });
+  }
+
+  if (aiData.replyVariable) {
+    context.variables[aiData.replyVariable] = isSpecialTopic ? 'Специальная тема распознана' : 'Обычный AI-ответ';
+  }
+  if (aiData.buttonsVariable) {
+    context.variables[aiData.buttonsVariable] = [];
+  }
+  if (aiData.saveNormalizedIntentTo) {
+    context.variables[aiData.saveNormalizedIntentTo] = isSpecialTopic && routes[activeRouteIndex] ? routes[activeRouteIndex].id : 'chat';
+  }
+  if (aiData.confidenceVariable) {
+    context.variables[aiData.confidenceVariable] = isActiveSpecialTopic ? Math.max(confidence, threshold) : confidence;
+  }
+  if (aiData.specialTopicVariable) {
+    context.variables[aiData.specialTopicVariable] = isSpecialTopic;
+  }
+
+  const handle = isSpecialTopic ? (missing.length === 0 ? 'task-complete' : 'task-missing') : 'chat';
+  const targetConnection = connections.find(c => c.source === block.id && c.sourceHandle === handle);
+
+  return {
+    success: true,
+    nextNodeId: targetConnection?.target || null,
+    output: isSpecialTopic
+      ? `AI Assistant: ${missing.length === 0 ? 'task complete' : `missing ${missing.join(', ')}`}`
+      : 'AI Assistant: chat',
+  };
+}
+
 function getAiInput(inputVariable: string | undefined, context: ExecutionContext): string {
   if (inputVariable && context.variables[inputVariable] !== undefined && context.variables[inputVariable] !== null) {
     return String(context.variables[inputVariable]);
@@ -505,7 +585,8 @@ function extractEntityLocally(
   input: string,
   type: string,
   enumValues?: string[],
-  validationRegex?: string
+  validationRegex?: string,
+  entity?: { name?: string; variableName?: string; description?: string; askPrompt?: string }
 ): { value: any; found: boolean } {
   let value: any = null;
 
@@ -526,10 +607,10 @@ function extractEntityLocally(
         value = input.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] || null;
         break;
       case 'date':
-        value = input.match(/\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b/)?.[0] || null;
+        value = extractNaturalDate(input);
         break;
       case 'time':
-        value = input.match(/\b\d{1,2}:\d{2}\b/)?.[0] || null;
+        value = extractNaturalTime(input);
         break;
       case 'number':
         value = Number(input.match(/-?\d+(?:[.,]\d+)?/)?.[0]?.replace(',', '.'));
@@ -538,6 +619,9 @@ function extractEntityLocally(
       case 'enum':
         value = (enumValues || []).find(option => input.toLowerCase().includes(option.toLowerCase())) || null;
         break;
+      case 'string':
+        value = entity ? extractStringEntityValue(input, entity) : null;
+        break;
       default:
         value = null;
         break;
@@ -545,4 +629,120 @@ function extractEntityLocally(
   }
 
   return { value, found: value !== null && value !== undefined && value !== '' };
+}
+
+function normalizeAiText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-zа-яё0-9_]+/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractNaturalDate(input: string): string | null {
+  const explicitDate = input.match(/\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b/i);
+  if (explicitDate?.[0]) {
+    return explicitDate[0];
+  }
+
+  const normalized = normalizeAiText(input);
+  const date = new Date();
+
+  if (normalized.includes('послезавтра')) {
+    date.setDate(date.getDate() + 2);
+  } else if (normalized.includes('завтра')) {
+    date.setDate(date.getDate() + 1);
+  } else if (!normalized.includes('сегодня')) {
+    return null;
+  }
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear()).slice(-2);
+  return `${day}.${month}.${year}`;
+}
+
+function extractNaturalTime(input: string): string | null {
+  const explicitTime = input.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
+  if (explicitTime?.[0]) {
+    const [hour, minute] = explicitTime[0].split(':');
+    return `${String(Number(hour)).padStart(2, '0')}:${minute}`;
+  }
+
+  const text = input.toLowerCase();
+  const naturalTime = text.match(/(?:^|\s)(?:в|на|к)\s*(\d{1,2})(?::([0-5]\d))?\s*(утра|вечера|дня|ночи)(?=$|\s|[.,!?;:])/i)
+    || text.match(/(?:^|\s)(\d{1,2})(?::([0-5]\d))?\s*(утра|вечера|дня|ночи)(?=$|\s|[.,!?;:])/i)
+    || text.match(/(?:^|\s)(?:в|на|к)\s*(\d{1,2})(?::([0-5]\d))?\s*(час(?:ов|а)?)?(?=$|\s|[.,!?;:])/i)
+    || text.match(/^\s*(\d{1,2})\s*$/);
+
+  if (!naturalTime) {
+    return null;
+  }
+
+  let hour = Number(naturalTime[1]);
+  const minute = naturalTime[2] ? Number(naturalTime[2]) : 0;
+  const period = naturalTime[3] || '';
+
+  if (Number.isNaN(hour) || Number.isNaN(minute) || hour > 23 || minute > 59) {
+    return null;
+  }
+
+  if ((period.includes('вечера') || period.includes('дня')) && hour < 12) {
+    hour += 12;
+  }
+  if (period.includes('ночи') && hour === 12) {
+    hour = 0;
+  }
+
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+function extractStringEntityValue(
+  input: string,
+  entity: { name?: string; variableName?: string; description?: string; askPrompt?: string }
+): string | null {
+  const hint = normalizeAiText(`${entity.name || ''} ${entity.variableName || ''} ${entity.description || ''} ${entity.askPrompt || ''}`);
+  const isNameLike = /(name|имя|пациент|фамил)/i.test(hint);
+
+  if (!isNameLike) {
+    return null;
+  }
+
+  const labels = [entity.name, entity.variableName]
+    .filter((label): label is string => !!label && label.trim().length > 0)
+    .map(label => escapeRegex(label.trim()));
+  const labeledValue = labels.length > 0
+    ? input.match(new RegExp(`(?:^|\\n)\\s*(?:${labels.join('|')})\\s*:\\s*([^\\n]+)`, 'i'))?.[1]
+    : null;
+  const source = labeledValue || input;
+  const hasExplicitNameMarker = /^(?:\s*(?:меня\s+зовут|мое\s+имя|моё\s+имя|зовут|я\s+буду|я|пациент(?:ка)?|имя|фамилия|как|запишите(?:\s+меня)?(?:\s+как)?|запиши(?:\s+меня)?(?:\s+как)?)\s+)/i.test(source);
+
+  let value = source
+    .trim()
+    .replace(/[.,!?;:]+$/g, '')
+    .replace(/^(?:меня\s+зовут|мое\s+имя|моё\s+имя|зовут|я\s+буду|я|пациент(?:ка)?|имя|фамилия|как|запишите(?:\s+меня)?(?:\s+как)?|запиши(?:\s+меня)?(?:\s+как)?)\s+/i, '')
+    .trim();
+
+  value = value.replace(/^(?:как)\s+/i, '').trim();
+  const isBareShortName = /^[a-zа-яё -]{2,80}$/i.test(value) && value.split(/\s+/).length <= 3;
+  const looksLikeSchedulingAnswer = /\d|(^|\s)(врач|доктор|терапевт|кардиолог|невролог|запис|дата|время|сегодня|завтра|послезавтра|утра|вечера|дня|ночи|час)(\s|$)/i.test(value);
+
+  if (
+    !/[a-zа-яё]/i.test(value) ||
+    value.length < 2 ||
+    value.length > 80 ||
+    looksLikeSchedulingAnswer ||
+    (!labeledValue && !hasExplicitNameMarker && !isBareShortName)
+  ) {
+    return null;
+  }
+
+  return value
+    .split(/\s+/)
+    .map(part => part ? part[0]!.toUpperCase() + part.slice(1).toLowerCase() : part)
+    .join(' ');
 }

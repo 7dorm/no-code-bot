@@ -1,6 +1,6 @@
 import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
-import { BlockData, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, getBlockIcon, getBlockColor } from '../../types';
+import { BlockData, MessageBlockData, ConditionBlockData, VariableBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, AiAssistantBlockData, getBlockIcon, getBlockColor } from '../../types';
 import { EditorState } from '../../store/useEditorStore';
 import { validateProjectVariables } from '../../utils/graphValidation';
 import './BlockNode.css';
@@ -63,6 +63,11 @@ const getBlockPreview = (data: BlockData): string => {
       const aiData = data as AiExtractorBlockData;
       const requiredCount = (aiData.entities || []).filter(entity => entity.required).length;
       return `${aiData.entities?.length || 0} сущностей${requiredCount ? `, ${requiredCount} обязательных` : ''}`;
+    }
+    case 'aiAssistant': {
+      const aiData = data as AiAssistantBlockData;
+      const requiredCount = (aiData.entities || []).filter(entity => entity.required).length;
+      return `${aiData.routes?.length || 0} тем, ${aiData.entities?.length || 0} сущностей${requiredCount ? `, ${requiredCount} обязательных` : ''}${aiData.loop ? ', loop' : ''}`;
     }
     case 'start':
     default:
@@ -210,7 +215,7 @@ const BlockNode: React.FC<BlockNodeProps> = ({ id, data, selected, useStore }) =
         )}
       </div>
 
-      {data.type !== 'condition' && data.type !== 'aiRouter' && data.type !== 'aiExtractor' && (
+      {data.type !== 'condition' && data.type !== 'aiRouter' && data.type !== 'aiExtractor' && data.type !== 'aiAssistant' && (
         <Handle
           type="source"
           position={Position.Bottom}
@@ -285,6 +290,32 @@ const BlockNode: React.FC<BlockNodeProps> = ({ id, data, selected, useStore }) =
             id="missing"
             title="Есть недостающие сущности"
             style={{ left: '67%' }}
+          />
+        </>
+      )}
+
+      {data.type === 'aiAssistant' && (
+        <>
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="task-complete"
+            title="Спецтема, все обязательные данные найдены"
+            style={{ left: '25%' }}
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="task-missing"
+            title="Спецтема, нужно уточнить данные"
+            style={{ left: '50%' }}
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="chat"
+            title="Обычный AI-ответ"
+            style={{ left: '75%' }}
           />
         </>
       )}

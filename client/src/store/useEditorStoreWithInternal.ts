@@ -6,7 +6,6 @@ import {
   type JsonPatch,
   type RemoteConfigSnapshot,
   type RemotePreviewInstance,
-  type RemoteSessionState,
   type SharedPreviewState,
 } from '../client/RemoteEditorClient';
 import { useEditorStore, type EditorState } from './useEditorStore';

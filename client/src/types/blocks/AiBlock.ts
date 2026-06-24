@@ -53,6 +53,26 @@ export interface AiExtractorBlockData extends BlockInterface {
   contextMode?: AiContextMode;
 }
 
+export interface AiAssistantBlockData extends BlockInterface {
+  type: 'aiAssistant';
+  inputVariable?: string;
+  instruction?: string;
+  routes: AiRoute[];
+  entities: AiEntity[];
+  askMissing?: boolean;
+  loop?: boolean;
+  exitPhrases?: string[];
+  confidenceThreshold?: number;
+  replyVariable?: string;
+  buttonsVariable?: string;
+  rawResultVariable?: string;
+  confidenceVariable?: string;
+  reasonVariable?: string;
+  saveNormalizedIntentTo?: string;
+  specialTopicVariable?: string;
+  contextMode?: AiContextMode;
+}
+
 export const AiRouterBlockMeta = {
   type: 'aiRouter' as const,
   label: 'AI Router',
@@ -70,6 +90,17 @@ export const AiExtractorBlockMeta = {
   icon: 'AI',
   color: '#5b6bc8',
   description: 'Извлечение сущностей из свободного текста в переменные',
+  hasInput: true,
+  hasOutput: true,
+  hasMultipleOutputs: true,
+};
+
+export const AiAssistantBlockMeta = {
+  type: 'aiAssistant' as const,
+  label: 'AI Assistant',
+  icon: 'AI',
+  color: '#7a5c32',
+  description: 'Свободный AI-диалог с распознаванием специальных тем, сущностей и кнопок',
   hasInput: true,
   hasOutput: true,
   hasMultipleOutputs: true,

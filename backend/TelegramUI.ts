@@ -6,17 +6,21 @@ export class TelegramUI implements UI {
   private stop = false;
   private inputResolver: ((value: string) => void) | null = null;
   private fileResolver: ((value: string) => void) | null = null;
+  private lastKeyboardMessageId: number | null = null;
 
   constructor(ctx: Context) {
     this.ctx = ctx;
   }
 
   async sendMessage(message: string, answers: string[] = []): Promise<void> {
+    await this.clearActiveButtons();
+
     if (answers.length > 0) {
       const keyboard = {
         inline_keyboard: answers.map(a => [{ text: a, callback_data: a }])
       };
-      await this.ctx.reply(message, { reply_markup: keyboard });
+      const sentMessage = await this.ctx.reply(message, { reply_markup: keyboard });
+      this.lastKeyboardMessageId = sentMessage.message_id;
     } else {
       await this.ctx.reply(message);
     }
@@ -37,10 +41,35 @@ export class TelegramUI implements UI {
   }
 
   handleUserMessage(text: string): void {
+    void this.clearActiveButtons();
+
     if (this.inputResolver) {
       this.inputResolver(text);
       this.inputResolver = null;
     }
+  }
+
+  async clearActiveButtons(): Promise<void> {
+    if (!this.lastKeyboardMessageId || !this.ctx.chat) {
+      return;
+    }
+
+    try {
+      await this.ctx.telegram.editMessageReplyMarkup(
+        this.ctx.chat.id,
+        this.lastKeyboardMessageId,
+        undefined,
+        { inline_keyboard: [] },
+      );
+    } catch {
+      
+    } finally {
+      this.lastKeyboardMessageId = null;
+    }
+  }
+
+  isWaitingForInput(): boolean {
+    return this.inputResolver !== null;
   }
 
   async sendFile(path: string): Promise<void> {
@@ -75,5 +104,3 @@ export class TelegramUI implements UI {
     console.log(`Удаление файла: ${path}`);
   }
 }
-
-

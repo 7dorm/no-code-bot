@@ -1,4 +1,4 @@
-import { Project, BlockNode, VariableBlockData, MessageBlockData, ApiBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, ConditionBlockData } from '../types';
+import { Project, BlockNode, VariableBlockData, MessageBlockData, ApiBlockData, FileBlockData, ScriptBlockData, AiRouterBlockData, AiExtractorBlockData, AiAssistantBlockData, ConditionBlockData } from '../types';
 
 export interface ValidationError {
   blockId: string;
@@ -218,9 +218,20 @@ function getDefinitionsInBlock(block: BlockNode): Set<{ name: string; isFinal: b
       const apiData = data as ApiBlockData;
       if (apiData.responseVariable) {
         defs.add({ name: apiData.responseVariable, isFinal: false, hasValue: true });
+        defs.add({ name: `${apiData.responseVariable}_status`, isFinal: false, hasValue: true });
       }
       if (apiData.answersVariable) {
         defs.add({ name: apiData.answersVariable, isFinal: false, hasValue: true });
+      }
+      break;
+    }
+    case 'file': {
+      const fileData = data as FileBlockData;
+      if (fileData.fileName && (fileData.action === 'upload' || fileData.action === 'read')) {
+        defs.add({ name: fileData.fileName, isFinal: false, hasValue: true });
+      }
+      if (fileData.action === 'upload') {
+        defs.add({ name: 'lastFile', isFinal: false, hasValue: true });
       }
       break;
     }
@@ -228,6 +239,10 @@ function getDefinitionsInBlock(block: BlockNode): Set<{ name: string; isFinal: b
       const scriptData = data as ScriptBlockData;
       if (scriptData.returnVariable) {
         defs.add({ name: scriptData.returnVariable, isFinal: false, hasValue: true });
+      }
+      const setVariableMatches = scriptData.code?.matchAll(/setVariable\(['"](\w+)['"]/g) || [];
+      for (const match of setVariableMatches) {
+        defs.add({ name: match[1], isFinal: false, hasValue: true });
       }
       break;
     }
@@ -244,6 +259,24 @@ function getDefinitionsInBlock(block: BlockNode): Set<{ name: string; isFinal: b
         defs.add({ name: e.variableName || e.name, isFinal: false, hasValue: true });
       });
       if (aiData.rawResultVariable) defs.add({ name: aiData.rawResultVariable, isFinal: false, hasValue: true });
+      break;
+    }
+    case 'aiAssistant': {
+      const aiData = data as AiAssistantBlockData;
+      (aiData.entities || []).forEach(e => {
+        defs.add({ name: e.variableName || e.name, isFinal: false, hasValue: true });
+      });
+      [
+        aiData.replyVariable,
+        aiData.buttonsVariable,
+        aiData.rawResultVariable,
+        aiData.confidenceVariable,
+        aiData.reasonVariable,
+        aiData.saveNormalizedIntentTo,
+        aiData.specialTopicVariable,
+      ].filter(Boolean).forEach(varName => {
+        if (varName) defs.add({ name: varName, isFinal: false, hasValue: true });
+      });
       break;
     }
   }
@@ -322,6 +355,11 @@ function getUsesInBlock(block: BlockNode): Set<string> {
     }
     case 'aiExtractor': {
       const aiData = data as AiExtractorBlockData;
+      if (aiData.inputVariable) uses.add(aiData.inputVariable);
+      break;
+    }
+    case 'aiAssistant': {
+      const aiData = data as AiAssistantBlockData;
       if (aiData.inputVariable) uses.add(aiData.inputVariable);
       break;
     }
