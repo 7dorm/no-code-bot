@@ -5,7 +5,7 @@ import Toolbar from './components/Toolbar/Toolbar';
 import SettingsModal from './components/Settings/SettingsModal';
 import Preview from './components/Preview/Preview';
 import PreviewSetupModal from './components/Preview/PreviewSetupModal';
-import ConnectionStatusBadge from './components/Remote/ConnectionStatusBadge';
+import SessionManagerModal from './components/Session/SessionManagerModal';
 import './App.css';
 
 function App() {
@@ -35,7 +35,7 @@ function App() {
     retryRemoteConnection,
     setRemoteParticipantName,
   } = useStore();
-  const [sessionToken, setSessionToken] = useState('');
+  const [isSessionManagerOpen, setIsSessionManagerOpen] = useState(false);
   const [remoteError, setRemoteError] = useState('');
 
   useEffect(() => {
@@ -76,7 +76,7 @@ function App() {
       setRemoteError('');
       const token = await connectRemote(remoteParticipantName);
       if (token) {
-        setSessionToken('');
+        setRemoteError('');
       }
     } catch (error) {
       console.error('Failed to connect:', error);
@@ -89,17 +89,27 @@ function App() {
     disconnectRemote();
   };
 
-  const copyTokenToClipboard = () => {
+  const copyTokenToClipboard = async () => {
     if (remoteSessionToken) {
-      navigator.clipboard.writeText(remoteSessionToken);
+      try {
+        await navigator.clipboard.writeText(remoteSessionToken);
+      } catch (error) {
+        console.error('Failed to copy token:', error);
+        setRemoteError('Не удалось скопировать токен');
+      }
     }
   };
 
-  const handleJoinRemote = async () => {
+  const handleJoinRemote = async (token: string) => {
+    const trimmedToken = token.trim();
+    if (!trimmedToken) {
+      setRemoteError('Введите токен сессии');
+      return;
+    }
+
     try {
       setRemoteError('');
-      await joinRemote(sessionToken, remoteParticipantName);
-      setSessionToken('');
+      await joinRemote(trimmedToken, remoteParticipantName);
     } catch (error) {
       console.error('Failed to join:', error);
       setRemoteError(error instanceof Error ? error.message : 'Не удалось подключиться к совместной сессии');
@@ -113,153 +123,18 @@ function App() {
     } catch (error) {
       console.error('Failed to create preview:', error);
       setRemoteError(error instanceof Error ? error.message : 'Не удалось создать общий предпросмотр');
+      setIsSessionManagerOpen(true);
     }
   };
 
-  const currentParticipants = remoteSessionState?.participants || [];
-  const sessionPreviews = remoteSessionState?.previews || [];
-
   return (
     <div className="app">
-      <div className="remote-controls">
-        <div className="remote-controls-top">
-          <select
-            value={storeType}
-            onChange={(e) => switchStore(e.target.value as 'default' | 'internal')}
-          >
-            <option value="default">Локальный режим</option>
-            <option value="internal">Совместный режим</option>
-          </select>
-
-          {storeType === 'internal' && (
-            <>
-              <input
-                type="text"
-                className="participant-input"
-                value={remoteParticipantName}
-                onChange={(e) => setRemoteParticipantName(e.target.value)}
-                placeholder="Ваше имя в сессии"
-                maxLength={64}
-              />
-              {(isConnected || remoteConnectionStatus !== 'idle') && (
-                <ConnectionStatusBadge
-                  status={remoteConnectionStatus}
-                  attempt={remoteReconnectAttempt}
-                  maxAttempts={remoteReconnectMaxAttempts}
-                  onRetry={() => void retryRemoteConnection().catch(console.error)}
-                />
-              )}
-            </>
-          )}
-        </div>
-
-        {storeType === 'internal' && (
-          <div className="remote-lobby">
-            {remoteError && (
-              <div className="remote-error" role="alert">
-                {remoteError}
-              </div>
-            )}
-            <div className="remote-actions">
-              {!isConnected && (
-                <>
-                  <button onClick={handleConnectRemote}>Создать сессию</button>
-                  <div className="token-input">
-                    <input
-                      type="text"
-                      placeholder="Токен для подключения"
-                      value={sessionToken}
-                      onChange={(e) => setSessionToken(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          void handleJoinRemote();
-                        }
-                      }}
-                    />
-                    <button onClick={() => void handleJoinRemote()}>
-                      Подключиться по токену
-                    </button>
-                  </div>
-                </>
-              )}
-
-              {isConnected && remoteSessionState && (
-                <div className="session-card current-session">
-                  <div className="session-card-header">
-                    <div>
-                      <strong>{remoteSessionState.projectName || 'Совместная сессия'}</strong>
-                      <div className="session-token">
-                        <span>{remoteSessionState.token}</span>
-                        <button onClick={copyTokenToClipboard} className="copy-button">
-                          Копировать токен
-                        </button>
-                      </div>
-                    </div>
-                    <div className="session-badges">
-                      <span className="status-badge active">
-                        Участников: {currentParticipants.length}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="participants-panel">
-                    <div className="participants-title">
-                      Участники ({currentParticipants.length})
-                    </div>
-                    <div className="participants-list">
-                      {currentParticipants.map((participant) => (
-                        <div key={participant.id} className="participant-chip">
-                          <span>{participant.name}</span>
-                          {participant.isOwner && <span className="participant-role">создатель сессии</span>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="previews-panel">
-                    <div className="participants-title">
-                      Preview в этой сессии ({sessionPreviews.length})
-                    </div>
-                    {sessionPreviews.length === 0 ? (
-                      <div className="sessions-empty">
-                        Активных preview пока нет. Любой участник может запустить preview через кнопку «Предпросмотр».
-                      </div>
-                    ) : (
-                      <div className="previews-list">
-                        {sessionPreviews.map((preview) => (
-                          <div key={preview.id} className="preview-card">
-                            <div className="preview-card-main">
-                              <strong>{preview.creatorName}</strong>
-                              <span className="preview-card-meta">
-                                {preview.ownerOnly ? 'Управляет только создатель' : 'Управляют все участники'}
-                              </span>
-                              <span className="preview-card-meta">
-                                {preview.isRunning ? 'Диалог идет' : 'Диалог завершен или еще не начат'}
-                              </span>
-                            </div>
-                            <button onClick={() => openRemotePreview(preview.id)}>
-                              Открыть
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="session-footer">
-                    <span className="session-owner">
-                      Поделитесь токеном сессии, чтобы другие могли подключиться
-                    </span>
-                    <button onClick={handleDisconnect}>Отключиться</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <Toolbar useStore={useStore} />
+      <Toolbar
+        useStore={useStore}
+        storeType={storeType}
+        isRemoteConnected={isConnected}
+        onOpenSessionManager={() => setIsSessionManagerOpen(true)}
+      />
 
       <div className="app-content">
         <EditorWithEditor useStore={useStore} />
@@ -268,6 +143,30 @@ function App() {
           <PreviewSetupModal
             onConfirm={(ownerOnly) => void handleCreatePreview(ownerOnly)}
             onCancel={() => useStore.setState({ previewSetupPending: false })}
+          />
+        )}
+        {isSessionManagerOpen && (
+          <SessionManagerModal
+            currentProjectName={currentProject?.name}
+            storeType={storeType}
+            switchStore={switchStore}
+            remoteError={remoteError}
+            onClearRemoteError={() => setRemoteError('')}
+            onClose={() => setIsSessionManagerOpen(false)}
+            onConnectRemote={() => void handleConnectRemote()}
+            onJoinRemote={(token) => void handleJoinRemote(token)}
+            onDisconnectRemote={handleDisconnect}
+            onCopyToken={() => void copyTokenToClipboard()}
+            onOpenRemotePreview={openRemotePreview}
+            isConnected={isConnected}
+            remoteConnectionStatus={remoteConnectionStatus}
+            remoteReconnectAttempt={remoteReconnectAttempt}
+            remoteReconnectMaxAttempts={remoteReconnectMaxAttempts}
+            remoteParticipantName={remoteParticipantName}
+            remoteSessionState={remoteSessionState}
+            remoteSessionToken={remoteSessionToken}
+            retryRemoteConnection={() => void retryRemoteConnection().catch(console.error)}
+            setRemoteParticipantName={setRemoteParticipantName}
           />
         )}
         {isPreviewMode && (

@@ -38,7 +38,7 @@ fi
 echo "Подтягиваем зависимости remote-serv..."
 go mod download
 echo "Запускаем remote-serv на порту 8080..."
-ENGINE_MANAGER_URL=http://localhost:3004 go run . &
+ENGINE_MANAGER_URL=http://localhost:4004 go run . &
 REMOTE_PID=$!
 
 sleep 2

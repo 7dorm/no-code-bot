@@ -1,13 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { EditorState } from '../../store/useEditorStore';
+import type { EditorStoreType } from '../../store/useEditorStoreSwitcher';
 import ExportModal from '../Export/ExportModal';
 import './Toolbar.css';
 
 interface ToolbarProps {
   useStore: () => EditorState;
+  storeType: EditorStoreType;
+  isRemoteConnected: boolean;
+  onOpenSessionManager: () => void;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ useStore }) => {
+const Toolbar: React.FC<ToolbarProps> = ({
+  useStore,
+  storeType,
+  isRemoteConnected,
+  onOpenSessionManager,
+}) => {
   const {
     currentProject,
     createProject,
@@ -97,6 +106,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ useStore }) => {
     input.click();
   };
 
+  const sessionStateLabel = storeType === 'internal'
+    ? isRemoteConnected ? 'совместная сессия активна' : 'совместная сессия'
+    : 'локальная сессия';
+
 
   return (
     <div className="toolbar">
@@ -137,6 +150,18 @@ const Toolbar: React.FC<ToolbarProps> = ({ useStore }) => {
       </div>
 
       <div className="toolbar-right">
+        <button
+          className="toolbar-btn session-toolbar-btn"
+          onClick={onOpenSessionManager}
+          title={`Управление сессией: ${sessionStateLabel}`}
+          aria-label={`Управление сессией: ${sessionStateLabel}`}
+        >
+          <span
+            className={`session-toolbar-dot session-toolbar-dot--${storeType === 'internal' && isRemoteConnected ? 'active' : 'idle'}`}
+            aria-hidden="true"
+          />
+          Сессия
+        </button>
         <button className="toolbar-btn" onClick={undo}>
           ↶ Отменить
         </button>

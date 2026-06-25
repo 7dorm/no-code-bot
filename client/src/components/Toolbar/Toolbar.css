@@ -2,6 +2,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   padding: 10px 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -12,11 +13,13 @@
 .toolbar-left,
 .toolbar-right {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
 .toolbar-center {
   flex: 1;
+  min-width: 180px;
   text-align: center;
 }
 
@@ -68,6 +71,24 @@
   transform: translateY(-1px);
 }
 
+.session-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.session-toolbar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.session-toolbar-dot--active {
+  background: #41f08f;
+  box-shadow: 0 0 0 3px rgba(65, 240, 143, 0.18);
+}
+
 .preview-btn {
   background: rgba(76, 175, 80, 0.8);
   border-color: rgba(76, 175, 80, 1);
@@ -75,4 +96,21 @@
 
 .preview-btn:hover {
   background: rgba(76, 175, 80, 1);
+}
+
+@media (max-width: 980px) {
+  .toolbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .toolbar-center {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    flex: 1;
+  }
 }

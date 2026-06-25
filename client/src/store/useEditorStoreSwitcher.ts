@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useEditorStore } from './useEditorStore';
 import { useEditorStoreWithInternal } from './useEditorStoreWithInternal';
 
-type EditorStoreType = 'default' | 'internal';
+export type EditorStoreType = 'default' | 'internal';
 
 export const useEditorStoreSwitcher = () => {
   const [storeType, setStoreType] = useState<EditorStoreType>('default');
