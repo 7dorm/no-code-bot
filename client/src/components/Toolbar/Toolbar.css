@@ -12,13 +12,15 @@
 
 .toolbar-left,
 .toolbar-right {
+  flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
 }
 
 .toolbar-center {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 180px;
   text-align: center;
 }
@@ -111,6 +113,6 @@
 
   .toolbar-left,
   .toolbar-right {
-    flex: 1;
+    flex: 1 1 auto;
   }
 }
